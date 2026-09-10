@@ -1,0 +1,32 @@
+# Course knowledge store
+
+Planning repo for a per-course knowledge store: students ask questions scoped to a course and get cited answers from official materials plus their own notes. Docs only, no code yet; everything is draft pending the Cognee spike go/no-go (10 Sep 2026).
+
+## Vocabulary
+
+Read [CONTEXT.md](./CONTEXT.md) before writing anything. Use its terms verbatim, including the _Avoid_ lists (say Material, not document; Cognify, not index). CONTEXT.md is a glossary and nothing else; implementation detail goes in the wiki.
+
+## Doc map
+
+- [docs/wiki/architecture.md](./docs/wiki/architecture.md) is the entry point: the one-page view, linking into topic pages (components, data model, flows, security, operations, backlog).
+- [docs/adr/](./docs/adr/) holds settled decisions with rationale. Flat, sequentially numbered `NNNN-slug.md`; scan for the highest number and increment.
+- [docs/wiki/backlog.md](./docs/wiki/backlog.md) holds decisions deliberately left open and the spike questions that close them. Check it before proposing a change to the graph store or deployment shape; some "obvious fixes" are deferred on purpose.
+- [docs/research/](./docs/research/) holds point-in-time research. Do not update it; supersede it with a new dated file.
+
+## Recording decisions
+
+Write an ADR only when all three hold: hard to reverse, surprising without context, the result of a real trade-off. One to three sentences is a complete ADR; add Considered Options or Consequences only when they earn it. Full format: [.agents/skills/domain-modeling/ADR-FORMAT.md](./.agents/skills/domain-modeling/ADR-FORMAT.md).
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues at [xplus2g4/Lattice](https://github.com/xplus2g4/Lattice) via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Default vocabulary: the five canonical labels, unchanged. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context: `CONTEXT.md` at the root plus `docs/adr/`. See `docs/agents/domain.md`.
