@@ -34,7 +34,7 @@ A three-container monolith (web / api / worker) plus Postgres and Caddy on one G
 
 ## Stack
 
-TanStack Start (React, TanStack Router + Query, Nitro) · FastAPI (Python 3.12) · Cognee (pinned) · Postgres 16 + pgvector · Kuzu (embedded) · GCS · Caddy · docker compose · GitHub Actions.
+TanStack Start (React, TanStack Router + Query, Nitro) · FastAPI (Python 3.14, uv) · Cognee (pinned) · Postgres 16 + pgvector · Kuzu (embedded) · GCS · Caddy · docker compose · GitHub Actions.
 
 ## Load-bearing decisions
 
