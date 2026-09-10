@@ -21,7 +21,7 @@ Students ask questions scoped to a course and get grounded, cited answers drawn 
 
 ```mermaid
 flowchart LR
-  B["Browser<br/>Next.js"] --> A["API<br/>FastAPI · auth/RBAC · /ask"]
+  B["Browser<br/>TanStack Start"] --> A["API<br/>FastAPI · auth/RBAC · /ask"]
   A --> K["Knowledge engine<br/>Cognee, in-process library"]
   A --> P[("Postgres<br/>app state · vectors · job queue")]
   W["Worker<br/>same image, queue consumer"] --> K
@@ -34,7 +34,7 @@ A three-container monolith (web / api / worker) plus Postgres and Caddy on one G
 
 ## Stack
 
-Next.js · FastAPI (Python 3.12) · Cognee (pinned) · Postgres 16 + pgvector · Kuzu (embedded) · GCS · Caddy · docker compose · GitHub Actions.
+TanStack Start (React, TanStack Router + Query, Nitro) · FastAPI (Python 3.12) · Cognee (pinned) · Postgres 16 + pgvector · Kuzu (embedded) · GCS · Caddy · docker compose · GitHub Actions.
 
 ## Load-bearing decisions
 

@@ -7,7 +7,7 @@ What runs, what each piece owns, and who talks to whom. The one-page view is [ar
 ```mermaid
 flowchart LR
   subgraph client["Browser"]
-    web["Web app (Next.js)"]
+    web["Web app (TanStack Start)"]
   end
 
   subgraph vm["GCP VM · docker compose"]
@@ -51,7 +51,7 @@ The API is the only component that knows about users. Cognee sits behind the API
 
 | Component | Runs as | Owns | Talks to | Does not |
 |---|---|---|---|---|
-| **Web app** (Next.js) | `web` container | UI, session cookie, streaming render, analytics events, landing page | API, OAuth provider, analytics | Call Cognee or the LLM directly |
+| **Web app** (TanStack Start, in [`app/`](../../app/)) | `web` container | UI, session cookie, streaming render, analytics events, landing page | API, OAuth provider, analytics | Call Cognee or the LLM directly |
 | **API** (FastAPI) | `api` container | Auth verification, RBAC, course/enrolment/material/session records, the `/ask` pipeline, answer validation, rate limits, response cache | Postgres, Cognee (in-process), LLM API, GCS, job queue | Run cognify inline (always via Worker) |
 | **Worker** | `worker` container, same image as API | Executes ingest jobs: fetch file, optional pre-convert, `cognee.add`, `cognee.cognify`; updates material status and token cost | GCS, Cognee, Postgres | Serve HTTP |
 | **Cognee** | Python library imported by API and Worker, pinned version | Chunking, entity/relation extraction, embeddings, vector and graph storage, dataset-scoped permissions, `search()` | Postgres (relational + pgvector), Kuzu, LLM API, embeddings API | Know about app users beyond its own principal ids |
