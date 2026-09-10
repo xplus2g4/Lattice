@@ -52,8 +52,8 @@ The API is the only component that knows about users. Cognee sits behind the API
 | Component | Runs as | Owns | Talks to | Does not |
 |---|---|---|---|---|
 | **Web app** (TanStack Start, in [`app/`](../../app/)) | `web` container | UI, session cookie, streaming render, analytics events, landing page | API, OAuth provider, analytics | Call Cognee or the LLM directly |
-| **API** (FastAPI) | `api` container | Auth verification, RBAC, course/enrolment/material/session records, the `/ask` pipeline, answer validation, rate limits, response cache | Postgres, Cognee (in-process), LLM API, GCS, job queue | Run cognify inline (always via Worker) |
-| **Worker** | `worker` container, same image as API | Executes ingest jobs: fetch file, optional pre-convert, `cognee.add`, `cognee.cognify`; updates material status and token cost | GCS, Cognee, Postgres | Serve HTTP |
+| **API** (FastAPI, in [`server/`](../../server/)) | `api` container | Auth verification, RBAC, course/enrolment/material/session records, the `/ask` pipeline, answer validation, rate limits, response cache | Postgres, Cognee (in-process), LLM API, GCS, job queue | Run cognify inline (always via Worker) |
+| **Worker** | `worker` container, same image as API (`server/`) | Executes ingest jobs: fetch file, optional pre-convert, `cognee.add`, `cognee.cognify`; updates material status and token cost | GCS, Cognee, Postgres | Serve HTTP |
 | **Cognee** | Python library imported by API and Worker, pinned version | Chunking, entity/relation extraction, embeddings, vector and graph storage, dataset-scoped permissions, `search()` | Postgres (relational + pgvector), Kuzu, LLM API, embeddings API | Know about app users beyond its own principal ids |
 | **Postgres** | `postgres` container with `pgvector` | App tables ([data-model.md](./data-model.md)), Cognee relational tables, Cognee vector collections, job queue | — | Store the graph (Kuzu does; Postgres-as-graph in Cognee is a paid feature) |
 | **Kuzu** | Embedded file DB on a named volume | The knowledge graph per dataset | Cognee only | — |

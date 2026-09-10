@@ -1,0 +1,35 @@
+[project]
+name = "lattice"
+version = "0.0.0"
+description = "Course knowledge store backend: API and Worker."
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi",
+    "pydantic-settings",
+    "uvicorn",
+]
+
+[dependency-groups]
+dev = [
+    "httpx",
+    "pytest",
+    "ruff",
+]
+
+[build-system]
+requires = ["uv_build"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "lattice"
+module-root = ""
+
+[tool.ruff]
+line-length = 100
+target-version = "py314"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
