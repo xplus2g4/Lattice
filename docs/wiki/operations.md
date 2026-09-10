@@ -8,7 +8,7 @@ Single GCP VM, `docker compose`:
 
 ```
 caddy      :443 → web:3000, api:8000            TLS, one domain
-web        Next.js
+web        TanStack Start (Nitro node server, `node .output/server/index.mjs`)
 api        FastAPI + cognee (library)             env: DATABASE_URL, LLM_*, EMBEDDING_*, GCS_*, COGNEE_*
 worker     same image, `python -m app.worker`
 postgres   pgvector image, volume pgdata
@@ -28,7 +28,7 @@ Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The job queue is a Pos
 
 ## Pins
 
-`cognee==<spike-validated>`, `kuzu==<matching>`, Postgres 16 + pgvector, Python 3.12, Node 22. Bumping Cognee is a deliberate change with the canary tests as the gate.
+`cognee==<spike-validated>`, `kuzu==<matching>`, Postgres 16 + pgvector, Python 3.12, Node 26. Bumping Cognee is a deliberate change with the canary tests as the gate.
 
 ## Failure modes
 
