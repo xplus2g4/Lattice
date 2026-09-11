@@ -1,6 +1,6 @@
 # Architecture
 
-Course knowledge store, Stage 1 (Cognee-backed). Status: draft, pending the spike go/no-go of 10 Sep 2026.
+Course knowledge store, Stage 1 (Cognee-backed). Status: draft, pending the go/no-go of 10 Sep 2026.
 
 This is the one-page view: what the system does, its shape, and the decisions that hold it up. Detail lives in the topic pages:
 
@@ -9,7 +9,7 @@ This is the one-page view: what the system does, its shape, and the decisions th
 - [flows.md](./flows.md): enrol, ingest, notes, ask, related concepts
 - [security.md](./security.md): trust boundaries, isolation, injection defense
 - [operations.md](./operations.md): deployment, CI, backups, failure modes
-- [backlog.md](./backlog.md): deferred decisions and open spike questions
+- [backlog.md](./backlog.md): deferred decisions and open backlog issues
 
 Settled decisions with their rationale are ADRs in [`docs/adr/`](../adr/).
 

@@ -1,14 +1,24 @@
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from lattice.api import health
+from lattice.api import ask, health, materials, notes
 from lattice.config import Settings, get_settings
+from lattice.engine import Engine
+from lattice.registry import Registry
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    engine = Engine(settings)
 
-    app = FastAPI(title="Lattice API")
+    @asynccontextmanager
+    async def lifespan(_: FastAPI):
+        await engine.start()
+        yield
+
+    app = FastAPI(title="Lattice API", lifespan=lifespan)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -16,7 +26,10 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-    app.include_router(health.router)
+    app.state.engine = engine
+    app.state.registry = Registry()
+    for router in (health.router, materials.router, notes.router, ask.router):
+        app.include_router(router)
     return app
 
 

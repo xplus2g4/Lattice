@@ -50,7 +50,7 @@ POST /ask {course, session_id, question}
   9. persist turn (cited_chunk_ids, cost, latency); stream answer_md to client; send citations + related as a trailing frame
 ```
 
-If the spike shows cross-dataset `search()` does not honour permissions the way the docs describe, step 5 becomes two calls (global, then private) merged in the API, switched by `ASK_TWO_CALL_MODE=1`. The contract of `/ask` is unchanged.
+If the backlog issue on cross-dataset search shows that cross-dataset `search()` does not honour permissions the way the docs describe, step 5 becomes two calls (global, then private) merged in the API, switched by `ASK_TWO_CALL_MODE=1`. The contract of `/ask` is unchanged.
 
 ## Ask with related concepts (Phase 2)
 

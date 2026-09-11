@@ -1,6 +1,6 @@
 # Course knowledge store
 
-Planning repo for a per-course knowledge store: students ask questions scoped to a course and get cited answers from official materials plus their own notes. Docs only, no code yet; everything is draft pending the Cognee spike go/no-go (10 Sep 2026).
+Per-course knowledge store: students ask questions scoped to a course and get cited answers from official materials plus their own notes. `server/` (FastAPI + Cognee) and `app/` (TanStack Start) hold a first runnable cut; the wiki is still draft pending the Cognee go/no-go (10 Sep 2026).
 
 ## Vocabulary
 
@@ -10,7 +10,7 @@ Read [CONTEXT.md](./CONTEXT.md) before writing anything. Use its terms verbatim,
 
 - [docs/wiki/architecture.md](./docs/wiki/architecture.md) is the entry point: the one-page view, linking into topic pages (components, data model, flows, security, operations, backlog).
 - [docs/adr/](./docs/adr/) holds settled decisions with rationale. Flat, sequentially numbered `NNNN-slug.md`; scan for the highest number and increment.
-- [docs/wiki/backlog.md](./docs/wiki/backlog.md) holds decisions deliberately left open and the spike questions that close them. Check it before proposing a change to the graph store or deployment shape; some "obvious fixes" are deferred on purpose.
+- [docs/wiki/backlog.md](./docs/wiki/backlog.md) holds decisions deliberately left open and the backlog issues that close them. Check it before proposing a change to the graph store or deployment shape; some "obvious fixes" are deferred on purpose.
 - [docs/research/](./docs/research/) holds point-in-time research. Do not update it; supersede it with a new dated file.
 
 ## Recording decisions

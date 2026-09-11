@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -7,11 +8,24 @@ class Settings(BaseSettings):
     """Process configuration, read from the environment (and `.env` in dev).
 
     Shared by the API and the Worker; both run from the same image with the same env.
+    Cognee reads its own `LLM_*`, `EMBEDDING_*` and storage variables from the same `.env`;
+    those are deliberately not mirrored here.
     """
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     cors_origins: list[str] = ["http://localhost:3000"]
+
+    # Honour the `X-User` header as the caller's identity. Dev only; there is no OAuth yet.
+    dev_header_auth: bool = False
+
+    # Principal that owns every course's global dataset and runs material ingest.
+    instructor_email: str = "instructor@lattice.example"
+
+    # Where Cognee keeps its embedded databases and where uploaded files land.
+    cognee_root: Path = Path(".cognee")
+    uploads_dir: Path = Path("data/uploads")
+    max_upload_mb: int = 25
 
 
 @lru_cache

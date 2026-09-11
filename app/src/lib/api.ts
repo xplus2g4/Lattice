@@ -1,0 +1,181 @@
+const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+
+export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
+
+export type QueryType =
+  'GRAPH_COMPLETION' | 'RAG_COMPLETION' | 'HYBRID_COMPLETION' | 'CHUNKS'
+
+export const QUERY_TYPES: ReadonlyArray<QueryType> = [
+  'GRAPH_COMPLETION',
+  'RAG_COMPLETION',
+  'HYBRID_COMPLETION',
+  'CHUNKS',
+]
+
+export interface Material {
+  course: string
+  filename: string
+  status: IngestStatus
+  error: string | null
+  created_at: string
+  updated_at: string
+}
+
+export interface Note {
+  course: string
+  owner: string
+  id: string
+  body_md: string
+  status: IngestStatus
+  error: string | null
+  updated_at: string
+}
+
+export interface Evidence {
+  kind: string
+  dataset_id: string | null
+  data_id: string | null
+  chunk_id: string | null
+  chunk_index: number | null
+  document_name: string | null
+  label: string | null
+  relationship_name: string | null
+}
+
+export interface TierResult {
+  tier: 'course' | 'notes'
+  dataset_name: string
+  answer: string | null
+  evidence: Array<Evidence>
+}
+
+export interface Turn {
+  id?: string
+  role: 'user' | 'assistant'
+  content: string
+  query_type: string | null
+  results: Array<TierResult>
+  used_notes: boolean
+  latency_ms: number | null
+  created_at: string
+}
+
+export interface Session {
+  id: string
+  course: string
+  owner: string
+  turns: Array<Turn>
+  created_at: string
+}
+
+export interface AskRequest {
+  question: string
+  query_type: QueryType
+  session_id?: string | null
+}
+
+export interface AskResponse {
+  session_id: string
+  turn: Turn
+}
+
+/** Non-2xx response; `message` is the server's `detail`. */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    detail: string,
+  ) {
+    super(detail)
+    this.name = 'ApiError'
+  }
+}
+
+interface ValidationError {
+  loc: Array<string | number>
+  msg: string
+}
+
+function formatDetail(status: number, statusText: string, body: unknown) {
+  const detail =
+    body && typeof body === 'object' && 'detail' in body ? body.detail : body
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) {
+    return (detail as Array<ValidationError>)
+      .map((e) => `${e.loc.join('.')}: ${e.msg}`)
+      .join('; ')
+  }
+  return `${status} ${statusText}`
+}
+
+async function request<T>(
+  user: string,
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
+  const headers = new Headers(init.headers)
+  headers.set('X-User', user)
+  const res = await fetch(`${API_URL}${path}`, { ...init, headers })
+  const text = await res.text()
+  let body: unknown = text
+  try {
+    body = text ? JSON.parse(text) : null
+  } catch {
+    // non-JSON body; keep the raw text
+  }
+  if (!res.ok) {
+    throw new ApiError(
+      res.status,
+      formatDetail(res.status, res.statusText, body),
+    )
+  }
+  return body as T
+}
+
+function json(method: string, payload: unknown): RequestInit {
+  return {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  }
+}
+
+export function listMaterials(user: string, course: string) {
+  return request<Array<Material>>(user, `/courses/${course}/materials`)
+}
+
+export function uploadMaterial(user: string, course: string, file: File) {
+  const form = new FormData()
+  form.append('file', file)
+  return request<Material>(user, `/courses/${course}/materials`, {
+    method: 'POST',
+    body: form,
+  })
+}
+
+export function listNotes(user: string, course: string) {
+  return request<Array<Note>>(user, `/courses/${course}/notes`)
+}
+
+export function saveNote(
+  user: string,
+  course: string,
+  id: string,
+  body_md: string,
+) {
+  return request<Note>(
+    user,
+    `/courses/${course}/notes/${encodeURIComponent(id)}`,
+    json('PUT', { body_md }),
+  )
+}
+
+export function ask(user: string, course: string, req: AskRequest) {
+  return request<AskResponse>(user, `/courses/${course}/ask`, json('POST', req))
+}
+
+export function getSession(user: string, course: string, id: string) {
+  return request<Session>(
+    user,
+    `/courses/${course}/sessions/${encodeURIComponent(id)}`,
+  )
+}
