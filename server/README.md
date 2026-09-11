@@ -2,6 +2,8 @@
 
 Backend (API and Worker) for the course knowledge store. Python 3.14, FastAPI, Cognee 1.5.4 in-process, managed with [uv](https://docs.astral.sh/uv/).
 
+First time on a machine: `scripts/dev-setup.sh` from the repo root walks through tooling, dependencies, the DeepSeek key, ports and the embedding model for both `server/` and `app/`. By hand:
+
 ```sh
 uv sync                                   # installs Python 3.14 and dependencies into .venv
 cp .env.example .env                      # then set LLM_API_KEY (DeepSeek)
