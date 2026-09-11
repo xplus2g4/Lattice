@@ -28,7 +28,7 @@ Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The job queue is a Pos
 
 ## Pins
 
-`cognee==<spike-validated>`, `kuzu==<matching>`, Postgres 16 + pgvector, Python 3.14, Node 26. Bumping Cognee is a deliberate change with the canary tests as the gate.
+`cognee==<validated>`, `kuzu==<matching>`, Postgres 16 + pgvector, Python 3.14, Node 26. Bumping Cognee is a deliberate change with the canary tests as the gate.
 
 ## Failure modes
 

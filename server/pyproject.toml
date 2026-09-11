@@ -4,6 +4,7 @@ version = "0.0.0"
 description = "Course knowledge store backend: API and Worker."
 requires-python = ">=3.14"
 dependencies = [
+    "cognee[fastembed]==1.5.4",
     "fastapi",
     "pydantic-settings",
     "uvicorn",

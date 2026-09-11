@@ -2,6 +2,8 @@
 
 The browser-facing component of the course knowledge store: TanStack Start (React, file-based routing, SSR) with TanStack Query for talking to the API. Architecture and ownership are in [`docs/wiki/components.md`](../docs/wiki/components.md).
 
+First time on a machine: `scripts/dev-setup.sh` from the repo root sets up both `app/` and `server/`, including `app/.env` (`VITE_API_URL`, where the API listens). By hand:
+
 ```bash
 npm install
 npm run dev        # http://localhost:3000

@@ -53,7 +53,7 @@ edges:
   Chunk    mentions         Concept
 ```
 
-Whether this is expressed as OWL/RDF or as Cognee's Pydantic graph model is decided in the spike ([backlog.md](./backlog.md)); the API only depends on the edge names above. The ontology is per course and versioned with the course (`courses.ontology_version`, added when it exists).
+Whether this is expressed as OWL/RDF or as Cognee's Pydantic graph model is an open backlog issue ([backlog.md](./backlog.md)); the API only depends on the edge names above. The ontology is per course and versioned with the course (`courses.ontology_version`, added when it exists).
 
 ## Chunk provenance
 
