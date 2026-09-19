@@ -11,7 +11,7 @@ This is the first runnable cut, built to answer the open questions before the Co
 | Path | What it is |
 |---|---|
 | `server/` | The API. FastAPI on Python 3.14, managed with uv. `lattice/engine.py` is the only module that imports Cognee. |
-| `app/` | The web app. TanStack Start, React 19, Tailwind. One route. |
+| `app/` | The web app. TanStack Start, React 19, Tailwind. A course picker and a per-course page. |
 | `docs/wiki/` | Architecture, components, data model, flows, security, operations. Start at [architecture.md](docs/wiki/architecture.md). |
 | `docs/adr/` | Settled decisions and why. |
 | `docs/research/` | Dated findings. [cognee-1.5.4-first-cut-findings.md](docs/research/cognee-1.5.4-first-cut-findings.md) is what the live run showed. |
@@ -45,7 +45,7 @@ npm run dev                  # http://localhost:3000
 
 If port 8000 is taken, start uvicorn with `--port 8010` and put `VITE_API_URL=http://localhost:8010` in `app/.env`.
 
-Then open the web app. Course code and user email sit at the top; the defaults `cs101` and `alice@example.com` are fine. Upload a `.pdf`, `.pptx`, `.md` or `.txt`. Its status goes `queued`, `cognifying`, `ready`. Cognify is the slow, expensive step, where DeepSeek extracts entities and relations; a page of text takes 10 to 50 seconds. Save a note. Ask something. The answer comes back in two labelled blocks, one per tier, each with the chunks and graph nodes it drew on. Change the email to `bob@example.com` and ask again. The notes block is gone.
+Then open the web app. Enter a course code on the landing page, `cs101` will do, which takes you to `/courses/cs101`; the user email sits in the header there and the default `alice@example.com` is fine. Upload a `.pdf`, `.pptx`, `.md` or `.txt`. Its status goes `queued`, `cognifying`, `ready`. Cognify is the slow, expensive step, where DeepSeek extracts entities and relations; a page of text takes 10 to 50 seconds. Save a note. Ask something. The answer comes back in two labelled blocks, one per tier, each with the chunks and graph nodes it drew on. Change the email to `bob@example.com` and ask again. The notes block is gone.
 
 Things that will surprise you the first time:
 
@@ -59,6 +59,17 @@ Checks before a PR:
 cd server && uv run ruff check . && uv run ruff format . && uv run pytest
 cd app && npm run typecheck && npm run lint && npm run check
 ```
+
+## Frontend
+
+The web app is scoped by URL. `/` is a course picker: type a code matching `^[a-z][a-z0-9]{1,15}$` and it opens `/courses/{code}`. Codes you have opened before are listed as links, kept in `localStorage` under `lattice.courses`. There is no course list from the API yet, so that list is per-browser.
+
+`/courses/{code}` is the working page: Materials, Notes and Ask, one section each, all scoped to the code in the URL. The user email sits in the header and goes out as the `X-User` header, which is the dev-only identity the API accepts while OAuth is unbuilt. Layout and conventions are in [app/README.md](app/README.md).
+
+Two things worth knowing before editing it:
+
+- Materials and Notes poll every 2s while anything is `queued` or `cognifying`, and stop once everything is `ready` or `failed`. Cognify is slow, so expect the poll to run for a while after an upload.
+- The session id is stored per course and user under `lattice.session.{course}.{user}`. Changing the email in the header switches to that user's session rather than carrying the current one over.
 
 ## Reading order
 

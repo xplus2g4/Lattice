@@ -15,9 +15,20 @@ Other scripts: `typecheck`, `lint`, `format`, `check` (prettier), `generate-rout
 
 ## Layout
 
-- `src/routes/` — file-based routes; `__root.tsx` is the document shell.
-- `src/router.tsx` — router construction and the Query/SSR integration.
-- `src/integrations/tanstack-query/` — `QueryClient` context and devtools panel.
-- `src/styles.css` — Tailwind entry.
+| Path                                                   | What it holds                                                                                |
+| ------------------------------------------------------ | -------------------------------------------------------------------------------------------- |
+| `src/routes/index.tsx`                                 | Course picker at `/`.                                                                        |
+| `src/routes/courses/$course.tsx`                       | Per-course page; owns the user email and composes the three sections.                        |
+| `src/routes/__root.tsx`                                | The document shell.                                                                          |
+| `src/components/materials.tsx`, `notes.tsx`, `ask.tsx` | One section each. Each takes `{ course, user }` and owns its own queries.                    |
+| `src/components/common.tsx`                            | `ErrorLine`, `StatusBadge`, `pollWhilePending`, shared class strings, the `Scope` prop type. |
+| `src/lib/api.ts`                                       | The typed client. The only module that knows the API shape.                                  |
+| `src/lib/storage.ts`                                   | `useStored`, localStorage as an external store so SSR renders the fallback.                  |
+| `src/lib/course.ts`                                    | Course-code regex and the recent-courses list.                                               |
+| `src/router.tsx`                                       | Router construction and the Query/SSR integration.                                           |
+| `src/integrations/tanstack-query/`                     | `QueryClient` context and devtools panel.                                                    |
+| `src/styles.css`                                       | Tailwind entry.                                                                              |
 
 Import from `src/` with the `#/` alias.
+
+Course scope lives in the URL, not in state: a section gets its course from the route param via the page, never from `localStorage`. What is stored is the user email (`lattice.user`), the recent-course list (`lattice.courses`), and one session id per course and user (`lattice.session.{course}.{user}`). Read and write all of them through `useStored` so the SSR fallback and the cross-tab `storage` event keep working.
