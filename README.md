@@ -53,6 +53,7 @@ Things that will surprise you the first time:
 - The materials and notes lists live in API memory. Restart the API and they vanish, though everything stays searchable and re-uploading the same file is a no-op.
 - The model name in `.env.example` is `openai/deepseek-v4-flash`, not `deepseek/...`. DeepSeek currently rejects the `json_schema` response format that Cognee's default path sends; the `openai/` prefix routes Cognee to its prompted-JSON fallback. Don't "fix" it.
 - `CHUNKS` in the query-type dropdown skips the LLM and returns raw chunks. Useful for checking what retrieval found before blaming the model.
+- On Windows, a material can sit at `cognifying` and then fail with a LanceDB `failed to persist temp file` error. That is `MAX_PATH`, not Cognee: the embedded stores nest about 185 characters below `COGNEE_ROOT`, so a checkout more than ~75 characters deep crosses 260. Enable long path support (`LongPathsEnabled`, admin, then reboot) or keep the checkout shallow, say `C:\dev\Lattice`. It is a per-machine registry setting, so it does not come with the clone and each Windows machine needs it; `scripts/dev-setup.sh` checks and tells you which case you are in.
 
 Checks before a PR, the same ones CI runs:
 
