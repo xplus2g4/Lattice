@@ -12,6 +12,7 @@ This is the first runnable cut, built to answer the open questions before the Co
 |---|---|
 | `server/` | The API. FastAPI on Python 3.14, managed with uv. `lattice/engine.py` is the only module that imports Cognee. |
 | `app/` | The web app. TanStack Start, React 19, Tailwind. A course picker and a per-course page. |
+| `contracts/` | `openapi.json`, the frozen API contract. Generated from the API, and the web app's types are generated from it. Never edited by hand. |
 | `docs/wiki/` | Architecture, components, data model, flows, security, operations. Start at [architecture.md](docs/wiki/architecture.md). |
 | `docs/adr/` | Settled decisions and why. |
 | `docs/research/` | Dated findings. [cognee-1.5.4-first-cut-findings.md](docs/research/cognee-1.5.4-first-cut-findings.md) is what the live run showed. |
@@ -53,11 +54,21 @@ Things that will surprise you the first time:
 - The model name in `.env.example` is `openai/deepseek-v4-flash`, not `deepseek/...`. DeepSeek currently rejects the `json_schema` response format that Cognee's default path sends; the `openai/` prefix routes Cognee to its prompted-JSON fallback. Don't "fix" it.
 - `CHUNKS` in the query-type dropdown skips the LLM and returns raw chunks. Useful for checking what retrieval found before blaming the model.
 
-Checks before a PR:
+Checks before a PR, the same ones CI runs:
 
 ```sh
 cd server && uv run ruff check . && uv run ruff format . && uv run pytest
-cd app && npm run typecheck && npm run lint && npm run check
+cd server && uv run python scripts/export_openapi.py --check
+cd app && npm run check-api && npm run typecheck && npm run lint && npm run check
+```
+
+If you changed a response model, the two `--check`s will fail until you regenerate. That is
+the point: the web app's types come from the contract, so nothing can change on one side
+only ([ADR 0005](docs/adr/0005-generated-openapi-contract.md)).
+
+```sh
+cd server && uv run python scripts/export_openapi.py   # contracts/openapi.json
+cd app && npm run generate-api                         # app/src/lib/generated/
 ```
 
 ## Frontend

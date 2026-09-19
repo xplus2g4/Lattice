@@ -1,0 +1,938 @@
+{
+  "components": {
+    "schemas": {
+      "AskRequest": {
+        "properties": {
+          "query_type": {
+            "default": "GRAPH_COMPLETION",
+            "enum": [
+              "GRAPH_COMPLETION",
+              "RAG_COMPLETION",
+              "HYBRID_COMPLETION",
+              "CHUNKS"
+            ],
+            "title": "Query Type",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "required": [
+          "question"
+        ],
+        "title": "AskRequest",
+        "type": "object"
+      },
+      "AskResponse": {
+        "properties": {
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "turn": {
+            "$ref": "#/components/schemas/Turn"
+          }
+        },
+        "required": [
+          "session_id",
+          "turn"
+        ],
+        "title": "AskResponse",
+        "type": "object"
+      },
+      "Body_upload_material_courses__course__materials_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_upload_material_courses__course__materials_post",
+        "type": "object"
+      },
+      "Evidence": {
+        "description": "A Cognee `EvidenceReference`, normalised so every field is present, possibly null.\n\nWhich fields Cognee populates depends on `kind` (`segment`, `graph_node`, `graph_edge`),\nso the incoming dict is sparse; the contract is not.",
+        "properties": {
+          "chunk_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id"
+          },
+          "chunk_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Index"
+          },
+          "data_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Id"
+          },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id"
+          },
+          "document_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Name"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "relationship_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship Name"
+          }
+        },
+        "required": [
+          "kind",
+          "dataset_id",
+          "data_id",
+          "chunk_id",
+          "chunk_index",
+          "document_name",
+          "label",
+          "relationship_name"
+        ],
+        "title": "Evidence",
+        "type": "object"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "Material": {
+        "properties": {
+          "course": {
+            "title": "Course",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "filename": {
+            "title": "Filename",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "cognifying",
+              "ready",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "course",
+          "filename",
+          "status",
+          "error",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "Material",
+        "type": "object"
+      },
+      "Note": {
+        "properties": {
+          "body_md": {
+            "title": "Body Md",
+            "type": "string"
+          },
+          "course": {
+            "title": "Course",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "queued",
+              "cognifying",
+              "ready",
+              "failed"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "course",
+          "owner",
+          "id",
+          "body_md",
+          "status",
+          "error",
+          "updated_at"
+        ],
+        "title": "Note",
+        "type": "object"
+      },
+      "NoteBody": {
+        "properties": {
+          "body_md": {
+            "maxLength": 50000,
+            "minLength": 1,
+            "title": "Body Md",
+            "type": "string"
+          }
+        },
+        "required": [
+          "body_md"
+        ],
+        "title": "NoteBody",
+        "type": "object"
+      },
+      "Session": {
+        "properties": {
+          "course": {
+            "title": "Course",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "turns": {
+            "items": {
+              "$ref": "#/components/schemas/Turn"
+            },
+            "title": "Turns",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "course",
+          "owner",
+          "turns",
+          "created_at"
+        ],
+        "title": "Session",
+        "type": "object"
+      },
+      "TierResult": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "dataset_name": {
+            "title": "Dataset Name",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "tier": {
+            "enum": [
+              "course",
+              "notes"
+            ],
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tier",
+          "dataset_name",
+          "answer",
+          "evidence"
+        ],
+        "title": "TierResult",
+        "type": "object"
+      },
+      "Turn": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "query_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Query Type"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TierResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "role": {
+            "enum": [
+              "user",
+              "assistant"
+            ],
+            "title": "Role",
+            "type": "string"
+          },
+          "used_notes": {
+            "title": "Used Notes",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "content",
+          "query_type",
+          "results",
+          "used_notes",
+          "latency_ms",
+          "created_at"
+        ],
+        "title": "Turn",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Lattice API",
+    "version": "0.1.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/courses/{course}/ask": {
+      "post": {
+        "operationId": "ask_courses__course__ask_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9]{1,15}$",
+              "title": "Course",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AskRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ask",
+        "tags": [
+          "ask"
+        ]
+      }
+    },
+    "/courses/{course}/materials": {
+      "get": {
+        "operationId": "list_materials_courses__course__materials_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9]{1,15}$",
+              "title": "Course",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Material"
+                  },
+                  "title": "Response List Materials Courses  Course  Materials Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Materials",
+        "tags": [
+          "materials"
+        ]
+      },
+      "post": {
+        "operationId": "upload_material_courses__course__materials_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9]{1,15}$",
+              "title": "Course",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_material_courses__course__materials_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Material"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Material",
+        "tags": [
+          "materials"
+        ]
+      }
+    },
+    "/courses/{course}/notes": {
+      "get": {
+        "operationId": "list_notes_courses__course__notes_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9]{1,15}$",
+              "title": "Course",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/Note"
+                  },
+                  "title": "Response List Notes Courses  Course  Notes Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Notes",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/courses/{course}/notes/{note_id}": {
+      "put": {
+        "operationId": "save_note_courses__course__notes__note_id__put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9]{1,15}$",
+              "title": "Course",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "note_id",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9_-]{1,64}$",
+              "title": "Note Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NoteBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Note"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/courses/{course}/sessions/{session_id}": {
+      "get": {
+        "operationId": "get_session_courses__course__sessions__session_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "course",
+            "required": true,
+            "schema": {
+              "pattern": "^[a-z][a-z0-9]{1,15}$",
+              "title": "Course",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "session_id",
+            "required": true,
+            "schema": {
+              "title": "Session Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Session",
+        "tags": [
+          "ask"
+        ]
+      }
+    },
+    "/health": {
+      "get": {
+        "operationId": "health_health_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Health Health Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Health"
+      }
+    }
+  }
+}

@@ -10,7 +10,16 @@ cp .env.example .env                      # then set LLM_API_KEY (DeepSeek)
 uv run uvicorn lattice.main:app --reload  # http://localhost:8000, docs at /docs
 uv run pytest
 uv run ruff check . && uv run ruff format .
+uv run python scripts/export_openapi.py          # regenerate contracts/openapi.json
+uv run python scripts/export_openapi.py --check  # what CI runs
 ```
+
+`contracts/openapi.json` is generated from the response models and is the frozen API
+contract; the web app's types come from it ([ADR 0005](../docs/adr/0005-generated-openapi-contract.md)).
+Change a model and CI fails until you re-export and run `npm run generate-api` in `app/`.
+This is also why the models in `lattice/registry.py` declare every always-populated field
+as required and pass it explicitly: a Pydantic default is emitted as an optional property,
+which would understate what the API actually guarantees.
 
 Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model.
 

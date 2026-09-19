@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+      # contracts/openapi.json is generated from the response models, so a model change
+      # that skipped the export stops here rather than reaching the web app at runtime.
+      - name: Contract is up to date
+        run: uv run python scripts/export_openapi.py --check
+
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      # The other half of the gate: regenerate the client from the committed contract and
+      # fail if it differs from what is committed.
+      - name: Generated client is up to date
+        run: npm run check-api
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run check

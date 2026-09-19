@@ -15,6 +15,12 @@ export default [
     },
   },
   {
-    ignores: ['eslint.config.js', 'prettier.config.js'],
+    ignores: [
+      '.output/**',
+      'eslint.config.js',
+      'prettier.config.js',
+      'openapi-ts.config.ts',
+      'src/lib/generated/**',
+    ],
   },
 ]

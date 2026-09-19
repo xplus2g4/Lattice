@@ -1,12 +1,13 @@
 import time
 from typing import Literal
+from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from lattice.api.deps import CourseCode, CurrentEmail, EngineDep, RegistryDep
 from lattice.engine import QUERY_TYPES
-from lattice.registry import Session, Turn
+from lattice.registry import Session, Turn, now, user_turn
 
 router = APIRouter(prefix="/courses/{course}", tags=["ask"])
 
@@ -47,14 +48,16 @@ async def ask(
         results = await engine.search(user, datasets, body.question, body.query_type, session.id)
     except Exception as exc:  # noqa: BLE001 - operations.md: search raises -> 502, no partial answer
         raise HTTPException(502, f"{type(exc).__name__}: {exc}") from exc
-    session.turns.append(Turn(role="user", content=body.question))
+    session.turns.append(user_turn(body.question))
     answer = Turn(
+        id=uuid4().hex,
         role="assistant",
         content="\n\n".join(r.answer for r in results if r.answer),
         query_type=body.query_type,
         results=results,
         used_notes=any(r.tier == "notes" and r.evidence for r in results),
         latency_ms=int((time.monotonic() - started) * 1000),
+        created_at=now(),
     )
     session.turns.append(answer)
     return AskResponse(session_id=session.id, turn=answer)

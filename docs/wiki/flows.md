@@ -42,15 +42,18 @@ POST /ask {course, session_id, question}
   3. (multi-turn) rewrite question with last N turns using a small model
   4. cache check: (course, normalised_question) — only when datasets == [global]
   5. hits = cognee.search(query_text, query_type=RAG_COMPLETION | GRAPH_COMPLETION,
-                          datasets=datasets, user=principal)
-     - one call spans both tiers; each hit carries dataset_name → provenance
+                          dataset_ids=[…], user=principal, include_references=True)
+     - one call spans both tiers, but Cognee fans out per dataset and returns one
+       completion per dataset, not a fused answer; dataset_id → tier
+     - dataset_ids, not names: a name resolves only among datasets the caller owns, so a
+       student cannot reach the instructor-owned {course}-global by name
   6. build CONTEXT blocks tagged [source: course|notes] [week, slide]; wrap as data
   7. LLM → structured Answer {answer_md, confidence, not_covered, citations[], related[], used_notes}
   8. validate: drop citations whose chunk_id ∉ hits; strip HTML/links; set used_notes from provenance
   9. persist turn (cited_chunk_ids, cost, latency); stream answer_md to client; send citations + related as a trailing frame
 ```
 
-If the backlog issue on cross-dataset search shows that cross-dataset `search()` does not honour permissions the way the docs describe, step 5 becomes two calls (global, then private) merged in the API, switched by `ASK_TWO_CALL_MODE=1`. The contract of `/ask` is unchanged.
+Cross-dataset `search()` does honour permissions, so `ASK_TWO_CALL_MODE` stays off ([findings](../research/cognee-1.5.4-first-cut-findings.md); backlog issues 1 and 2 are closed). It remains the fallback: setting `ASK_TWO_CALL_MODE=1` makes step 5 two calls, global then private, merged in the API. The contract of `/ask` is unchanged either way.
 
 ## Ask with related concepts (Phase 2)
 
@@ -59,7 +62,8 @@ Extends the ask flow between steps 7 and 8:
 ```
   7a. concepts = Concept nodes mentioned by the cited chunks (from the graph, not the LLM)
   7b. neighbours = 1–2 hop traversal over prerequisite_of / builds_on / related_to,
-                   excluding concepts already in the answer   (cognee INSIGHTS or graph query)
+                   excluding concepts already in the answer   (TRIPLET_COMPLETION, CYPHER
+                   or a direct graph query; INSIGHTS is not a SearchType in 1.5.4)
   7c. rank by similarity to the question; dedupe; cap at 3–5
   7d. for each: one-line "why" from a small model; week + material deep link from introduced_in
   → Answer.related[]

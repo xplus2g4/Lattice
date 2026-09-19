@@ -11,7 +11,7 @@ npm run build      # .output/ — self-contained Node server (Nitro)
 node .output/server/index.mjs
 ```
 
-Other scripts: `typecheck`, `lint`, `format`, `check` (prettier), `generate-routes` (regenerates `src/routeTree.gen.ts`; also runs on `dev`/`build`).
+Other scripts: `typecheck`, `lint`, `format`, `check` (prettier), `generate-routes` (regenerates `src/routeTree.gen.ts`; also runs on `dev`/`build`), `generate-api` (regenerates `src/lib/generated/` from `../contracts/openapi.json`) and `check-api` (regenerates and fails on a diff, which is what CI runs).
 
 ## Layout
 
@@ -22,7 +22,8 @@ Other scripts: `typecheck`, `lint`, `format`, `check` (prettier), `generate-rout
 | `src/routes/__root.tsx`                                | The document shell.                                                                          |
 | `src/components/materials.tsx`, `notes.tsx`, `ask.tsx` | One section each. Each takes `{ course, user }` and owns its own queries.                    |
 | `src/components/common.tsx`                            | `ErrorLine`, `StatusBadge`, `pollWhilePending`, shared class strings, the `Scope` prop type. |
-| `src/lib/api.ts`                                       | The typed client. The only module that knows the API shape.                                  |
+| `src/lib/generated/`                                   | Types generated from the contract. Committed, never hand-edited.                             |
+| `src/lib/api.ts`                                       | The transport: base URL, the `X-User` header, `ApiError`, one function per endpoint.         |
 | `src/lib/storage.ts`                                   | `useStored`, localStorage as an external store so SSR renders the fallback.                  |
 | `src/lib/course.ts`                                    | Course-code regex and the recent-courses list.                                               |
 | `src/router.tsx`                                       | Router construction and the Query/SSR integration.                                           |
@@ -30,5 +31,12 @@ Other scripts: `typecheck`, `lint`, `format`, `check` (prettier), `generate-rout
 | `src/styles.css`                                       | Tailwind entry.                                                                              |
 
 Import from `src/` with the `#/` alias.
+
+Never declare an API shape by hand. `Material`, `Note`, `Turn` and the rest are generated
+from `contracts/openapi.json` into `src/lib/generated/` and re-exported by `src/lib/api.ts`,
+so import them from `#/lib/api` as before and regenerate when the API changes
+([ADR 0005](../docs/adr/0005-generated-openapi-contract.md)). `api.ts` owns the transport
+only. Unions that FastAPI inlines rather than names, `IngestStatus` and `QueryType`, are
+derived there from the generated types rather than retyped.
 
 Course scope lives in the URL, not in state: a section gets its course from the route param via the page, never from `localStorage`. What is stored is the user email (`lattice.user`), the recent-course list (`lattice.courses`), and one session id per course and user (`lattice.session.{course}.{user}`). Read and write all of them through `useStored` so the SSR fallback and the cross-tab `storage` event keep working.

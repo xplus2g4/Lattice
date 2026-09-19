@@ -34,7 +34,10 @@ export function Ask({ course, user }: Scope) {
     mutationFn: (req: { question: string; query_type: QueryType }) =>
       ask(user, course, { ...req, session_id: sessionId || null }),
     onSuccess: (res, req) => {
+      // The server keeps its own copy of this turn; this is the optimistic echo, so it
+      // needs an id of its own rather than the one the server generated.
       const userTurn: Turn = {
+        id: crypto.randomUUID(),
         role: 'user',
         content: req.question,
         query_type: req.query_type,
@@ -113,8 +116,8 @@ export function Ask({ course, user }: Scope) {
         <p className="font-mono text-xs text-gray-500">session {sessionId}</p>
       )}
       <ol className="space-y-3">
-        {turns.map((t, i) => (
-          <li key={t.id ?? i}>
+        {turns.map((t) => (
+          <li key={t.id}>
             <TurnView turn={t} />
           </li>
         ))}

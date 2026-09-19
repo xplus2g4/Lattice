@@ -1,83 +1,47 @@
+import type {
+  AskRequest,
+  AskResponse,
+  Evidence,
+  Material,
+  Note,
+  Session,
+  TierResult,
+  Turn,
+  ValidationError,
+} from '#/lib/generated'
+
+// The API shape is generated from contracts/openapi.json (ADR 0005); never redeclare it
+// here. This module owns the transport only: the base URL, the `X-User` identity header
+// that OAuth will replace, and how a FastAPI error body becomes an Error.
+export type {
+  AskRequest,
+  AskResponse,
+  Evidence,
+  Material,
+  Note,
+  Session,
+  TierResult,
+  Turn,
+}
+
 const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
-export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
+// FastAPI inlines these unions into each field rather than naming them, so name them here.
+export type IngestStatus = Material['status']
+export type QueryType = NonNullable<AskRequest['query_type']>
 
-export type QueryType =
-  'GRAPH_COMPLETION' | 'RAG_COMPLETION' | 'HYBRID_COMPLETION' | 'CHUNKS'
-
-export const QUERY_TYPES: ReadonlyArray<QueryType> = [
-  'GRAPH_COMPLETION',
-  'RAG_COMPLETION',
-  'HYBRID_COMPLETION',
-  'CHUNKS',
-]
-
-export interface Material {
-  course: string
-  filename: string
-  status: IngestStatus
-  error: string | null
-  created_at: string
-  updated_at: string
+// Exhaustive by construction: a query type added to the API fails to compile here until it
+// is listed, which a plain `Array<QueryType>` literal would not catch.
+const QUERY_TYPE_SET: Record<QueryType, true> = {
+  GRAPH_COMPLETION: true,
+  RAG_COMPLETION: true,
+  HYBRID_COMPLETION: true,
+  CHUNKS: true,
 }
 
-export interface Note {
-  course: string
-  owner: string
-  id: string
-  body_md: string
-  status: IngestStatus
-  error: string | null
-  updated_at: string
-}
-
-export interface Evidence {
-  kind: string
-  dataset_id: string | null
-  data_id: string | null
-  chunk_id: string | null
-  chunk_index: number | null
-  document_name: string | null
-  label: string | null
-  relationship_name: string | null
-}
-
-export interface TierResult {
-  tier: 'course' | 'notes'
-  dataset_name: string
-  answer: string | null
-  evidence: Array<Evidence>
-}
-
-export interface Turn {
-  id?: string
-  role: 'user' | 'assistant'
-  content: string
-  query_type: string | null
-  results: Array<TierResult>
-  used_notes: boolean
-  latency_ms: number | null
-  created_at: string
-}
-
-export interface Session {
-  id: string
-  course: string
-  owner: string
-  turns: Array<Turn>
-  created_at: string
-}
-
-export interface AskRequest {
-  question: string
-  query_type: QueryType
-  session_id?: string | null
-}
-
-export interface AskResponse {
-  session_id: string
-  turn: Turn
-}
+export const QUERY_TYPES = Object.keys(
+  QUERY_TYPE_SET,
+) as ReadonlyArray<QueryType>
 
 /** Non-2xx response; `message` is the server's `detail`. */
 export class ApiError extends Error {
@@ -88,11 +52,6 @@ export class ApiError extends Error {
     super(detail)
     this.name = 'ApiError'
   }
-}
-
-interface ValidationError {
-  loc: Array<string | number>
-  msg: string
 }
 
 function formatDetail(status: number, statusText: string, body: unknown) {
