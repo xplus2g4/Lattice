@@ -1,6 +1,6 @@
 # Architecture
 
-Course knowledge store, Stage 1 (Cognee-backed). Status: draft, pending the go/no-go of 10 Sep 2026.
+Course knowledge store, Stage 1 (Cognee-backed). Status: go for Phase 1 ([ADR 0006](../adr/0006-cognee-go-for-phase-1.md)). Phase 2's concept graph is unexercised and is the risk that could still trigger the Stage 2 swap.
 
 This is the one-page view: what the system does, its shape, and the decisions that hold it up. Detail lives in the topic pages:
 
@@ -42,7 +42,7 @@ TanStack Start (React, TanStack Router + Query, Nitro) · FastAPI (Python 3.14, 
 2. **Cognee in-process, behind a thin API.** No Cognee server is exposed; the library runs inside api and worker with per-call principals. The `/ask` and ingest contracts are engine-agnostic so a Stage 2 swap (pgvector plus own concept graph) changes nothing above the API. [ADR 0001](../adr/0001-cognee-as-knowledge-engine.md)
 3. **Everything expensive is async.** Cognify (LLM extraction) runs only in the worker, with retries and cost ceilings. The queue is a Postgres table. No broker, no Redis; it lives inside the same backup. [ADR 0003](../adr/0003-postgres-table-job-queue.md)
 4. **Python backend now, Go at the edges.** Stage 1 backend is Python because Cognee is a Python library on the hot query path. Go gets the admin CLI now and, conditionally, a Stage 2 backend rewrite behind contracts that will be frozen as an in-repo OpenAPI spec. [ADR 0004](../adr/0004-python-backend-go-cli.md)
-5. **Single-VM ops.** Embedded graph DB, nightly `pg_dump` plus graph tarball to GCS, compose profiles for fallbacks (Neo4j), pinned versions gated by canary tests. Deliberately not an ADR; see [backlog.md](./backlog.md).
+5. **Single-VM ops.** Embedded graph DB (Ladybug, settled at the go/no-go), nightly `pg_dump` plus graph tarball to GCS, compose profiles for fallbacks (Neo4j), pinned versions gated by canary tests. Deliberately not an ADR; see [backlog.md](./backlog.md).
 
 ## What this architecture deliberately does not do
 

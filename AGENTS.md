@@ -1,6 +1,6 @@
 # Course knowledge store
 
-Per-course knowledge store: students ask questions scoped to a course and get cited answers from official materials plus their own notes. `server/` (FastAPI + Cognee) and `app/` (TanStack Start) hold a first runnable cut; the wiki is still draft pending the Cognee go/no-go (10 Sep 2026).
+Per-course knowledge store: students ask questions scoped to a course and get cited answers from official materials plus their own notes. `server/` (FastAPI + Cognee) and `app/` (TanStack Start) hold a first runnable cut. The Cognee go/no-go is settled for Phase 1 ([ADR 0006](./docs/adr/0006-cognee-go-for-phase-1.md)); Phase 2's concept graph is the open risk.
 
 ## Vocabulary
 

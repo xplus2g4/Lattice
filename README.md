@@ -4,7 +4,7 @@ A per-course knowledge store. Students ask a question inside one course and get 
 
 The backend is a thin FastAPI service in front of [Cognee](https://github.com/topoteretes/cognee), which does the chunking, entity extraction, embeddings and graph storage. Each course is one Cognee dataset that every enrolled principal can read; each student gets a second, private dataset per course. One `/ask` call searches both. The web app is TanStack Start and talks to the API directly.
 
-This is the first runnable cut, built to answer the open questions before the Cognee go/no-go. It runs on Cognee's embedded stores, which are SQLite, LanceDB and Ladybug. It keeps its own records in memory and trusts an `X-User` header as identity. All three are placeholders for Postgres, a job queue and OAuth; see [docs/wiki/backlog.md](docs/wiki/backlog.md) for what is deliberately not done yet.
+This is the first runnable cut, built to answer the open questions behind the Cognee go/no-go. That gate is now passed for Phase 1 ([ADR 0006](docs/adr/0006-cognee-go-for-phase-1.md)); Phase 2's concept graph is untested and is the risk that could still change the engine. It runs on Cognee's embedded stores, which are SQLite, LanceDB and Ladybug. It keeps its own records in memory and trusts an `X-User` header as identity. All three are placeholders for Postgres, a job queue and OAuth; see [docs/wiki/backlog.md](docs/wiki/backlog.md) for what is deliberately not done yet.
 
 ## Repository
 
