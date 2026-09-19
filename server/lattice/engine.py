@@ -29,6 +29,16 @@ from lattice.registry import Evidence, TierResult
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
 
+class IsolationError(RuntimeError):
+    """A result or citation came from a dataset the caller may not read.
+
+    ADR 0002's second enforcement layer. Cognee's own dataset permissions should make this
+    unreachable; if it fires, something beneath the API is wrong and no part of the answer
+    can be trusted, so `/ask` fails with a 502 rather than returning a filtered version.
+    Exercised by `tests/test_canary.py::test_private_notes_never_leak`.
+    """
+
+
 class Engine:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
@@ -131,13 +141,37 @@ class Engine:
         return [_tier_result(r, datasets) for r in raw]
 
 
+def _dataset_uuid(value: Any) -> UUID | None:
+    """Cognee gives `dataset_id` as a UUID on results and as a string on evidence."""
+    if isinstance(value, UUID):
+        return value
+    try:
+        return UUID(str(value))
+    except AttributeError, TypeError, ValueError:
+        return None
+
+
 def _tier_result(raw: dict[str, Any], datasets: dict[UUID, str]) -> TierResult:
-    dataset_id = raw.get("dataset_id")
+    """One Cognee per-dataset result, refused unless it came from a dataset the caller read.
+
+    There is deliberately no default tier here: an unrecognised `dataset_id` used to be
+    labelled `course` and passed on, which would launder another principal's answer into
+    the shared tier instead of rejecting it.
+
+    Refusing a missing `dataset_id` is safe rather than brittle because `search` always
+    passes `dataset_ids`, and Cognee fills the field from the dataset it fanned out to
+    (`get_retriever_output`: `dataset.id if dataset else None`). The `None` branch belongs
+    to its no-dataset-context path, which this engine never takes; a result arriving from
+    it could not be attributed to a tier anyway.
+    """
+    dataset_id = _dataset_uuid(raw.get("dataset_id"))
+    if dataset_id not in datasets:
+        raise IsolationError(f"result from dataset {raw.get('dataset_id')!r}, not the caller's")
     return TierResult(
-        tier=datasets.get(dataset_id, "course"),  # type: ignore[arg-type]
+        tier=datasets[dataset_id],  # type: ignore[arg-type]
         dataset_name=raw.get("dataset_name") or "",
         answer=_answer_text(raw.get("text_result")),
-        evidence=_dedupe_evidence(raw.get("evidence") or []),
+        evidence=_dedupe_evidence(raw.get("evidence") or [], datasets),
     )
 
 
@@ -151,11 +185,19 @@ def _answer_text(text: Any) -> str | None:
     return str(text)
 
 
-def _dedupe_evidence(items: list[dict[str, Any]]) -> list[Evidence]:
-    """Cognee lists a segment once per graph edge citing it; keep one entry per artifact."""
+def _dedupe_evidence(items: list[dict[str, Any]], datasets: dict[UUID, str]) -> list[Evidence]:
+    """Cognee lists a segment once per graph edge citing it; keep one entry per artifact.
+
+    Every citation that names a dataset must name one the caller may read (ADR 0002). Graph
+    nodes and edges carry no `dataset_id`; they are covered by the check on the result they
+    arrived in, whose dataset is verified in `_tier_result`.
+    """
     seen: set[str] = set()
     out: list[Evidence] = []
     for item in items:
+        named = item.get("dataset_id")
+        if named is not None and _dataset_uuid(named) not in datasets:
+            raise IsolationError(f"citation from dataset {named!r}, not the caller's")
         key = f"{item.get('kind')}:{item.get('artifact_id')}"
         if key in seen:
             continue

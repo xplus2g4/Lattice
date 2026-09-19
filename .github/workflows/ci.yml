@@ -51,3 +51,43 @@ jobs:
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run check
+
+  # ADR 0002's gate. Separate from `server` because it spends real LLM calls and needs a
+  # secret, which pull requests from forks do not get: it warns and passes there rather
+  # than blocking an outside contributor on a key they cannot have.
+  canary:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    env:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_PROVIDER: custom
+      LLM_MODEL: openai/deepseek-v4-flash
+      LLM_ENDPOINT: https://api.deepseek.com/v1
+      EMBEDDING_PROVIDER: fastembed
+      EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
+      EMBEDDING_DIMENSIONS: "384"
+      AUTO_FEEDBACK: "false"
+      ENABLE_BACKEND_ACCESS_CONTROL: "true"
+      HF_HOME: ${{ github.workspace }}/.hf-cache
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+      # Embeddings run locally through fastembed; without this every run re-downloads the
+      # model, which costs more wall time than the cognify the test is here for.
+      - uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.hf-cache
+          key: fastembed-bge-small-en-v1.5
+      - run: uv sync --locked
+      - name: Private notes never leak
+        run: |
+          if [ -z "$LLM_API_KEY" ]; then
+            echo "::warning title=Canary skipped::LLM_API_KEY is not set, so the isolation canary did not run."
+            exit 0
+          fi
+          uv run pytest -m canary -v

@@ -15,7 +15,9 @@ Google OAuth issues a JWT that the API verifies on every call. Cognee principals
 
 ## Tenant isolation
 
-Enforced twice ([ADR 0002](../adr/0002-two-tier-datasets-double-isolation.md)): Cognee dataset permissions (backend access control) and an API-level check that every cited `chunk_id` belongs to a dataset the caller may read. The CI canary test (`test_private_notes_never_leak`) exercises both.
+Enforced twice ([ADR 0002](../adr/0002-two-tier-datasets-double-isolation.md)): Cognee dataset permissions (backend access control), and an API-level check that every result and every citation names a dataset the caller may read. The second is `IsolationError` in `lattice/engine.py`; it raises rather than filtering, because a result from an unexpected dataset means something below the API is wrong and no part of that answer can be trusted, so `/ask` returns 502. There is deliberately no default tier: an unrecognised `dataset_id` is refused, not labelled `course`.
+
+`tests/test_canary.py::test_private_notes_never_leak` exercises both layers end to end against real Cognee, and `tests/test_isolation.py` covers the API-level check exhaustively without spending LLM calls.
 
 ## Indirect prompt injection
 

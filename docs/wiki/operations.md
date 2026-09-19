@@ -24,10 +24,18 @@ GitHub Actions (`.github/workflows/ci.yml`) runs two jobs on every PR and on mer
 
 - **server**: `ruff check`, `ruff format --check`, `pytest`, then `export_openapi.py --check`
 - **app**: `npm run check-api`, `typecheck`, `lint`, `check`
+- **canary**: `pytest -m canary`, the isolation gate ([ADR 0002](../adr/0002-two-tier-datasets-double-isolation.md))
 
-The last step of each is the contract gate ([ADR 0005](../adr/0005-generated-openapi-contract.md)): the first fails if a response model changed without re-exporting `contracts/openapi.json`, the second if the spec changed without regenerating the web app's types. Neither side of the API can move alone.
+The last step of `server` and `app` is the contract gate ([ADR 0005](../adr/0005-generated-openapi-contract.md)): the first fails if a response model changed without re-exporting `contracts/openapi.json`, the second if the spec changed without regenerating the web app's types. Neither side of the API can move alone.
 
-Not yet wired: the two canary tests ([security.md](./security.md)) need an LLM key secret and a cognify per run, so they are still manual. Deploys are still manual too; `ssh … docker compose pull && up -d` is the intent.
+The `canary` job is separate because it spends real LLM calls, roughly $0.02 and a minute per run, and needs the `LLM_API_KEY` repository secret. Pull requests from forks do not receive secrets, so it warns and passes there instead of blocking a contributor on a key they cannot have. Locally the same test skips unless a key is configured, so `uv run pytest` stays free:
+
+```sh
+uv run pytest            # skips the canary without a key
+uv run pytest -m canary  # the gate itself, needs LLM_API_KEY
+```
+
+Still manual: the prompt-injection canary ([security.md](./security.md)) is unwritten, and deploys are by hand; `ssh … docker compose pull && up -d` is the intent.
 
 ## Backups
 
