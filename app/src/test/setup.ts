@@ -14,7 +14,15 @@ vi.mock('@tanstack/react-devtools', () => ({
 
 // `error`, not `warn`: a request nobody mocked means the test is exercising something it
 // did not intend, which should fail rather than pass quietly against a dead fetch.
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: 'error' })
+  HTMLDialogElement.prototype.showModal = function () {
+    this.setAttribute('open', '')
+  }
+  HTMLDialogElement.prototype.close = function () {
+    this.removeAttribute('open')
+  }
+})
 
 afterEach(() => {
   server.resetHandlers()

@@ -77,6 +77,82 @@ describe('a course URL', () => {
   })
 })
 
+describe('the learning workspace', () => {
+  it('shows only the current course Materials and the current user’s Notes on the dashboard', async () => {
+    resetStore({
+      materials: [
+        material({ filename: 'week1.pdf' }),
+        material({ course: 'cs202', filename: 'other.pdf' }),
+      ],
+      notes: [
+        note({ id: 'my-note' }),
+        note({ owner: 'bob@example.com', id: 'bobs-note' }),
+      ],
+    })
+    renderRoute('/courses/cs101/dashboard')
+    expect(await screen.findByText('week1.pdf')).toBeInTheDocument()
+    expect(await screen.findByText('my-note')).toBeInTheDocument()
+    expect(screen.queryByText('other.pdf')).not.toBeInTheDocument()
+    expect(screen.queryByText('bobs-note')).not.toBeInTheDocument()
+  })
+
+  it('filters dashboard Materials without pretending to search across courses', async () => {
+    const user = userEvent.setup()
+    resetStore({
+      materials: [
+        material({ filename: 'week1.pdf' }),
+        material({ filename: 'tutorial.md' }),
+      ],
+    })
+    renderRoute('/courses/cs101/dashboard')
+    await screen.findByText('tutorial.md')
+    await user.type(
+      screen.getByRole('textbox', { name: 'Search Materials' }),
+      'week',
+    )
+    expect(screen.getByText('week1.pdf')).toBeInTheDocument()
+    expect(screen.queryByText('tutorial.md')).not.toBeInTheDocument()
+  })
+
+  it('labels mastery tracking as planned instead of inventing scores', async () => {
+    renderRoute('/courses/cs101/mastery')
+    expect(
+      await screen.findByText('PLANNED · NOT YET AVAILABLE'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/No scores are recorded/)).toBeInTheDocument()
+  })
+
+  it('opens a course from the landing page on its dashboard', async () => {
+    const user = userEvent.setup()
+    const { router } = renderRoute('/')
+    await user.type(await screen.findByLabelText('Course code'), 'CS101')
+    await user.click(screen.getByRole('button', { name: 'Open course' }))
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe('/courses/cs101/dashboard'),
+    )
+    expect(
+      await screen.findByRole('heading', { name: 'My learning dashboard' }),
+    ).toBeInTheDocument()
+  })
+
+  it('clears the private Note editor when the development identity changes', async () => {
+    const user = userEvent.setup()
+    resetStore({
+      notes: [note({ id: 'alice-note', body_md: 'Alice private writing' })],
+    })
+    renderRoute('/courses/cs101/notes')
+    await user.click(await screen.findByRole('button', { name: /alice-note/ }))
+    expect(screen.getByLabelText('Note content')).toHaveValue(
+      'Alice private writing',
+    )
+    await user.click(screen.getByText('Local workspace'))
+    await user.clear(screen.getByLabelText('User'))
+    await user.type(screen.getByLabelText('User'), 'bob@example.com')
+    expect(screen.getByLabelText('Note content')).toHaveValue('')
+    expect(screen.queryByText('Alice private writing')).not.toBeInTheDocument()
+  })
+})
+
 describe('a conversation', () => {
   it('can be opened directly by its URL', async () => {
     resetStore({

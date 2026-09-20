@@ -14,6 +14,37 @@ function show() {
 }
 
 describe('the materials list', () => {
+  it('opens an upload dialog and cancels without uploading', async () => {
+    const user = userEvent.setup()
+    show()
+    await screen.findByText('No materials yet.')
+    await user.click(screen.getByRole('button', { name: 'Add Material' }))
+    expect(
+      screen.getByRole('dialog', { name: 'Add a course Material' }),
+    ).toBeVisible()
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument()
+    expect(screen.getByText('No materials yet.')).toBeInTheDocument()
+  })
+
+  it('filters Materials by filename', async () => {
+    const user = userEvent.setup()
+    resetStore({
+      materials: [
+        material({ filename: 'week1.pdf' }),
+        material({ filename: 'tutorial.md' }),
+      ],
+    })
+    show()
+    await screen.findByText('tutorial.md')
+    await user.type(
+      screen.getByRole('textbox', { name: 'Search Materials' }),
+      'TUTORIAL',
+    )
+    expect(screen.getByText('tutorial.md')).toBeInTheDocument()
+    expect(screen.queryByText('week1.pdf')).not.toBeInTheDocument()
+  })
+
   it('says so when the course has no materials', async () => {
     show()
 
@@ -61,6 +92,7 @@ describe('the materials list', () => {
     const user = userEvent.setup()
     const { container } = show()
     await screen.findByText('No materials yet.')
+    await user.click(screen.getByRole('button', { name: 'Add Material' }))
 
     await user.upload(
       container.querySelector('input[type="file"]') as HTMLInputElement,
@@ -84,6 +116,7 @@ describe('the materials list', () => {
     const user = userEvent.setup()
     const { container } = show()
     await screen.findByText('No materials yet.')
+    await user.click(screen.getByRole('button', { name: 'Add Material' }))
 
     // The filename has to match the input's `accept` list, or userEvent drops it the way
     // a browser would and nothing is ever submitted.

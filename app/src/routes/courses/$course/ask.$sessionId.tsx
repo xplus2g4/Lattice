@@ -20,6 +20,7 @@ function Conversation() {
 
   return (
     <Ask
+      key={`${course}:${user}:${sessionId}`}
       course={course}
       user={user}
       sessionId={sessionId}

@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
@@ -64,6 +64,35 @@ describe('the notes list', () => {
 })
 
 describe('writing a note', () => {
+  it('loads an existing Note into the editor and saves it under the same ID', async () => {
+    const user = userEvent.setup()
+    resetStore({ notes: [note({ id: 'week3', body_md: 'original idea' })] })
+    show()
+    await user.click(await screen.findByRole('button', { name: /week3/ }))
+    expect(screen.getByPlaceholderText('note id')).toHaveValue('week3')
+    expect(screen.getByPlaceholderText('note id')).toHaveAttribute('readonly')
+    await user.clear(screen.getByLabelText('Note content'))
+    await user.type(screen.getByLabelText('Note content'), 'a clearer idea')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+    expect(
+      await within(screen.getByRole('button', { name: /week3/ })).findByText(
+        'a clearer idea',
+      ),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('queued')).toBeInTheDocument()
+  })
+
+  it('prevents accidentally overwriting an existing Note from a new draft', async () => {
+    const user = userEvent.setup()
+    resetStore({ notes: [note({ id: 'week3' })] })
+    show()
+    await screen.findByText('week3')
+    await user.type(screen.getByPlaceholderText('note id'), 'week3')
+    await user.type(screen.getByLabelText('Note content'), 'another thought')
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByText(/That Note ID already exists/)).toBeInTheDocument()
+  })
+
   it('adds it to the list, queued for indexing', async () => {
     const user = userEvent.setup()
     show()

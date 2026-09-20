@@ -150,6 +150,25 @@ describe('an answer with nothing behind it', () => {
 })
 
 describe('the evidence behind an answer', () => {
+  it('opens returned evidence metadata without claiming a Chunk is a slide', async () => {
+    show()
+    const user = await askAbout('explain hashing')
+    await user.click(
+      await screen.findByRole('button', { name: 'week1.pdf #3 · chunk' }),
+    )
+    expect(
+      screen.getByRole('heading', { name: 'Evidence details' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('chunk-1')).toBeInTheDocument()
+    expect(
+      screen.getByText(/Chunk numbers are not slide or page numbers/),
+    ).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Close evidence' }))
+    expect(
+      screen.queryByRole('heading', { name: 'Evidence details' }),
+    ).not.toBeInTheDocument()
+  })
+
   it('names the document and chunk a passage came from', async () => {
     answerNextAskWith(
       assistantTurn({

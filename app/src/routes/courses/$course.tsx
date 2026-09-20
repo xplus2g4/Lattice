@@ -1,85 +1,197 @@
 import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
-import { inputClass } from '#/components/common'
-import { COURSE_RE, recordRecentCourse } from '#/lib/course'
-import { useUser } from '#/lib/storage'
+import { Brand, Icon, inputClass } from '#/components/common'
+import {
+  COURSE_RE,
+  RECENT_COURSES_KEY,
+  parseRecentCourses,
+  recordRecentCourse,
+} from '#/lib/course'
+import { useStored, useUser } from '#/lib/storage'
 
 export const Route = createFileRoute('/courses/$course')({
   component: CourseLayout,
 })
 
-const tabClass = 'text-sm underline underline-offset-4'
-const activeTabClass = 'text-sm font-semibold underline underline-offset-4'
-
 function CourseLayout() {
   const { course } = Route.useParams()
   const [user, setUser] = useUser()
+  const [recentsJson] = useStored(RECENT_COURSES_KEY, '[]')
+  const [menuOpen, setMenuOpen] = useState(false)
   const courseOk = COURSE_RE.test(course)
+  const courses = Array.from(
+    new Set([course, ...parseRecentCourses(recentsJson)]),
+  )
 
   useEffect(() => {
     if (courseOk) recordRecentCourse(course)
   }, [course, courseOk])
 
   return (
-    <main className="mx-auto max-w-3xl space-y-8 p-8">
-      <header className="flex flex-wrap items-end gap-4">
-        <h1 className="mr-auto text-2xl font-bold">
-          <Link to="/">Course knowledge store</Link>
-        </h1>
-        <span className="font-mono text-sm">{course}</span>
-        <label className="flex flex-col text-xs">
-          User
-          <input
-            className={inputClass}
-            type="email"
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-          />
-        </label>
-      </header>
-      {!courseOk ? (
-        <p className="text-sm text-red-700">
-          “{course}” is not a course code. Codes match {COURSE_RE.source}.
-        </p>
-      ) : (
-        <>
-          <nav className="flex gap-4 border-b border-gray-200 pb-2">
-            <Tab
-              course={course}
-              to="/courses/$course/materials"
-              label="Materials"
-            />
-            <Tab course={course} to="/courses/$course/notes" label="Notes" />
-            <Tab course={course} to="/courses/$course/ask" label="Ask" />
+    <div className="app-shell">
+      <a className="skip-link" href="#main-content">
+        Skip to content
+      </a>
+      <header className="app-header">
+        <Link to="/" aria-label="Lattice home">
+          <Brand />
+        </Link>
+        <span className="header-divider" />
+        <span className="header-caption">YOUR STUDY COMPANION</span>
+        {courseOk && (
+          <nav className="top-nav" aria-label="Workspace">
+            <Link
+              to="/courses/$course/dashboard"
+              params={{ course }}
+              activeProps={{ className: 'active' }}
+            >
+              Dashboard
+            </Link>
+            <Link
+              to="/courses/$course/ask"
+              params={{ course }}
+              activeProps={{ className: 'active' }}
+            >
+              Study mode
+            </Link>
+            <Link
+              to="/courses/$course/mastery"
+              params={{ course }}
+              activeProps={{ className: 'active' }}
+            >
+              Mastery hub
+            </Link>
           </nav>
+        )}
+        <details className="identity-menu">
+          <summary>
+            <span className="avatar">
+              {user.slice(0, 1).toUpperCase() || '?'}
+            </span>
+            <span>Local workspace</span>
+            <span className="dev-badge">DEV</span>
+          </summary>
+          <div className="identity-popover">
+            <label>
+              User
+              <input
+                className={inputClass}
+                type="email"
+                value={user}
+                onChange={(e) => setUser(e.target.value)}
+              />
+            </label>
+            <p className="muted">
+              Development identity only. Sign-in and verified Enrolment are not
+              connected yet.
+            </p>
+          </div>
+        </details>
+        <button
+          type="button"
+          className="icon-button mobile-menu"
+          aria-label="Toggle navigation"
+          aria-expanded={menuOpen}
+          aria-controls="course-sidebar"
+          onClick={() => setMenuOpen(!menuOpen)}
+        >
+          <Icon name="menu" />
+        </button>
+      </header>
+      <aside
+        id="course-sidebar"
+        className={`sidebar ${menuOpen ? 'sidebar-open' : ''}`}
+      >
+        <p className="eyebrow">Your workspace</p>
+        <Link to="/" className="sidebar-link">
+          <Icon name="grid" />
+          All courses
+          <Icon name="arrow" size={15} />
+        </Link>
+        <div className="sidebar-section-heading">
+          <p className="eyebrow">Recent courses</p>
+          <Link to="/" aria-label="Open another course">
+            <Icon name="plus" size={16} />
+          </Link>
+        </div>
+        <nav aria-label="Courses" className="course-list">
+          {courses
+            .filter((c) => COURSE_RE.test(c))
+            .map((c, i) => (
+              <Link
+                key={c}
+                to="/courses/$course/dashboard"
+                params={{ course: c }}
+                className={`course-link ${c === course ? 'selected' : ''}`}
+                onClick={() => setMenuOpen(false)}
+              >
+                <span className={`course-dot course-dot-${i % 3}`} />
+                <span className="course-code">{c}</span>
+                {c === course && <span className="current-dot" />}
+              </Link>
+            ))}
+        </nav>
+        {courseOk && (
+          <>
+            <p className="eyebrow sidebar-section-heading">Study tools</p>
+            <nav aria-label="Course tools" className="tools-nav">
+              <Link
+                to="/courses/$course/materials"
+                params={{ course }}
+                activeProps={{ className: 'active' }}
+                onClick={() => setMenuOpen(false)}
+              >
+                <Icon name="book" />
+                Materials
+              </Link>
+              <Link
+                to="/courses/$course/notes"
+                params={{ course }}
+                activeProps={{ className: 'active' }}
+                onClick={() => setMenuOpen(false)}
+              >
+                <Icon name="note" />
+                Notes
+                <Icon name="lock" size={13} />
+              </Link>
+              <Link
+                to="/courses/$course/ask"
+                params={{ course }}
+                activeProps={{ className: 'active' }}
+                onClick={() => setMenuOpen(false)}
+              >
+                <Icon name="spark" />
+                Ask
+              </Link>
+            </nav>
+          </>
+        )}
+        <div className="sidebar-bottom">
+          <div className="sidebar-tip">
+            <Icon name="spark" />
+            <strong>A little clarity, every day.</strong>
+            <p>Bring your questions. Build your understanding.</p>
+          </div>
+          <span className="privacy-caption">
+            <Icon name="lock" size={13} />
+            Notes stay in your private tier
+          </span>
+        </div>
+      </aside>
+      <main
+        id="main-content"
+        className="main-content"
+        key={`${course}:${user}`}
+      >
+        {!courseOk ? (
+          <div className="panel error-line">
+            “{course}” is not a course code. Codes match {COURSE_RE.source}.
+          </div>
+        ) : (
           <Outlet />
-        </>
-      )}
-    </main>
-  )
-}
-
-function Tab({
-  course,
-  to,
-  label,
-}: {
-  course: string
-  to:
-    | '/courses/$course/materials'
-    | '/courses/$course/notes'
-    | '/courses/$course/ask'
-  label: string
-}) {
-  return (
-    <Link
-      to={to}
-      params={{ course }}
-      className={tabClass}
-      activeProps={{ className: activeTabClass }}
-    >
-      {label}
-    </Link>
+        )}
+      </main>
+    </div>
   )
 }
