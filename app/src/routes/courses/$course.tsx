@@ -1,22 +1,21 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
-import { Ask } from '#/components/ask'
-import { Materials } from '#/components/materials'
-import { Notes } from '#/components/notes'
 import { inputClass } from '#/components/common'
 import { COURSE_RE, recordRecentCourse } from '#/lib/course'
-import { useStored } from '#/lib/storage'
+import { useUser } from '#/lib/storage'
 
 export const Route = createFileRoute('/courses/$course')({
-  component: CoursePage,
+  component: CourseLayout,
 })
 
-function CoursePage() {
+const tabClass = 'text-sm underline underline-offset-4'
+const activeTabClass = 'text-sm font-semibold underline underline-offset-4'
+
+function CourseLayout() {
   const { course } = Route.useParams()
-  const [user, setUser] = useStored('lattice.user', 'alice@example.com')
+  const [user, setUser] = useUser()
   const courseOk = COURSE_RE.test(course)
-  const ready = courseOk && user.trim() !== ''
 
   useEffect(() => {
     if (courseOk) recordRecentCourse(course)
@@ -39,18 +38,48 @@ function CoursePage() {
           />
         </label>
       </header>
-      {!courseOk && (
+      {!courseOk ? (
         <p className="text-sm text-red-700">
-          Course code must match {COURSE_RE.source}
+          “{course}” is not a course code. Codes match {COURSE_RE.source}.
         </p>
-      )}
-      {ready && (
+      ) : (
         <>
-          <Materials course={course} user={user} />
-          <Notes course={course} user={user} />
-          <Ask course={course} user={user} />
+          <nav className="flex gap-4 border-b border-gray-200 pb-2">
+            <Tab
+              course={course}
+              to="/courses/$course/materials"
+              label="Materials"
+            />
+            <Tab course={course} to="/courses/$course/notes" label="Notes" />
+            <Tab course={course} to="/courses/$course/ask" label="Ask" />
+          </nav>
+          <Outlet />
         </>
       )}
     </main>
+  )
+}
+
+function Tab({
+  course,
+  to,
+  label,
+}: {
+  course: string
+  to:
+    | '/courses/$course/materials'
+    | '/courses/$course/notes'
+    | '/courses/$course/ask'
+  label: string
+}) {
+  return (
+    <Link
+      to={to}
+      params={{ course }}
+      className={tabClass}
+      activeProps={{ className: activeTabClass }}
+    >
+      {label}
+    </Link>
   )
 }

@@ -1,6 +1,7 @@
 import { HttpResponse, http } from 'msw'
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
 
 import { Ask } from '#/components/ask'
@@ -12,8 +13,24 @@ import { renderWithQuery } from '#/test/render'
 const COURSE = 'cs101'
 const USER = 'alice@example.com'
 
-function show() {
-  return renderWithQuery(<Ask course={COURSE} user={USER} />)
+// The conversation id belongs to the route now, so the tests need the same small amount
+// of state the route holds: start a conversation and you are reading it, leave it and you
+// are back to a blank one.
+function Conversation({ openAt }: { openAt: string | null }) {
+  const [sessionId, setSessionId] = useState<string | null>(openAt)
+  return (
+    <Ask
+      course={COURSE}
+      user={USER}
+      sessionId={sessionId}
+      onSessionStarted={setSessionId}
+      onLeaveSession={() => setSessionId(null)}
+    />
+  )
+}
+
+function show(openAt: string | null = null) {
+  return renderWithQuery(<Conversation openAt={openAt} />)
 }
 
 async function askAbout(question: string) {
@@ -177,9 +194,8 @@ describe('the evidence behind an answer', () => {
   })
 })
 
-describe('a session remembered from a previous visit', () => {
-  it('reopens the conversation it left off in', async () => {
-    localStorage.setItem(`lattice.session.${COURSE}.${USER}`, 'sess-earlier')
+describe('an existing conversation', () => {
+  it('reopens where it left off', async () => {
     resetStore({
       sessions: {
         'sess-earlier': session({
@@ -193,33 +209,24 @@ describe('a session remembered from a previous visit', () => {
       },
     })
 
-    show()
+    show('sess-earlier')
 
     expect(await screen.findByText('Earlier answer.')).toBeInTheDocument()
   })
 
-  it('forgets a session the API no longer knows', async () => {
-    localStorage.setItem(`lattice.session.${COURSE}.${USER}`, 'sess-gone')
-
-    show()
+  it('is abandoned when the API no longer knows it', async () => {
+    show('sess-gone')
 
     await waitFor(() =>
-      expect(
-        localStorage.getItem(`lattice.session.${COURSE}.${USER}`),
-      ).toBeNull(),
+      expect(screen.queryByText(/session sess-gone/)).not.toBeInTheDocument(),
     )
-    expect(screen.queryByText(/session sess-gone/)).not.toBeInTheDocument()
   })
 
-  it('does not show a 404 for the forgotten session as an error', async () => {
-    localStorage.setItem(`lattice.session.${COURSE}.${USER}`, 'sess-gone')
-
-    show()
+  it('does not show a 404 for the forgotten conversation as an error', async () => {
+    show('sess-gone')
 
     await waitFor(() =>
-      expect(
-        localStorage.getItem(`lattice.session.${COURSE}.${USER}`),
-      ).toBeNull(),
+      expect(screen.queryByText(/session sess-gone/)).not.toBeInTheDocument(),
     )
     expect(screen.queryByText('no such session')).not.toBeInTheDocument()
   })

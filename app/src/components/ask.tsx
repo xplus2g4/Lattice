@@ -3,36 +3,46 @@ import { useEffect, useState } from 'react'
 
 import { ApiError, QUERY_TYPES, ask, getSession } from '#/lib/api'
 import type { Evidence, QueryType, Session, TierResult, Turn } from '#/lib/api'
-import { useStored } from '#/lib/storage'
 import { ErrorLine, buttonClass, inputClass } from '#/components/common'
 import type { Scope } from '#/components/common'
 
-export function Ask({ course, user }: Scope) {
+export interface AskProps extends Scope {
+  /** The conversation being read, or null for one that has not started. Owned by the
+   * route: a conversation is a URL, so it survives a reload and can be shared. */
+  sessionId: string | null
+  onSessionStarted: (sessionId: string) => void
+  /** Called when the conversation should be abandoned, either because the user asked for
+   * a new one or because the API no longer knows this one. */
+  onLeaveSession?: () => void
+}
+
+export function Ask({
+  course,
+  user,
+  sessionId,
+  onSessionStarted,
+  onLeaveSession,
+}: AskProps) {
   const queryClient = useQueryClient()
-  const [sessionId, setSessionId] = useStored(
-    `lattice.session.${course}.${user}`,
-    '',
-  )
-  const sessionKey = ['session', course, user, sessionId]
   const session = useQuery({
-    queryKey: sessionKey,
-    queryFn: () => getSession(user, course, sessionId),
-    enabled: sessionId !== '',
+    queryKey: ['session', course, user, sessionId],
+    queryFn: () => getSession(user, course, sessionId ?? ''),
+    enabled: sessionId !== null,
     retry: false,
   })
 
-  // A stored id the server no longer knows is dropped.
+  // An id the server no longer knows is not an error to show the student.
   useEffect(() => {
     if (session.error instanceof ApiError && session.error.status === 404) {
-      setSessionId(null)
+      onLeaveSession?.()
     }
-  }, [session.error, setSessionId])
+  }, [session.error, onLeaveSession])
 
   const [question, setQuestion] = useState('')
   const [queryType, setQueryType] = useState<QueryType>('GRAPH_COMPLETION')
   const submit = useMutation({
     mutationFn: (req: { question: string; query_type: QueryType }) =>
-      ask(user, course, { ...req, session_id: sessionId || null }),
+      ask(user, course, { ...req, session_id: sessionId }),
     onSuccess: (res, req) => {
       // The server keeps its own copy of this turn; this is the optimistic echo, so it
       // needs an id of its own rather than the one the server generated.
@@ -57,7 +67,7 @@ export function Ask({ course, user }: Scope) {
           turns: [...(prev?.turns ?? []), userTurn, res.turn],
         }),
       )
-      setSessionId(res.session_id)
+      onSessionStarted(res.session_id)
       setQuestion('')
     },
   })
@@ -99,14 +109,16 @@ export function Ask({ course, user }: Scope) {
         >
           {submit.isPending ? 'Asking…' : 'Ask'}
         </button>
-        <button
-          className="rounded border border-gray-300 px-3 py-1 text-sm"
-          type="button"
-          disabled={submit.isPending}
-          onClick={() => setSessionId(null)}
-        >
-          New session
-        </button>
+        {sessionId !== null && onLeaveSession && (
+          <button
+            className="rounded border border-gray-300 px-3 py-1 text-sm"
+            type="button"
+            disabled={submit.isPending}
+            onClick={onLeaveSession}
+          >
+            New session
+          </button>
+        )}
       </form>
       <ErrorLine error={submit.error} />
       {!(session.error instanceof ApiError && session.error.status === 404) && (
