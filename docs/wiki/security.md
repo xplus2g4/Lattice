@@ -21,7 +21,13 @@ Enforced twice ([ADR 0002](../adr/0002-two-tier-datasets-double-isolation.md)): 
 
 ## Indirect prompt injection
 
-Uploaded materials and notes are untrusted text that ends up in the prompt. Chunks are wrapped as tagged data with an explicit instruction/data boundary. A CI test ingests a deck containing injected instructions and asserts the answer stays grounded and the `not_covered` logic still fires.
+Materials and Notes are untrusted text. `lattice/retrieval.py` wraps the retrieved context (including graph-derived text) in an escaped `<retrieved_context trust="untrusted">` block for `GRAPH_COMPLETION`, `RAG_COMPLETION` and `HYBRID_COMPLETION`. `Engine.search` supplies a grounding instruction that treats that context and previous answers as data, not instructions. `CHUNKS` remains raw retrieval, not an answer-generation path.
+
+`tests/test_prompt_boundary.py` exercises the actual Cognee search and prompt path with controlled external storage and LLM responses. It checks escaping, all three completion modes, Hybrid's Graph fallback, empty context and follow-up history. These deterministic checks validate prompt construction, not model compliance.
+
+`tests/test_canary.py::test_retrieved_instructions_do_not_override_grounded_answers` ingests a small poisoned Markdown Material and Note through the API, verifies they reach `ready`, observes that the injected text reaches generation, and checks grounded answers, a follow-up and an unsupported question. The current API has no `not_covered` field: the grounding instruction requests the text "Not covered by the supplied materials." The canary joins the existing `canary` CI job; live validation is pending configured credentials, and CI still skips without the repository secret (#14).
+
+This is a mitigation, not proof against arbitrary prompt injection or knowledge poisoning during Cognify. Cognee still owns session-history formatting and can place history in the system prompt; wrapping current retrieval does not structurally isolate that history. The adapters retain Cognee's sequential session path, rather than its exact-built-in-class-only concurrent path. Citation handling and dataset checks are unchanged. In this pin, Hybrid can append textual references without returning structured evidence; that existing limitation is not repaired by prompt wrapping.
 
 ## Output validation
 

@@ -10,6 +10,9 @@ from pathlib import Path
 
 import pytest
 
+os.environ.setdefault("COGNEE_LOG_FILE", "false")
+os.environ.setdefault("TELEMETRY_DISABLED", "1")
+
 SERVER_ROOT = Path(__file__).resolve().parents[1]
 PLACEHOLDER = "sk-..."
 

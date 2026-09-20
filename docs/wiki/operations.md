@@ -20,22 +20,22 @@ Both `api` and `worker` import Cognee, so both mount `graphdata` and point at th
 
 ## CI and deploys
 
-GitHub Actions (`.github/workflows/ci.yml`) runs two jobs on every PR and on merge to `main`:
+GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every PR and on merge to `main`:
 
 - **server**: `ruff check`, `ruff format --check`, `pytest`, then `export_openapi.py --check`
 - **app**: `npm run check-api`, `typecheck`, `lint`, `check`
-- **canary**: `pytest -m canary`, the isolation gate ([ADR 0002](../adr/0002-two-tier-datasets-double-isolation.md))
+- **canary**: `pytest -m canary`, the isolation gate ([ADR 0002](../adr/0002-two-tier-datasets-double-isolation.md)) and prompt-injection check ([security.md](./security.md))
 
 The last step of `server` and `app` is the contract gate ([ADR 0005](../adr/0005-generated-openapi-contract.md)): the first fails if a response model changed without re-exporting `contracts/openapi.json`, the second if the spec changed without regenerating the web app's types. Neither side of the API can move alone.
 
-The `canary` job is separate because it spends real LLM calls, roughly $0.02 and a minute per run, and needs the `LLM_API_KEY` repository secret. Pull requests from forks do not receive secrets, so it warns and passes there instead of blocking a contributor on a key they cannot have. Locally the same test skips unless a key is configured, so `uv run pytest` stays free:
+The `canary` job is separate because it spends real LLM calls and needs the `LLM_API_KEY` repository secret. The historical ~$0.02 estimate applies only to the isolation test, not the expanded suite. Verify current provider rates and bound retries/output before a budgeted run. Pull requests from forks do not receive secrets, so the job warns and passes there instead of blocking a contributor on a key they cannot have. A missing repository secret also skips execution on internal PRs (#14); a successful skipped job is not evidence of a canary pass.
 
 ```sh
-uv run pytest            # skips the canary without a key
-uv run pytest -m canary  # the gate itself, needs LLM_API_KEY
+uv run pytest -m "not canary"  # offline selection, even with a key configured
+uv run pytest -m canary -v    # paid gates; needs LLM_API_KEY
 ```
 
-Still manual: the prompt-injection canary ([security.md](./security.md)) is unwritten, and deploys are by hand; `ssh … docker compose pull && up -d` is the intent.
+Locally `uv run pytest` skips canaries only when no key is configured. Tests disable Cognee's log rotation by default so importing the SDK does not delete old user-level logs. The new prompt-injection canary ([security.md](./security.md)) awaits its first live validation. Deploys remain manual; `ssh … docker compose pull && up -d` is the intent.
 
 ## Backups
 

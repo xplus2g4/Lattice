@@ -25,6 +25,7 @@ from cognee.modules.users.permissions.methods import give_permission_on_dataset
 
 from lattice.config import Settings
 from lattice.registry import Evidence, TierResult
+from lattice.retrieval import GROUNDING_POLICY, install_retrievers
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
@@ -42,6 +43,7 @@ class IsolationError(RuntimeError):
 class Engine:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+        install_retrievers()
         root = settings.cognee_root.resolve()
         for sub in ("system/databases", "data"):
             (root / sub).mkdir(parents=True, exist_ok=True)
@@ -132,6 +134,7 @@ class Engine:
                 user=user,
                 dataset_ids=searchable,
                 session_id=session_id,
+                system_prompt=GROUNDING_POLICY,
                 verbose=True,
                 include_references=True,
             )
