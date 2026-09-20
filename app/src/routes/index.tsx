@@ -3,6 +3,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState, useSyncExternalStore } from 'react'
 
 import {
+  Badge,
+  Button,
+  EmptyState,
+  FieldLabel,
+  Input,
+  Panel,
+  Select,
+  Textarea,
+} from '#/components/ui'
+import {
   ApiError,
   QUERY_TYPES,
   ask,
@@ -65,10 +75,6 @@ function pollWhilePending<T extends { status: IngestStatus }>(
     : false
 }
 
-const inputClass = 'rounded border border-gray-300 px-2 py-1 text-sm'
-const buttonClass =
-  'rounded bg-gray-900 px-3 py-1 text-sm text-white disabled:opacity-50'
-
 function Home() {
   const [course, setCourse] = useStored('lattice.course', 'cs101')
   const [user, setUser] = useStored('lattice.user', 'alice@example.com')
@@ -76,39 +82,46 @@ function Home() {
   const ready = courseOk && user.trim() !== ''
 
   return (
-    <main className="mx-auto max-w-3xl space-y-8 p-8">
-      <header className="flex flex-wrap items-end gap-4">
-        <h1 className="mr-auto text-2xl font-bold">Course knowledge store</h1>
-        <label className="flex flex-col text-xs">
-          Course
-          <input
-            className={inputClass}
-            value={course}
-            onChange={(e) => setCourse(e.target.value)}
-          />
-        </label>
-        <label className="flex flex-col text-xs">
-          User
-          <input
-            className={inputClass}
-            type="email"
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-          />
-        </label>
-      </header>
-      {!courseOk && (
-        <p className="text-sm text-red-700">
-          Course code must match {COURSE_RE.source}
-        </p>
-      )}
-      {ready && (
-        <>
-          <Materials course={course} user={user} />
-          <Notes course={course} user={user} />
-          <Ask course={course} user={user} />
-        </>
-      )}
+    <main className="min-h-screen bg-lattice-canvas px-5 py-8 sm:px-8">
+      <div className="mx-auto max-w-5xl space-y-8">
+        <header className="flex flex-wrap items-end gap-4">
+          <div className="mr-auto">
+            <p className="text-sm font-semibold text-lattice-violet">
+              lattice.
+            </p>
+            <h1 className="mt-1 text-3xl font-semibold tracking-tight">
+              Your course knowledge
+            </h1>
+            <p className="mt-1 text-lattice-muted">
+              Ask, save, and return to what matters.
+            </p>
+          </div>
+          <FieldLabel className="w-36">
+            Course
+            <Input value={course} onChange={(e) => setCourse(e.target.value)} />
+          </FieldLabel>
+          <FieldLabel className="w-52">
+            User
+            <Input
+              type="email"
+              value={user}
+              onChange={(e) => setUser(e.target.value)}
+            />
+          </FieldLabel>
+        </header>
+        {!courseOk && (
+          <p className="text-sm text-lattice-danger">
+            Course code must match {COURSE_RE.source}
+          </p>
+        )}
+        {ready && (
+          <>
+            <Materials course={course} user={user} />
+            <Notes course={course} user={user} />
+            <Ask course={course} user={user} />
+          </>
+        )}
+      </div>
     </main>
   )
 }
@@ -121,25 +134,24 @@ interface Scope {
 function ErrorLine({ error }: { error: unknown }) {
   if (!error) return null
   return (
-    <p className="text-sm text-red-700">
+    <p className="text-sm text-lattice-danger">
       {error instanceof Error ? error.message : String(error)}
     </p>
   )
 }
 
-const statusColor: Record<IngestStatus, string> = {
-  queued: 'bg-gray-200 text-gray-800',
-  cognifying: 'bg-yellow-200 text-yellow-900',
-  ready: 'bg-green-200 text-green-900',
-  failed: 'bg-red-200 text-red-900',
+const statusTone: Record<
+  IngestStatus,
+  'neutral' | 'warning' | 'success' | 'danger'
+> = {
+  queued: 'neutral',
+  cognifying: 'warning',
+  ready: 'success',
+  failed: 'danger',
 }
 
 function StatusBadge({ status }: { status: IngestStatus }) {
-  return (
-    <span className={`rounded px-2 py-0.5 text-xs ${statusColor[status]}`}>
-      {status}
-    </span>
-  )
+  return <Badge tone={statusTone[status]}>{status}</Badge>
 }
 
 function Materials({ course, user }: Scope) {
@@ -160,49 +172,53 @@ function Materials({ course, user }: Scope) {
   })
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold">Materials</h2>
+    <Panel className="p-6">
+      <div className="mb-5">
+        <p className="text-sm font-semibold text-lattice-violet">KNOWLEDGE</p>
+        <h2 className="mt-1 text-xl font-semibold">Materials</h2>
+        <p className="mt-1 text-sm text-lattice-muted">
+          Your course Materials are available to everyone enrolled.
+        </p>
+      </div>
       <form
-        className="flex flex-wrap items-center gap-2"
+        className="flex flex-wrap items-center gap-3"
         onSubmit={(e) => {
           e.preventDefault()
           if (file) upload.mutate(file)
         }}
       >
-        <input
-          className="text-sm"
+        <Input
+          className="max-w-sm file:mr-3 file:rounded-md file:border-0 file:bg-lattice-subtle file:px-2 file:py-1 file:text-sm file:font-medium file:text-lattice-ink"
           type="file"
           accept=".pdf,.pptx,.md,.txt"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-        <button
-          className={buttonClass}
-          type="submit"
-          disabled={!file || upload.isPending}
-        >
+        <Button type="submit" disabled={!file || upload.isPending}>
           {upload.isPending ? 'Uploading…' : 'Upload'}
-        </button>
+        </Button>
       </form>
       <ErrorLine error={upload.error} />
       <ErrorLine error={materials.error} />
-      <ul className="divide-y divide-gray-200">
+      <ul className="mt-4 divide-y divide-lattice-border">
         {materials.data?.map((m) => (
           <li
             key={m.filename}
-            className="flex flex-wrap items-center gap-2 py-1"
+            className="flex flex-wrap items-center gap-2 py-3"
           >
             <span className="text-sm">{m.filename}</span>
             <StatusBadge status={m.status} />
             {m.status === 'failed' && m.error && (
-              <span className="text-xs text-red-700">{m.error}</span>
+              <span className="text-xs text-lattice-danger">{m.error}</span>
             )}
           </li>
         ))}
         {materials.data?.length === 0 && (
-          <li className="text-sm text-gray-500">No materials yet.</li>
+          <li>
+            <EmptyState>No Materials yet.</EmptyState>
+          </li>
         )}
       </ul>
-    </section>
+    </Panel>
   )
 }
 
@@ -222,57 +238,65 @@ function Notes({ course, user }: Scope) {
   })
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold">Notes</h2>
+    <Panel className="p-6">
+      <div className="mb-5">
+        <p className="text-sm font-semibold text-lattice-violet">
+          PRIVATE TIER
+        </p>
+        <h2 className="mt-1 text-xl font-semibold">Your Notes</h2>
+        <p className="mt-1 text-sm text-lattice-muted">
+          Notes are readable only by you in this course.
+        </p>
+      </div>
       <form
-        className="space-y-2"
+        className="space-y-3"
         onSubmit={(e) => {
           e.preventDefault()
           save.mutate()
         }}
       >
-        <input
-          className={inputClass}
+        <Input
+          className="max-w-xs"
           value={noteId}
           pattern="[A-Za-z0-9_\-]{1,64}"
           placeholder="note id"
           onChange={(e) => setNoteId(e.target.value)}
         />
-        <textarea
-          className={`${inputClass} block w-full`}
+        <Textarea
           rows={4}
           value={body}
           placeholder="Markdown body"
           onChange={(e) => setBody(e.target.value)}
         />
-        <button
-          className={buttonClass}
+        <Button
           type="submit"
           disabled={!noteId || !body.trim() || save.isPending}
         >
           {save.isPending ? 'Saving…' : 'Save'}
-        </button>
+        </Button>
       </form>
       <ErrorLine error={save.error} />
       <ErrorLine error={notes.error} />
-      <ul className="divide-y divide-gray-200">
+      <ul className="mt-4 divide-y divide-lattice-border">
         {notes.data?.map((n) => (
-          <li key={n.id} className="flex flex-wrap items-center gap-2 py-1">
+          <li key={n.id} className="flex flex-wrap items-center gap-2 py-3">
             <span className="font-mono text-sm">{n.id}</span>
             <StatusBadge status={n.status} />
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-lattice-muted">
               {n.body_md.slice(0, 80)}
             </span>
             {n.status === 'failed' && n.error && (
-              <span className="text-xs text-red-700">{n.error}</span>
+              <span className="text-xs text-lattice-danger">{n.error}</span>
             )}
           </li>
         ))}
         {notes.data?.length === 0 && (
-          <li className="text-sm text-gray-500">No notes yet.</li>
+          <li>
+            <EmptyState>No Notes yet.</EmptyState>
+          </li>
         )}
       </ul>
-    </section>
+    </Panel>
   )
 }
 
@@ -331,24 +355,30 @@ function Ask({ course, user }: Scope) {
   const turns = session.data?.turns ?? []
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-lg font-semibold">Ask</h2>
+    <Panel className="p-6">
+      <div className="mb-5">
+        <p className="text-sm font-semibold text-lattice-violet">SESSION</p>
+        <h2 className="mt-1 text-xl font-semibold">Ask your course</h2>
+        <p className="mt-1 text-sm text-lattice-muted">
+          Answers cite the Material and Notes they retrieve.
+        </p>
+      </div>
       <form
-        className="flex flex-wrap items-center gap-2"
+        className="flex flex-wrap items-center gap-3"
         onSubmit={(e) => {
           e.preventDefault()
           submit.mutate({ question, query_type: queryType })
         }}
       >
-        <input
-          className={`${inputClass} min-w-64 flex-1`}
+        <Input
+          className="min-w-64 flex-1"
           value={question}
           maxLength={2000}
           placeholder="Ask a question about this course"
           onChange={(e) => setQuestion(e.target.value)}
         />
-        <select
-          className={inputClass}
+        <Select
+          className="w-auto"
           value={queryType}
           onChange={(e) => setQueryType(e.target.value as QueryType)}
         >
@@ -357,61 +387,59 @@ function Ask({ course, user }: Scope) {
               {t}
             </option>
           ))}
-        </select>
-        <button
-          className={buttonClass}
-          type="submit"
-          disabled={!question.trim() || submit.isPending}
-        >
+        </Select>
+        <Button type="submit" disabled={!question.trim() || submit.isPending}>
           {submit.isPending ? 'Asking…' : 'Ask'}
-        </button>
-        <button
-          className="rounded border border-gray-300 px-3 py-1 text-sm"
+        </Button>
+        <Button
+          variant="secondary"
           type="button"
           disabled={submit.isPending}
           onClick={() => setSessionId(null)}
         >
           New session
-        </button>
+        </Button>
       </form>
       <ErrorLine error={submit.error} />
       {!(session.error instanceof ApiError && session.error.status === 404) && (
         <ErrorLine error={session.error} />
       )}
       {sessionId && (
-        <p className="font-mono text-xs text-gray-500">session {sessionId}</p>
+        <p className="font-mono text-xs text-lattice-muted">
+          session {sessionId}
+        </p>
       )}
-      <ol className="space-y-3">
+      <ol className="mt-5 space-y-3">
         {turns.map((t, i) => (
           <li key={t.id ?? i}>
             <TurnView turn={t} />
           </li>
         ))}
       </ol>
-    </section>
+    </Panel>
   )
 }
 
 function TurnView({ turn }: { turn: Turn }) {
   if (turn.role === 'user') {
     return (
-      <p className="rounded bg-gray-100 px-3 py-2 text-sm">
+      <p className="rounded-2xl bg-lattice-subtle px-4 py-3 text-sm">
         <span className="font-semibold">You: </span>
         {turn.content}
       </p>
     )
   }
   return (
-    <div className="space-y-2 rounded border border-gray-200 px-3 py-2">
+    <div className="space-y-3 rounded-2xl border border-lattice-border bg-lattice-surface px-4 py-4">
       {turn.results.map((r) => (
         <TierView key={r.tier} result={r} />
       ))}
       {turn.results.length === 0 && (
-        <p className="text-sm italic text-gray-500">
+        <p className="text-sm italic text-lattice-muted">
           Nothing cognified in this course yet.
         </p>
       )}
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-lattice-muted">
         used_notes: {String(turn.used_notes)} · {turn.latency_ms ?? '?'} ms ·{' '}
         {turn.query_type ?? '?'}
       </p>
@@ -427,16 +455,16 @@ const tierLabel: Record<TierResult['tier'], string> = {
 function TierView({ result }: { result: TierResult }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase text-gray-500">
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-lattice-violet">
         {tierLabel[result.tier]}
       </h3>
       <p className="text-sm whitespace-pre-wrap">
         {result.answer ?? (
-          <span className="italic text-gray-500">no answer</span>
+          <span className="italic text-lattice-muted">no answer</span>
         )}
       </p>
       {result.evidence.length > 0 && (
-        <ul className="mt-1 list-disc pl-5 text-xs text-gray-600">
+        <ul className="mt-2 list-disc pl-5 text-xs text-lattice-muted">
           {result.evidence.map((e, i) => (
             <li key={i}>{describeEvidence(e)}</li>
           ))}
