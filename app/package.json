@@ -13,6 +13,8 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "lint": "eslint",
     "format": "prettier --write . && eslint --fix",
     "check": "prettier --check ."
@@ -36,14 +38,21 @@
     "@tanstack/devtools-vite": "^0.8.5",
     "@tanstack/eslint-config": "^0.4.0",
     "@tanstack/router-cli": "^1.167.35",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^7.0.1",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/node": "^26.5.1",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.1",
     "eslint": "^9.39.5",
+    "jsdom": "^30.0.1",
+    "msw": "^2.15.0",
     "prettier": "^3.9.6",
     "typescript": "^6.0.3",
-    "vite": "^8.2.2"
+    "vite": "^8.2.2",
+    "vitest": "^5.0.0"
   },
   "engines": {
     "node": ">=26"

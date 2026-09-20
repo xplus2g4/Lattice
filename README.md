@@ -60,7 +60,7 @@ Checks before a PR, the same ones CI runs:
 ```sh
 cd server && uv run ruff check . && uv run ruff format . && uv run pytest
 cd server && uv run python scripts/export_openapi.py --check
-cd app && npm run check-api && npm run typecheck && npm run lint && npm run check
+cd app && npm run check-api && npm run typecheck && npm test && npm run lint && npm run check
 ```
 
 If you changed a response model, the two `--check`s will fail until you regenerate. That is
