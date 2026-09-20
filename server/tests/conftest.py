@@ -6,6 +6,9 @@ and CI can gate them on a secret instead of running them on every push.
 """
 
 import os
+import shutil
+import tempfile
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -15,6 +18,29 @@ os.environ.setdefault("TELEMETRY_DISABLED", "1")
 
 SERVER_ROOT = Path(__file__).resolve().parents[1]
 PLACEHOLDER = "sk-..."
+
+
+@pytest.fixture
+def workspace(monkeypatch) -> Iterator[Path]:
+    """A deliberately short temporary root, not pytest's `tmp_path`.
+
+    Cognee nests about 190 characters below the root on its own
+    (`system/databases/<uuid>/<uuid>.lance.db/<Table>.lance/_transactions/<uuid>.txn`) and
+    `tmp_path` spends about 90 more on `pytest-of-<user>/pytest-N/<test name>`. Together
+    they cross Windows' 260-character MAX_PATH, and LanceDB fails the cognify with
+    "failed to persist temp file" rather than anything that points at path length.
+    """
+    from cognee.infrastructure.databases.cache.config import get_cache_config
+
+    root = Path(tempfile.mkdtemp(prefix="lat"))
+    monkeypatch.setenv("CACHE_BACKEND", "sqlite")
+    monkeypatch.setenv("CACHE_DB_URL", f"sqlite+aiosqlite:///{root.as_posix()}/s.db")
+    get_cache_config.cache_clear()
+    try:
+        yield root
+    finally:
+        get_cache_config.cache_clear()
+        shutil.rmtree(root, ignore_errors=True)
 
 
 def llm_key_configured() -> bool:

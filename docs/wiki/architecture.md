@@ -1,6 +1,6 @@
 # Architecture
 
-Course knowledge store, Stage 1 (Cognee-backed). Status: go for Phase 1 ([ADR 0006](../adr/0006-cognee-go-for-phase-1.md)). Phase 2's concept graph is unexercised and is the risk that could still trigger the Stage 2 swap.
+Course knowledge store, Stage 1 (Cognee-backed). Status: go for Phase 1 ([ADR 0006](../adr/0006-cognee-go-for-phase-1.md)). Phase 2's storage and traversal mechanisms now work on a [small ontology fixture](../research/2026-09-20-cognee-ontology-findings.md); real-course extraction quality, ranking and citation resolution remain the risk that could still trigger the Stage 2 swap.
 
 This is the one-page view: what the system does, its shape, and the decisions that hold it up. Detail lives in the topic pages:
 

@@ -26,7 +26,7 @@ Configuration comes from the environment; `.env.example` lists every variable, i
 
 Identity is dev-only: with `DEV_HEADER_AUTH=true` the `X-User: <email>` header is the caller. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.
 
-Both tests marked `canary` spend real LLM calls. `test_private_notes_never_leak` cognifies a Material and a Note, then asserts a second user's `/ask` never carries the first user's Note. `test_retrieved_instructions_do_not_override_grounded_answers` uses poisoned context and checks Graph, RAG and Hybrid answers, an unsupported question and a follow-up. Both require successful Cognify rather than passing on empty tiers. Without `LLM_API_KEY` they skip; the new injection canary still awaits live validation, and the repository secret is also pending (#14).
+Both tests marked `canary` spend real LLM calls. `test_private_notes_never_leak` cognifies a Material and a Note, then asserts a second user's `/ask` never carries the first user's Note. `test_retrieved_instructions_do_not_override_grounded_answers` uses poisoned context and checks Graph, RAG and Hybrid answers, an unsupported question and a follow-up. Both require successful Cognify rather than passing on empty tiers. Without `LLM_API_KEY` they skip. Both passed locally on 20 Sep 2026; the repository secret is still pending (#14). The shared `workspace` fixture supplies an explicit per-test `CACHE_DB_URL` so Cognee cannot reuse a default SQL cache pointing at a deleted temporary root.
 
 For reliably offline verification, use `uv run pytest -m "not canary"`, even if a key is configured. `tests/test_prompt_boundary.py` checks the actual Cognee prompt path with external storage/LLM substitutes, including escaped delimiters and session history. The current API has no `not_covered` field; unsupported generated answers are requested as "Not covered by the supplied materials." `CHUNKS` remains raw retrieval. See [security.md](../docs/wiki/security.md) for mitigation limits. Tests disable Cognee log-file rotation by default to avoid deleting user-level logs.
 
@@ -39,3 +39,55 @@ curl -X PUT -H 'X-User: alice@example.com' -H 'content-type: application/json' \
 curl -H 'X-User: alice@example.com' -H 'content-type: application/json' \
   -d '{"question":"what is a hash table?"}' localhost:8000/courses/cs101/ask
 ```
+
+## Opt-in Cognee probes
+
+Run these from `server/`. They do not Cognify or call the LLM unless `--run` is supplied:
+
+```sh
+uv run python scripts/probe_runtime.py --ledger .cognee/probe-budget.sqlite3
+uv run python scripts/probe_ontology.py --variant pydantic
+uv run python scripts/probe_ontology.py --variant default --storage-check
+uv run python scripts/probe_material.py --material "path/to/deck.pdf"
+```
+
+The ontology probe compares `default`, `pydantic` and `owl` extraction; OWL also accepts
+`--ontology-mode strict`. Its vocabulary fixture contains no named individuals or answer
+facts. `--storage-check` exercises a real, temporary, dataset-scoped Ladybug query without
+LLM calls. The Material probe accepts PDF and PPTX and chooses distinctive page/slide anchors
+before Cognify, then records Chunk indices, text headers, metadata, evidence and token counts.
+PPTX inspection follows presentation relationships and reports hidden slides; it reads slide-local
+text/tables, not notes, masters or images. `--directory` inventories both formats locally and
+cannot be combined with `--run`. `--preconvert` uses Markdown page/slide headers for an experimental
+conversion path. `--chunking-only` checks header behavior through the real Chunker without Cognify
+or paid requests; use `--output` to retain results. Native PPTX ingestion currently fails because
+its optional loader dependency is absent; no production conversion was installed.
+
+For a paid ontology or Material run, add `--run --ledger .cognee/probe-budget.sqlite3 --output
+"path/to/new-results.json"`; the output directory must exist and results are never overwritten.
+The guarded canary command is:
+
+```sh
+uv run python scripts/probe_runtime.py --ledger .cognee/probe-budget.sqlite3 --run
+uv run python scripts/probe_runtime.py --ledger .cognee/probe-budget.sqlite3 --report
+```
+
+Reuse the **same ledger** for every experiment in an authorized batch. The transport guard
+reserves a conservative whole-context/output upper bound before each request, including SDK
+retries, and settles only when valid usage is returned. Failed or unmeasured requests retain
+their reservation. It rejects unpriced models, streaming, multiple completions, redirects and
+unfunded requests. The limit cannot exceed US$2 or change on reopening a ledger. The report
+contains token counts and model identifiers, not prompts, responses or credentials. This is
+experiment tooling, not production billing enforcement, and only supports the verified
+DeepSeek/LiteLLM HTTPX route with local fastembed embeddings.
+
+Pricing was checked against the [official table](https://api-docs.deepseek.com/quick_start/pricing)
+on 20 Sep 2026: `deepseek-v4-flash` is now an alias for V4.1 Flash. The ledger uses peak
+cache-miss/input and output rates ($0.30/$1.20 per million tokens), so its dollar figure is an
+**upper bound**, not an invoice estimate with cache/off-peak discounts. Recheck pricing before
+future runs. Credentials belong in the worktree's ignored `.env` or process environment;
+preflight reports readiness without printing them. The [ontology findings](../docs/research/2026-09-20-cognee-ontology-findings.md)
+and [PDF provenance/cost findings](../docs/research/2026-09-20-cognee-material-provenance-cost.md),
+plus the [PPTX follow-up](../docs/research/2026-09-20-cognee-pptx-provenance.md), record the completed
+runs and limitations. Both live canaries passed locally. Production PPTX loader/conversion support,
+page/slide-aware ingest and the CI repository secret remain outstanding.

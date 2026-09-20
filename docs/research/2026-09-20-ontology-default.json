@@ -1,0 +1,1190 @@
+{
+  "executed": true,
+  "variant": "default",
+  "ontology_mode": null,
+  "corpus_sha256": "34909077198ec011ca855450a9d2b4f4d6893e5ac5a589deb8856c6beeddfb6b",
+  "expected_nodes": {
+    "Week3": "Topic",
+    "BaseCase": "Concept",
+    "Recursion": "Concept",
+    "StackFrames": "Concept"
+  },
+  "expected_edges": [
+    [
+      "BaseCase",
+      "prerequisite_of",
+      "Recursion"
+    ],
+    [
+      "Recursion",
+      "builds_on",
+      "BaseCase"
+    ],
+    [
+      "Recursion",
+      "related_to",
+      "StackFrames"
+    ],
+    [
+      "BaseCase",
+      "introduced_in",
+      "Week3"
+    ],
+    [
+      "Recursion",
+      "introduced_in",
+      "Week3"
+    ],
+    [
+      "StackFrames",
+      "introduced_in",
+      "Week3"
+    ]
+  ],
+  "relationship_vocabulary": [
+    "prerequisite_of",
+    "builds_on",
+    "related_to",
+    "introduced_in"
+  ],
+  "ontology_contains_individuals": false,
+  "node_schema": {
+    "properties": {
+      "id": {
+        "title": "Id",
+        "type": "string"
+      },
+      "name": {
+        "title": "Name",
+        "type": "string"
+      },
+      "type": {
+        "enum": [
+          "Concept",
+          "Topic"
+        ],
+        "title": "Type",
+        "type": "string"
+      },
+      "description": {
+        "title": "Description",
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "name",
+      "type",
+      "description"
+    ],
+    "title": "CourseNode",
+    "type": "object"
+  },
+  "edge_schema": {
+    "properties": {
+      "source_node_id": {
+        "title": "Source Node Id",
+        "type": "string"
+      },
+      "target_node_id": {
+        "title": "Target Node Id",
+        "type": "string"
+      },
+      "relationship_name": {
+        "enum": [
+          "prerequisite_of",
+          "builds_on",
+          "related_to",
+          "introduced_in"
+        ],
+        "title": "Relationship Name",
+        "type": "string"
+      },
+      "description": {
+        "anyOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "null"
+          }
+        ],
+        "default": null,
+        "title": "Description"
+      }
+    },
+    "required": [
+      "source_node_id",
+      "target_node_id",
+      "relationship_name"
+    ],
+    "title": "CourseEdge",
+    "type": "object"
+  },
+  "cognee_version": "1.5.4",
+  "nodes": [
+    {
+      "id": "e6545ed3-f7d4-5b3a-a3f5-de607e82d146",
+      "name": "",
+      "type": "TextSummary"
+    },
+    {
+      "id": "acc1dc1b-b4a8-5e64-b1d6-ab94786099ff",
+      "name": "",
+      "type": "DocumentChunk"
+    },
+    {
+      "id": "011656fa-9b5e-4ded-8e14-e280f177002e",
+      "name": "text_446a79632a5f3eaaa2a0715e123fc88d",
+      "type": "TextDocument"
+    },
+    {
+      "id": "438aa636-cafb-5a27-9f00-49009d265434",
+      "name": "week3",
+      "type": "Entity"
+    },
+    {
+      "id": "b83342cf-75ab-5a33-874a-ca5d6fd335d5",
+      "name": "topic",
+      "type": "EntityType"
+    },
+    {
+      "id": "d9932ffc-4c21-5ad0-90c1-725e7c3504e1",
+      "name": "basecase",
+      "type": "Entity"
+    },
+    {
+      "id": "d2a381fa-3658-5ca6-ada9-2109cfc9331d",
+      "name": "concept",
+      "type": "EntityType"
+    },
+    {
+      "id": "4e81e77c-6f2c-5f1c-a8df-cf5f24937bce",
+      "name": "recursion",
+      "type": "Entity"
+    },
+    {
+      "id": "d2d30494-3875-53df-a719-9b483bcf4ba0",
+      "name": "stackframes",
+      "type": "Entity"
+    },
+    {
+      "id": "207708f4-ef6e-5de9-8b1a-ada3453345b8",
+      "name": "active function calls",
+      "type": "Entity"
+    },
+    {
+      "id": null,
+      "name": null,
+      "type": null
+    },
+    {
+      "id": null,
+      "name": null,
+      "type": null
+    }
+  ],
+  "edges": [
+    {
+      "source_id": "e6545ed3-f7d4-5b3a-a3f5-de607e82d146",
+      "source": "",
+      "relationship": "made_from",
+      "target_id": "acc1dc1b-b4a8-5e64-b1d6-ab94786099ff",
+      "target": ""
+    },
+    {
+      "source_id": "acc1dc1b-b4a8-5e64-b1d6-ab94786099ff",
+      "source": "",
+      "relationship": "is_part_of",
+      "target_id": "011656fa-9b5e-4ded-8e14-e280f177002e",
+      "target": "text_446a79632a5f3eaaa2a0715e123fc88d"
+    },
+    {
+      "source_id": "acc1dc1b-b4a8-5e64-b1d6-ab94786099ff",
+      "source": "",
+      "relationship": "contains",
+      "target_id": "438aa636-cafb-5a27-9f00-49009d265434",
+      "target": "week3"
+    },
+    {
+      "source_id": "d9932ffc-4c21-5ad0-90c1-725e7c3504e1",
+      "source": "basecase",
+      "relationship": "introduced_in",
+      "target_id": "438aa636-cafb-5a27-9f00-49009d265434",
+      "target": "week3"
+    },
+    {
+      "source_id": "4e81e77c-6f2c-5f1c-a8df-cf5f24937bce",
+      "source": "recursion",
+      "relationship": "introduced_in",
+      "target_id": "438aa636-cafb-5a27-9f00-49009d265434",
+      "target": "week3"
+    },
+    {
+      "source_id": "d2d30494-3875-53df-a719-9b483bcf4ba0",
+      "source": "stackframes",
+      "relationship": "introduced_in",
+      "target_id": "438aa636-cafb-5a27-9f00-49009d265434",
+      "target": "week3"
+    },
+    {
+      "source_id": "438aa636-cafb-5a27-9f00-49009d265434",
+      "source": "week3",
+      "relationship": "is_a",
+      "target_id": "b83342cf-75ab-5a33-874a-ca5d6fd335d5",
+      "target": "topic"
+    },
+    {
+      "source_id": "acc1dc1b-b4a8-5e64-b1d6-ab94786099ff",
+      "source": "",
+      "relationship": "contains",
+      "target_id": "d9932ffc-4c21-5ad0-90c1-725e7c3504e1",
+      "target": "basecase"
+    },
+    {
+      "source_id": "4e81e77c-6f2c-5f1c-a8df-cf5f24937bce",
+      "source": "recursion",
+      "relationship": "builds_on",
+      "target_id": "d9932ffc-4c21-5ad0-90c1-725e7c3504e1",
+      "target": "basecase"
+    },
+    {
+      "source_id": "d9932ffc-4c21-5ad0-90c1-725e7c3504e1",
+      "source": "basecase",
+      "relationship": "is_a",
+      "target_id": "d2a381fa-3658-5ca6-ada9-2109cfc9331d",
+      "target": "concept"
+    },
+    {
+      "source_id": "4e81e77c-6f2c-5f1c-a8df-cf5f24937bce",
+      "source": "recursion",
+      "relationship": "is_a",
+      "target_id": "d2a381fa-3658-5ca6-ada9-2109cfc9331d",
+      "target": "concept"
+    },
+    {
+      "source_id": "d2d30494-3875-53df-a719-9b483bcf4ba0",
+      "source": "stackframes",
+      "relationship": "is_a",
+      "target_id": "d2a381fa-3658-5ca6-ada9-2109cfc9331d",
+      "target": "concept"
+    },
+    {
+      "source_id": "207708f4-ef6e-5de9-8b1a-ada3453345b8",
+      "source": "active function calls",
+      "relationship": "is_a",
+      "target_id": "d2a381fa-3658-5ca6-ada9-2109cfc9331d",
+      "target": "concept"
+    },
+    {
+      "source_id": "d9932ffc-4c21-5ad0-90c1-725e7c3504e1",
+      "source": "basecase",
+      "relationship": "prerequisite_of",
+      "target_id": "4e81e77c-6f2c-5f1c-a8df-cf5f24937bce",
+      "target": "recursion"
+    },
+    {
+      "source_id": "acc1dc1b-b4a8-5e64-b1d6-ab94786099ff",
+      "source": "",
+      "relationship": "contains",
+      "target_id": "4e81e77c-6f2c-5f1c-a8df-cf5f24937bce",
+      "target": "recursion"
+    },
+    {
+      "source_id": "4e81e77c-6f2c-5f1c-a8df-cf5f24937bce",
+      "source": "recursion",
+      "relationship": "related_to",
+      "target_id": "d2d30494-3875-53df-a719-9b483bcf4ba0",
+      "target": "stackframes"
+    },
+    {
+      "source_id": "acc1dc1b-b4a8-5e64-b1d6-ab94786099ff",
+      "source": "",
+      "relationship": "contains",
+      "target_id": "d2d30494-3875-53df-a719-9b483bcf4ba0",
+      "target": "stackframes"
+    },
+    {
+      "source_id": "d2d30494-3875-53df-a719-9b483bcf4ba0",
+      "source": "stackframes",
+      "relationship": "stores_state_of",
+      "target_id": "207708f4-ef6e-5de9-8b1a-ada3453345b8",
+      "target": "active function calls"
+    },
+    {
+      "source_id": "acc1dc1b-b4a8-5e64-b1d6-ab94786099ff",
+      "source": "",
+      "relationship": "contains",
+      "target_id": "207708f4-ef6e-5de9-8b1a-ada3453345b8",
+      "target": "active function calls"
+    }
+  ],
+  "checks": {
+    "missing_expected_nodes": [],
+    "missing_expected_edges": [],
+    "expected_type_matches": {
+      "Week3": true,
+      "BaseCase": true,
+      "Recursion": true,
+      "StackFrames": true
+    },
+    "chunk_outgoing_relationships": [
+      "contains",
+      "is_part_of"
+    ],
+    "foreign_course_excluded": true,
+    "private_note_excluded": true,
+    "foreign_control_present": true,
+    "private_control_present": true,
+    "private_direct_read_refused": true
+  },
+  "retrieval_modes": {
+    "triplet_embeddings": "created",
+    "TRIPLET_COMPLETION": [
+      {
+        "answer": [
+          "BaseCase"
+        ],
+        "evidence": []
+      }
+    ],
+    "GRAPH_REPORT": [
+      {
+        "answer": [
+          "# Graph Insight Report\n\n**Nodes:** 10 | **Edges:** 19\n\n\n## \ud83c\udfc6 Hub Nodes\n\nTop nodes by degree + PageRank (most connected / influential):\n\n1. **recursion** (set: `\u2014`, degree: 6, PageRank: 0.0000)\n2. **week3** (set: `\u2014`, degree: 5, PageRank: 0.0000)\n3. **basecase** (set: `\u2014`, degree: 5, PageRank: 0.0000)\n4. **stackframes** (set: `\u2014`, degree: 5, PageRank: 0.0000)\n5. **concept** (set: `\u2014`, degree: 4, PageRank: 0.0000)\n6. **active function calls** (set: `\u2014`, degree: 3, PageRank: 0.0000)\n7. **topic** (set: `\u2014`, degree: 1, PageRank: 0.0000)\n\n\n## \ud83d\udd17 Surprising Cross-Set Connections\n\n_No cross-node_set connections found (add data under multiple node_sets)._\n\n\n## \ud83c\udff7\ufe0f Edge Provenance\n\nHow edges entered the graph:\n\n- `EXTRACTED (entity-to-entity, LLM-derived)`: 7 edges (36.8%)\n- `DERIVED (structural / chunk-linked)`: 12 edges (63.2%)\n\n\n## \ud83d\udca1 Suggested Questions\n\nQuestions ready to pipe into `cognee.search()`:\n\n- What is the connection between recursion and basecase?\n- How does week3 relate to recursion?\n- What are the stackframes connected to?\n- What concepts are linked to active function calls?\n- Which node is connected to topic?"
+        ],
+        "evidence": []
+      }
+    ],
+    "cypher_1_hop": [
+      {
+        "name": "concept",
+        "type": "EntityType"
+      },
+      {
+        "name": "basecase",
+        "type": "Entity"
+      },
+      {
+        "name": "week3",
+        "type": "Entity"
+      },
+      {
+        "name": "stackframes",
+        "type": "Entity"
+      }
+    ],
+    "cypher_2_hop": [
+      {
+        "name": "recursion",
+        "type": "Entity"
+      },
+      {
+        "name": "topic",
+        "type": "EntityType"
+      },
+      {
+        "name": "active function calls",
+        "type": "Entity"
+      },
+      {
+        "name": "concept",
+        "type": "EntityType"
+      },
+      {
+        "name": "basecase",
+        "type": "Entity"
+      },
+      {
+        "name": "week3",
+        "type": "Entity"
+      },
+      {
+        "name": "stackframes",
+        "type": "Entity"
+      }
+    ]
+  },
+  "operations": [
+    {
+      "pipeline_run_id": "343766d5-a5bd-4d0a-885f-57705467e24f",
+      "operation_name": "add_pipeline",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:28:24.083832",
+      "ended_at": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "outcome": null
+    },
+    {
+      "pipeline_run_id": "343766d5-a5bd-4d0a-885f-57705467e24f",
+      "operation_name": "add_pipeline",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:28:24.083832",
+      "ended_at": "2026-09-20 15:28:27.590073",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "740948dc-01a5-4fca-97d6-8cb25ecbb950",
+      "operation_name": "cognify_pipeline",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:28:28.584453",
+      "ended_at": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "outcome": null
+    },
+    {
+      "pipeline_run_id": "740948dc-01a5-4fca-97d6-8cb25ecbb950",
+      "operation_name": "cognify_pipeline",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:28:28.584453",
+      "ended_at": "2026-09-20 15:29:01.974490",
+      "tokens_in": 1642,
+      "tokens_out": 3272,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "d079ed4d-f658-43d6-a125-02c0483616f2",
+      "operation_name": "add_pipeline",
+      "dataset_id": "4e2d994b-2ee4-551d-a916-8afae43e50b4",
+      "started_at": "2026-09-20 15:29:02.784042",
+      "ended_at": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "outcome": null
+    },
+    {
+      "pipeline_run_id": "d079ed4d-f658-43d6-a125-02c0483616f2",
+      "operation_name": "add_pipeline",
+      "dataset_id": "4e2d994b-2ee4-551d-a916-8afae43e50b4",
+      "started_at": "2026-09-20 15:29:02.784042",
+      "ended_at": "2026-09-20 15:29:06.148148",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "01535343-3877-4e56-abc7-7889bd721937",
+      "operation_name": "cognify_pipeline",
+      "dataset_id": "4e2d994b-2ee4-551d-a916-8afae43e50b4",
+      "started_at": "2026-09-20 15:29:06.767235",
+      "ended_at": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "outcome": null
+    },
+    {
+      "pipeline_run_id": "01535343-3877-4e56-abc7-7889bd721937",
+      "operation_name": "cognify_pipeline",
+      "dataset_id": "4e2d994b-2ee4-551d-a916-8afae43e50b4",
+      "started_at": "2026-09-20 15:29:06.767235",
+      "ended_at": "2026-09-20 15:29:25.247812",
+      "tokens_in": 1528,
+      "tokens_out": 806,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "3f22af70-c49e-4a18-a179-8d7f1b37f826",
+      "operation_name": "add_pipeline",
+      "dataset_id": "12601a9f-0a9c-5348-9eac-8147f987c3ff",
+      "started_at": "2026-09-20 15:29:25.840647",
+      "ended_at": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "outcome": null
+    },
+    {
+      "pipeline_run_id": "3f22af70-c49e-4a18-a179-8d7f1b37f826",
+      "operation_name": "add_pipeline",
+      "dataset_id": "12601a9f-0a9c-5348-9eac-8147f987c3ff",
+      "started_at": "2026-09-20 15:29:25.840647",
+      "ended_at": "2026-09-20 15:29:27.598424",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "80165542-9062-4f38-b77b-c56a2c651e4a",
+      "operation_name": "cognify_pipeline",
+      "dataset_id": "12601a9f-0a9c-5348-9eac-8147f987c3ff",
+      "started_at": "2026-09-20 15:29:28.311899",
+      "ended_at": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "outcome": null
+    },
+    {
+      "pipeline_run_id": "80165542-9062-4f38-b77b-c56a2c651e4a",
+      "operation_name": "cognify_pipeline",
+      "dataset_id": "12601a9f-0a9c-5348-9eac-8147f987c3ff",
+      "started_at": "2026-09-20 15:29:28.311899",
+      "ended_at": "2026-09-20 15:29:48.668318",
+      "tokens_in": 1528,
+      "tokens_out": 1266,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "685bd7b1-0700-4693-b53a-84e9ddf3b479",
+      "operation_name": "search",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:29:48.745737",
+      "ended_at": "2026-09-20 15:29:49.431343",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "6d910290-094f-4087-8a92-b52991baf861",
+      "operation_name": "search",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:29:49.510100",
+      "ended_at": "2026-09-20 15:29:50.026865",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "6e27b2c7-2a6f-4eec-a458-3cd64efdffa6",
+      "operation_name": "search",
+      "dataset_id": "4e2d994b-2ee4-551d-a916-8afae43e50b4",
+      "started_at": "2026-09-20 15:29:50.080803",
+      "ended_at": "2026-09-20 15:29:50.512759",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "3e1e2152-999e-4a0f-8a07-e2cedabdfb75",
+      "operation_name": "search",
+      "dataset_id": "12601a9f-0a9c-5348-9eac-8147f987c3ff",
+      "started_at": "2026-09-20 15:29:50.545702",
+      "ended_at": "2026-09-20 15:29:50.887994",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "9bb8c77b-a3d8-4b9f-a1ae-fc10987b673e",
+      "operation_name": "search",
+      "dataset_id": "12601a9f-0a9c-5348-9eac-8147f987c3ff",
+      "started_at": "2026-09-20 15:29:50.946800",
+      "ended_at": "2026-09-20 15:29:51.038083",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "failed"
+    },
+    {
+      "pipeline_run_id": "03fd49d6-0db7-4a03-be6b-d6fb2aaeffb7",
+      "operation_name": "memify_pipeline",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:29:51.527375",
+      "ended_at": null,
+      "tokens_in": null,
+      "tokens_out": null,
+      "outcome": null
+    },
+    {
+      "pipeline_run_id": "03fd49d6-0db7-4a03-be6b-d6fb2aaeffb7",
+      "operation_name": "memify_pipeline",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:29:51.527375",
+      "ended_at": "2026-09-20 15:30:36.958056",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "56857a68-b4a8-4bb5-aa77-e12879a5b40d",
+      "operation_name": "search",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:30:37.017037",
+      "ended_at": "2026-09-20 15:30:39.412678",
+      "tokens_in": 1023,
+      "tokens_out": 2,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "6e16e146-0a17-4604-bdc4-6bda1a48144b",
+      "operation_name": "search",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:30:39.477486",
+      "ended_at": "2026-09-20 15:30:45.074474",
+      "tokens_in": 515,
+      "tokens_out": 1140,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "459277af-87be-4adb-97b2-30ea1ed4c4ae",
+      "operation_name": "search",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:30:45.111487",
+      "ended_at": "2026-09-20 15:30:45.416237",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    },
+    {
+      "pipeline_run_id": "25a1dd27-dc73-4d22-91d1-5565747ca797",
+      "operation_name": "search",
+      "dataset_id": "8e47322c-d5d6-5e12-b902-af815ba8b6f4",
+      "started_at": "2026-09-20 15:30:45.453587",
+      "ended_at": "2026-09-20 15:30:45.763717",
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "outcome": "succeeded"
+    }
+  ],
+  "elapsed_seconds": 196.87316000001738,
+  "budget": {
+    "limit_usd": 2.0,
+    "charged_or_reserved_upper_bound_usd": 0.049234,
+    "pricing_source": "https://api-docs.deepseek.com/quick_start/pricing",
+    "rate_version": "deepseek-flash-2026-09-20-peak-upper-bound",
+    "unresolved_reservations": 0,
+    "requests": [
+      {
+        "id": 1,
+        "started_at": "2026-09-20T14:51:44.871073+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 51,
+        "prompt_tokens": 42,
+        "completion_tokens": 32,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 2,
+        "started_at": "2026-09-20T14:51:54.520341+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 2686,
+        "prompt_tokens": 1089,
+        "completion_tokens": 1966,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 3,
+        "started_at": "2026-09-20T14:51:54.528421+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 750,
+        "prompt_tokens": 447,
+        "completion_tokens": 513,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 4,
+        "started_at": "2026-09-20T14:52:12.182716+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 2450,
+        "prompt_tokens": 1097,
+        "completion_tokens": 1767,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 5,
+        "started_at": "2026-09-20T14:52:12.189861+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 1139,
+        "prompt_tokens": 455,
+        "completion_tokens": 835,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 6,
+        "started_at": "2026-09-20T14:52:44.617364+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 2886,
+        "prompt_tokens": 1113,
+        "completion_tokens": 2126,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 7,
+        "started_at": "2026-09-20T14:52:44.649131+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 1834,
+        "prompt_tokens": 471,
+        "completion_tokens": 1410,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 8,
+        "started_at": "2026-09-20T14:53:15.784502+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 2670,
+        "prompt_tokens": 1124,
+        "completion_tokens": 1944,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 9,
+        "started_at": "2026-09-20T14:53:15.793131+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 777,
+        "prompt_tokens": 482,
+        "completion_tokens": 527,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 10,
+        "started_at": "2026-09-20T15:22:50.783582+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 83,
+        "prompt_tokens": 42,
+        "completion_tokens": 58,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 11,
+        "started_at": "2026-09-20T15:23:05.565674+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 3301,
+        "prompt_tokens": 1089,
+        "completion_tokens": 2478,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 12,
+        "started_at": "2026-09-20T15:23:05.577874+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 1138,
+        "prompt_tokens": 447,
+        "completion_tokens": 836,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 13,
+        "started_at": "2026-09-20T15:23:33.474148+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 2754,
+        "prompt_tokens": 1097,
+        "completion_tokens": 2020,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 14,
+        "started_at": "2026-09-20T15:23:33.486516+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 1342,
+        "prompt_tokens": 455,
+        "completion_tokens": 1004,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 15,
+        "started_at": "2026-09-20T15:24:07.628834+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 3673,
+        "prompt_tokens": 1113,
+        "completion_tokens": 2782,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 16,
+        "started_at": "2026-09-20T15:24:07.641439+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 1505,
+        "prompt_tokens": 471,
+        "completion_tokens": 1136,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 17,
+        "started_at": "2026-09-20T15:24:35.774625+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 3219,
+        "prompt_tokens": 1124,
+        "completion_tokens": 2401,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 18,
+        "started_at": "2026-09-20T15:24:35.788013+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 1315,
+        "prompt_tokens": 482,
+        "completion_tokens": 975,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 19,
+        "started_at": "2026-09-20T15:25:04.446344+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 473,
+        "prompt_tokens": 1188,
+        "completion_tokens": 97,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 20,
+        "started_at": "2026-09-20T15:25:04.480812+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 487,
+        "prompt_tokens": 1211,
+        "completion_tokens": 103,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 21,
+        "started_at": "2026-09-20T15:25:10.732083+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 692,
+        "prompt_tokens": 1398,
+        "completion_tokens": 227,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 22,
+        "started_at": "2026-09-20T15:25:10.793459+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 502,
+        "prompt_tokens": 1371,
+        "completion_tokens": 75,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 23,
+        "started_at": "2026-09-20T15:25:15.929469+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 457,
+        "prompt_tokens": 1205,
+        "completion_tokens": 79,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 24,
+        "started_at": "2026-09-20T15:25:15.987058+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 462,
+        "prompt_tokens": 1184,
+        "completion_tokens": 89,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 25,
+        "started_at": "2026-09-20T15:25:22.512787+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 158,
+        "prompt_tokens": 268,
+        "completion_tokens": 64,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 26,
+        "started_at": "2026-09-20T15:25:22.579410+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 147,
+        "prompt_tokens": 248,
+        "completion_tokens": 60,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 27,
+        "started_at": "2026-09-20T15:25:29.090055+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 213,
+        "prompt_tokens": 373,
+        "completion_tokens": 84,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 28,
+        "started_at": "2026-09-20T15:25:29.155528+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 326,
+        "prompt_tokens": 393,
+        "completion_tokens": 173,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 29,
+        "started_at": "2026-09-20T15:25:34.371706+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 108,
+        "prompt_tokens": 242,
+        "completion_tokens": 29,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 30,
+        "started_at": "2026-09-20T15:25:34.415215+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 131,
+        "prompt_tokens": 262,
+        "completion_tokens": 43,
+        "cache_hit_tokens": 128,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 31,
+        "started_at": "2026-09-20T15:25:40.000188+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 310,
+        "prompt_tokens": 589,
+        "completion_tokens": 111,
+        "cache_hit_tokens": 128,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 32,
+        "started_at": "2026-09-20T15:25:40.065731+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 282,
+        "prompt_tokens": 648,
+        "completion_tokens": 73,
+        "cache_hit_tokens": 128,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 33,
+        "started_at": "2026-09-20T15:25:46.670337+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 286,
+        "prompt_tokens": 784,
+        "completion_tokens": 42,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 34,
+        "started_at": "2026-09-20T15:25:46.767025+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 411,
+        "prompt_tokens": 725,
+        "completion_tokens": 161,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 35,
+        "started_at": "2026-09-20T15:25:51.613915+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 228,
+        "prompt_tokens": 642,
+        "completion_tokens": 29,
+        "cache_hit_tokens": 128,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 36,
+        "started_at": "2026-09-20T15:25:51.660493+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 233,
+        "prompt_tokens": 583,
+        "completion_tokens": 48,
+        "cache_hit_tokens": 128,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 37,
+        "started_at": "2026-09-20T15:28:07.881588+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 32,
+        "prompt_tokens": 42,
+        "completion_tokens": 16,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 38,
+        "started_at": "2026-09-20T15:28:28.932488+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 2803,
+        "prompt_tokens": 1142,
+        "completion_tokens": 2050,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 39,
+        "started_at": "2026-09-20T15:28:28.959289+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 1617,
+        "prompt_tokens": 500,
+        "completion_tokens": 1222,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 40,
+        "started_at": "2026-09-20T15:29:07.000230+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 690,
+        "prompt_tokens": 1085,
+        "completion_tokens": 303,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 41,
+        "started_at": "2026-09-20T15:29:07.013481+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 737,
+        "prompt_tokens": 443,
+        "completion_tokens": 503,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 42,
+        "started_at": "2026-09-20T15:29:28.526898+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 657,
+        "prompt_tokens": 1085,
+        "completion_tokens": 276,
+        "cache_hit_tokens": 896,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 43,
+        "started_at": "2026-09-20T15:29:28.536075+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 1321,
+        "prompt_tokens": 443,
+        "completion_tokens": 990,
+        "cache_hit_tokens": 256,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 44,
+        "started_at": "2026-09-20T15:30:38.363749+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 375,
+        "prompt_tokens": 1052,
+        "completion_tokens": 49,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      },
+      {
+        "id": 45,
+        "started_at": "2026-09-20T15:30:39.882688+00:00",
+        "model": "deepseek-v4-flash",
+        "output_limit": 393216,
+        "charge_micro": 1523,
+        "prompt_tokens": 515,
+        "completion_tokens": 1140,
+        "cache_hit_tokens": 0,
+        "reported_model": "deepseek-flash",
+        "outcome": "measured"
+      }
+    ]
+  }
+}

@@ -1,0 +1,160 @@
+{
+  "executed": false,
+  "material": "Lecture 7 - MIPS Part 2.pdf",
+  "sha256": "7a9de03cba52fcbdae16e5f4e399286a1ab091ebeb8a907c2fc0a2a8e26d574c",
+  "page_count": 40,
+  "extracted_characters": 18549,
+  "empty_pages": [],
+  "anchors": [
+    {
+      "page": 2,
+      "text": "lecture 7 mips part 2 more instructions 1 memory organisation general 1"
+    },
+    {
+      "page": 21,
+      "text": "lecture 7 mips part 2 more instructions 3 2 unconditional jump j"
+    },
+    {
+      "page": 35,
+      "text": "lecture 7 mips part 2 more instructions 6 1 exercise 3 simple"
+    },
+    {
+      "page": 40,
+      "text": "end of file lecture 7 mips part 2 more instructionscs2100 ay26 27"
+    }
+  ],
+  "ready_to_cognify": true,
+  "max_chunk_tokens": 8191,
+  "chunking_comparison": {
+    "native_page_headers": [
+      {
+        "chunk_index": 0,
+        "chunk_size": 8149,
+        "page_headers": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34,
+          35
+        ],
+        "matched_anchor_pages": [
+          2,
+          21
+        ]
+      },
+      {
+        "chunk_index": 1,
+        "chunk_size": 1849,
+        "page_headers": [
+          36,
+          37,
+          38,
+          39,
+          40
+        ],
+        "matched_anchor_pages": [
+          40
+        ]
+      }
+    ],
+    "markdown_page_headers": [
+      {
+        "chunk_index": 0,
+        "chunk_size": 8176,
+        "page_headers": [
+          1,
+          2,
+          3,
+          4,
+          5,
+          6,
+          7,
+          8,
+          9,
+          10,
+          11,
+          12,
+          13,
+          14,
+          15,
+          16,
+          17,
+          18,
+          19,
+          20,
+          21,
+          22,
+          23,
+          24,
+          25,
+          26,
+          27,
+          28,
+          29,
+          30,
+          31,
+          32,
+          33,
+          34
+        ],
+        "matched_anchor_pages": [
+          2,
+          21
+        ]
+      },
+      {
+        "chunk_index": 1,
+        "chunk_size": 1901,
+        "page_headers": [
+          35,
+          36,
+          37,
+          38,
+          39,
+          40
+        ],
+        "matched_anchor_pages": [
+          35,
+          40
+        ]
+      }
+    ]
+  },
+  "anchors_crossing_chunk_boundaries": {
+    "native_page_headers": [
+      35
+    ],
+    "markdown_page_headers": []
+  },
+  "paid_requests": 0
+}

@@ -14,9 +14,6 @@ V4 Flash. Marked `canary`, so a plain `uv run pytest` skips it when no key is co
 
 import asyncio
 import re
-import shutil
-import tempfile
-from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -40,23 +37,6 @@ MATERIAL = b"# Week 3\n\nHash tables store key-value pairs and resolve collision
 NOTE = f"My mnemonic for week 3 hash tables is {PASSPHRASE}, which I must not forget."
 
 QUESTION = "what should I remember about hash tables in week 3?"
-
-
-@pytest.fixture
-def workspace() -> Iterator[Path]:
-    """A deliberately short temporary root, not pytest's `tmp_path`.
-
-    Cognee nests about 190 characters below the root on its own
-    (`system/databases/<uuid>/<uuid>.lance.db/<Table>.lance/_transactions/<uuid>.txn`) and
-    `tmp_path` spends about 90 more on `pytest-of-<user>/pytest-N/<test name>`. Together
-    they cross Windows' 260-character MAX_PATH, and LanceDB fails the cognify with
-    "failed to persist temp file" rather than anything that points at path length.
-    """
-    root = Path(tempfile.mkdtemp(prefix="lat"))
-    try:
-        yield root
-    finally:
-        shutil.rmtree(root, ignore_errors=True)
 
 
 def settings_for(workspace: Path) -> Settings:

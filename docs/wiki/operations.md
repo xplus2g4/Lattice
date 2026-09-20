@@ -35,7 +35,7 @@ uv run pytest -m "not canary"  # offline selection, even with a key configured
 uv run pytest -m canary -v    # paid gates; needs LLM_API_KEY
 ```
 
-Locally `uv run pytest` skips canaries only when no key is configured. Tests disable Cognee's log rotation by default so importing the SDK does not delete old user-level logs. The new prompt-injection canary ([security.md](./security.md)) awaits its first live validation. Deploys remain manual; `ssh … docker compose pull && up -d` is the intent.
+Locally `uv run pytest` skips canaries only when no key is configured. Tests disable Cognee's log rotation by default so importing the SDK does not delete old user-level logs. Both live canaries passed locally on 20 Sep 2026; the successful batch's conservative peak-rate cost bound was $0.024236. Each test workspace explicitly scopes `CACHE_DB_URL`: Cognee otherwise memoizes an adapter pointing at the previous temporary root, which can fail after that root is removed. Deploys remain manual; `ssh … docker compose pull && up -d` is the intent.
 
 ## Backups
 

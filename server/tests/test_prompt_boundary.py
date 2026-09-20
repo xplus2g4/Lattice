@@ -1,5 +1,7 @@
 import asyncio
+import tempfile
 from importlib import import_module
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import uuid4
@@ -17,11 +19,10 @@ COMPLETION_TYPES = ("RAG_COMPLETION", "GRAPH_COMPLETION", "HYBRID_COMPLETION")
 
 
 @pytest.fixture
-def search_engine(tmp_path, monkeypatch):
+def search_engine(workspace, monkeypatch):
     monkeypatch.setenv("CACHING", "false")
     monkeypatch.setenv("AUTO_FEEDBACK", "false")
     monkeypatch.setenv("CACHE_BACKEND", "sqlite")
-    monkeypatch.setenv("CACHE_DB_URL", f"sqlite+aiosqlite:///{tmp_path.as_posix()}/cache.db")
     get_cache_config.cache_clear()
     prompts = []
     registrations = registered_community_retrievers.copy()
@@ -64,7 +65,12 @@ def search_engine(tmp_path, monkeypatch):
         search=vector_search,
         retrieve=AsyncMock(return_value=[]),
         has_collection=has_collection,
-        embedding_engine=SimpleNamespace(embed_text=AsyncMock(return_value=[[1.0, 0.0]])),
+        create_vector_index=AsyncMock(),
+        index_data_points=AsyncMock(),
+        embedding_engine=SimpleNamespace(
+            embed_text=AsyncMock(return_value=[[1.0, 0.0]]),
+            get_batch_size=lambda: 10,
+        ),
     )
     graph = SimpleNamespace(
         is_empty=AsyncMock(return_value=False),
@@ -80,14 +86,17 @@ def search_engine(tmp_path, monkeypatch):
         module = import_module(module_name)
         if hasattr(module, "get_graph_engine"):
             monkeypatch.setattr(module, "get_graph_engine", AsyncMock(return_value=graph))
-    for module_name in (
-        "cognee.modules.retrieval.completion_retriever",
-        "cognee.modules.search.methods.hybrid_deferral",
-        "cognee.infrastructure.databases.vector",
-    ):
-        monkeypatch.setattr(
-            import_module(module_name), "get_vector_engine_async", AsyncMock(return_value=vector)
+    vector_modules = [
+        import_module(module_name)
+        for module_name in (
+            "cognee.modules.retrieval.completion_retriever",
+            "cognee.modules.search.methods.hybrid_deferral",
+            "cognee.infrastructure.databases.vector",
+            "cognee.tasks.storage.index_data_points",
         )
+    ]
+    for module in vector_modules:
+        monkeypatch.setattr(module, "get_vector_engine_async", AsyncMock(return_value=vector))
     for module_name in (
         "cognee.modules.retrieval.graph_completion_retriever",
         "cognee.modules.retrieval.hybrid_retriever",
@@ -101,8 +110,9 @@ def search_engine(tmp_path, monkeypatch):
     monkeypatch.setattr("lattice.engine.has_dataset_data", AsyncMock(return_value=True))
     monkeypatch.setattr(LLMGateway, "acreate_structured_output", complete)
 
-    async def run(query_type, *, repeat_engine=False, questions=None):
-        settings = Settings(cognee_root=tmp_path / "c", uploads_dir=tmp_path / "u")
+    async def run(query_type, *, repeat_engine=False, questions=None, root=None):
+        root = root or workspace
+        settings = Settings(cognee_root=root / "c", uploads_dir=root / "u")
         engine = Engine(settings)
         if repeat_engine:
             engine = Engine(settings)
@@ -173,6 +183,17 @@ def test_markup_and_unicode_survive_as_data(search_engine, query_type):
     asyncio.run(search_engine.run(query_type))
     prompt, _ = search_engine.prompts[0]
     assert "café &lt;code&gt;x &amp; y&lt;/code&gt; {{ instructions }}" in prompt
+
+
+def test_completion_after_a_chunk_only_workspace_is_removed(search_engine, monkeypatch):
+    monkeypatch.setenv("CACHING", "true")
+    get_cache_config.cache_clear()
+    with tempfile.TemporaryDirectory(prefix="lat", ignore_cleanup_errors=True) as first:
+        chunks = asyncio.run(search_engine.run("CHUNKS", root=Path(first)))
+        assert chunks[0].answer == POISON
+    with tempfile.TemporaryDirectory(prefix="lat", ignore_cleanup_errors=True) as second:
+        answer = asyncio.run(search_engine.run("RAG_COMPLETION", root=Path(second)))
+        assert answer[0].answer.startswith("Hash tables use chaining.")
 
 
 @pytest.mark.parametrize("query_type", COMPLETION_TYPES)
