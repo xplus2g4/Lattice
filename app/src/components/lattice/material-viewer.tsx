@@ -1,9 +1,18 @@
 import { useQuery } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Document, Page, pdfjs } from 'react-pdf'
 
 import { Button } from '#/components/ui/button'
 import { downloadMaterial } from '#/lib/api'
 import { useUser } from '#/lib/user'
+
+import 'react-pdf/dist/Page/AnnotationLayer.css'
+import 'react-pdf/dist/Page/TextLayer.css'
+
+pdfjs.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.min.mjs',
+  import.meta.url,
+).toString()
 
 type Kind = 'pdf' | 'text' | 'download'
 
@@ -44,6 +53,53 @@ export function useMaterialFile(course: string, filename: string) {
   return { file, url }
 }
 
+function PdfPages({ blob }: { blob: Blob }) {
+  const [numPages, setNumPages] = useState(0)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [width, setWidth] = useState<number>()
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const observer = new ResizeObserver(([entry]) =>
+      setWidth(entry.contentRect.width),
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+
+  return (
+    <div ref={containerRef} className="h-full overflow-y-auto">
+      <Document
+        file={blob}
+        loading={
+          <p className="p-6 text-sm text-muted-foreground">Rendering…</p>
+        }
+        error={
+          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+            <p className="font-semibold">Could not render this PDF</p>
+            <p className="text-sm text-muted-foreground">
+              The file downloaded fine but the reader failed — try downloading
+              it instead.
+            </p>
+          </div>
+        }
+        onLoadSuccess={({ numPages: n }) => setNumPages(n)}
+        className="mx-auto flex max-w-4xl flex-col items-center gap-4 px-4 py-6"
+      >
+        {Array.from({ length: numPages }, (_, i) => (
+          <Page
+            key={i + 1}
+            pageNumber={i + 1}
+            width={width ? Math.min(width - 32, 896) : undefined}
+            className="shadow-lattice"
+          />
+        ))}
+      </Document>
+    </div>
+  )
+}
+
 export function MaterialViewer({
   course,
   filename,
@@ -52,6 +108,9 @@ export function MaterialViewer({
   filename: string
 }) {
   const { file, url } = useMaterialFile(course, filename)
+  // react-pdf touches browser APIs; never render it during SSR.
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => setMounted(true), [])
 
   return (
     <div className="h-full min-h-0">
@@ -64,9 +123,12 @@ export function MaterialViewer({
           <p className="text-sm text-destructive">{file.error.message}</p>
         </div>
       )}
-      {file.data?.kind === 'pdf' && url && (
-        <iframe src={url} title={filename} className="h-full w-full" />
-      )}
+      {file.data?.kind === 'pdf' &&
+        (mounted ? (
+          <PdfPages blob={file.data.blob} />
+        ) : (
+          <p className="p-6 text-sm text-muted-foreground">Loading…</p>
+        ))}
       {file.data?.kind === 'text' && (
         <div className="mx-auto h-full max-w-3xl overflow-y-auto px-6 py-8">
           <pre className="font-sans text-sm leading-7 whitespace-pre-wrap">
