@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     # Worker: how often it looks for work, how long a lock outlives a dead worker, and how
     # many attempts a job gets before it stays failed.
     worker_poll_seconds: float = 1.0
-    worker_lock_ttl_seconds: float = 300.0
+    worker_lock_ttl_seconds: float = 600.0
     worker_max_attempts: int = 3
 
 
