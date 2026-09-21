@@ -12,6 +12,20 @@ export const QUERY_TYPES: ReadonlyArray<QueryType> = [
   'CHUNKS',
 ]
 
+export interface CourseSummary {
+  code: string
+  material_count: number
+  note_count: number
+  pending_count: number
+}
+
+export interface SessionSummary {
+  id: string
+  created_at: string
+  turn_count: number
+  first_question: string | null
+}
+
 export interface Material {
   course: string
   filename: string
@@ -107,6 +121,18 @@ function formatDetail(status: number, statusText: string, body: unknown) {
   return `${status} ${statusText}`
 }
 
+async function assertOk(res: Response): Promise<void> {
+  if (res.ok) return
+  const text = await res.text()
+  let body: unknown = text
+  try {
+    body = text ? JSON.parse(text) : null
+  } catch {
+    // non-JSON body; keep the raw text
+  }
+  throw new ApiError(res.status, formatDetail(res.status, res.statusText, body))
+}
+
 async function request<T>(
   user: string,
   path: string,
@@ -115,20 +141,13 @@ async function request<T>(
   const headers = new Headers(init.headers)
   headers.set('X-User', user)
   const res = await fetch(`${API_URL}${path}`, { ...init, headers })
+  await assertOk(res)
   const text = await res.text()
-  let body: unknown = text
   try {
-    body = text ? JSON.parse(text) : null
+    return (text ? JSON.parse(text) : null) as T
   } catch {
-    // non-JSON body; keep the raw text
+    return text as T
   }
-  if (!res.ok) {
-    throw new ApiError(
-      res.status,
-      formatDetail(res.status, res.statusText, body),
-    )
-  }
-  return body as T
 }
 
 function json(method: string, payload: unknown): RequestInit {
@@ -137,6 +156,28 @@ function json(method: string, payload: unknown): RequestInit {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(payload),
   }
+}
+
+export function listCourses(user: string) {
+  return request<Array<CourseSummary>>(user, '/courses')
+}
+
+export function listSessions(user: string, course: string) {
+  return request<Array<SessionSummary>>(user, `/courses/${course}/sessions`)
+}
+
+/** Raw download: the file endpoint needs the X-User header, so no plain <a href>. */
+export async function downloadMaterial(
+  user: string,
+  course: string,
+  filename: string,
+): Promise<Blob> {
+  const res = await fetch(
+    `${API_URL}/courses/${course}/materials/${encodeURIComponent(filename)}`,
+    { headers: { 'X-User': user } },
+  )
+  await assertOk(res)
+  return res.blob()
 }
 
 export function listMaterials(user: string, course: string) {
@@ -178,4 +219,13 @@ export function getSession(user: string, course: string, id: string) {
     user,
     `/courses/${course}/sessions/${encodeURIComponent(id)}`,
   )
+}
+
+/** react-query refetchInterval helper: poll while anything is still ingesting. */
+export function pollWhilePending<T extends { status: IngestStatus }>(
+  items: Array<T> | undefined,
+) {
+  return items?.some((i) => i.status === 'queued' || i.status === 'cognifying')
+    ? 2000
+    : false
 }

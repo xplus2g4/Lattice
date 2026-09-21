@@ -102,6 +102,13 @@ class Registry:
             key=lambda n: n.updated_at,
         )
 
+    def list_sessions(self, course: str, owner: str) -> list[Session]:
+        return sorted(
+            (s for s in self.sessions.values() if s.course == course and s.owner == owner),
+            key=lambda s: s.created_at,
+            reverse=True,
+        )
+
     def get_or_create_session(self, session_id: str | None, course: str, owner: str) -> Session:
         if session_id:
             session = self.sessions.get(session_id)

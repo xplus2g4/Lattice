@@ -1,8 +1,14 @@
 # Lattice product modules
 
-This folder is reserved for product-specific modules that compose the shadcn primitives in `../ui`.
+Product-specific modules that compose the shadcn primitives in `../ui`.
 
-- Ask will compose Tabs, Badge, Scroll Area, and Textarea.
-- Grill Me will compose Tabs, Radio Group, Badge, Button, Textarea, and Progress.
+- Home: `course-card` renders a `CourseSummary` from the API.
+- Course workspace (`/courses/$courseId`): `materials-panel` (upload + ingest
+  status), `notes-panel` (list + editor dialog), `ask-panel` (session turns,
+  citations, history). `status-badge` renders ingest status.
+- All data comes from `#/lib/api` (the real backend); `#/lib/library` holds the
+  client-side course list and last-opened material, and `#/lib/user` holds the
+  `X-User` identity. Components never read localStorage directly.
 
-Do not duplicate accessible primitive behaviour here; add a Lattice module only when product behaviour is reused.
+Do not duplicate accessible primitive behaviour here; add a Lattice module only
+when product behaviour is reused.

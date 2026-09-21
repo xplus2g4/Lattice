@@ -146,7 +146,7 @@ function FoundationPreview() {
           >
             <div className="grid gap-8 rounded-xl border border-border bg-card p-6 lg:grid-cols-[1.25fr_0.75fr]">
               <div className="space-y-4">
-                {spacing.map(([name, value, token]) => (
+                {spacing.map(([, value, token]) => (
                   <div
                     key={token}
                     className="grid grid-cols-[5rem_1fr] items-center gap-4"

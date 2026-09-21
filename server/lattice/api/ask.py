@@ -1,4 +1,5 @@
 import time
+from datetime import datetime
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException
@@ -58,6 +59,28 @@ async def ask(
     )
     session.turns.append(answer)
     return AskResponse(session_id=session.id, turn=answer)
+
+
+class SessionSummary(BaseModel):
+    id: str
+    created_at: datetime
+    turn_count: int
+    first_question: str | None
+
+
+@router.get("/sessions")
+async def list_sessions(
+    course: CourseCode, email: CurrentEmail, registry: RegistryDep
+) -> list[SessionSummary]:
+    return [
+        SessionSummary(
+            id=s.id,
+            created_at=s.created_at,
+            turn_count=len(s.turns),
+            first_question=next((t.content for t in s.turns if t.role == "user"), None),
+        )
+        for s in registry.list_sessions(course, email)
+    ]
 
 
 @router.get("/sessions/{session_id}")
