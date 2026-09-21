@@ -78,6 +78,18 @@ class ReadingPositionOut(Record):
     updated_at: datetime
 
 
+class NoteOut(Record):
+    id: UUID
+    course_id: UUID
+    material_id: UUID | None
+    page: int | None
+    body_md: str
+    status: str
+    error: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class MeOut(BaseModel):
     user: UserOut
     courses: list[CourseOut]

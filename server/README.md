@@ -29,6 +29,12 @@ course comes back as the existing Material with `deduplicated: true`, cognifying
 runs in the background and writes `status` (`queued`, `cognifying`, `ready`, `failed`) plus `error`
 onto the Material; `/materials.retry` requeues a failed one.
 
+A Note is private to the student who wrote it: `/notes.save` is an upsert on (student, material,
+page), so autosaving a page rewrites one row rather than piling them up, and a Note with no
+material is a loose jotting on the course. Saving cognifies into the author's private Dataset
+unless they set `notes_opt_out`, tracked on the Note as `status` (`dirty`, `indexing`, `ready`,
+`failed`).
+
 Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model.
 
 Identity is dev-only: with `DEV_HEADER_AUTH=true` the `X-User: <email>` header is the caller. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.
