@@ -32,7 +32,11 @@ export function CourseCard({ course }: { course: CourseSummary }) {
         </p>
         <div className="mt-5">
           <Button asChild size="sm" className="w-full">
-            <Link to="/courses/$courseId" params={{ courseId: course.code }}>
+            <Link
+              to="/courses/$courseId"
+              params={{ courseId: course.code }}
+              search={{ material: undefined }}
+            >
               Open workspace
               <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" />
             </Link>
