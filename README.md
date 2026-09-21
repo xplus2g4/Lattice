@@ -60,7 +60,7 @@ Checks before a PR, the same ones CI runs:
 ```sh
 cd server && uv run ruff check . && uv run ruff format . && uv run pytest
 cd server && uv run python scripts/export_openapi.py --check
-cd app && npm run check-api && npm run typecheck && npm run lint && npm run check
+cd app && npm run check-api && npm run typecheck && npm test && npm run lint && npm run check
 ```
 
 If you changed a response model, the two `--check`s will fail until you regenerate. That is
@@ -76,12 +76,12 @@ cd app && npm run generate-api                         # app/src/lib/generated/
 
 The web app is scoped by URL. `/` is a course picker: type a code matching `^[a-z][a-z0-9]{1,15}$` and it opens `/courses/{code}`. Codes you have opened before are listed as links, kept in `localStorage` under `lattice.courses`. There is no course list from the API yet, so that list is per-browser.
 
-`/courses/{code}` is the working page: Materials, Notes and Ask, one section each, all scoped to the code in the URL. The user email sits in the header and goes out as the `X-User` header, which is the dev-only identity the API accepts while OAuth is unbuilt. Layout and conventions are in [app/README.md](app/README.md).
+`/courses/{code}` is a shell around three sections, one route each: `/materials`, `/notes` and `/ask`. The bare course URL redirects to `/ask`. The shell owns the course code, the tab bar and the user email; the email goes out as the `X-User` header, which is the dev-only identity the API accepts while OAuth is unbuilt. Layout and conventions are in [app/README.md](app/README.md).
 
 Two things worth knowing before editing it:
 
-- Materials and Notes poll every 2s while anything is `queued` or `cognifying`, and stop once everything is `ready` or `failed`. Cognify is slow, so expect the poll to run for a while after an upload.
-- The session id is stored per course and user under `lattice.session.{course}.{user}`. Changing the email in the header switches to that user's session rather than carrying the current one over.
+- Materials and Notes poll every 2s while anything is `queued` or `cognifying`, and stop once everything is `ready` or `failed`. Cognify is slow, so expect the poll to run for a while after an upload. Because the sections are separate routes now, only the one you are looking at polls.
+- A conversation is a URL. Asking on `/courses/{code}/ask` moves you to `/courses/{code}/ask/{session}`, so a conversation survives a reload, can be linked, and back and forward work through it. A session the API has forgotten sends you back to `/ask` rather than showing a 404.
 
 ## Reading order
 

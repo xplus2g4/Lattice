@@ -49,6 +49,9 @@ jobs:
       - name: Generated client is up to date
         run: npm run check-api
       - run: npm run typecheck
+      # Unit tests run against MSW handlers built from the same contract, so they need
+      # neither the API nor an LLM key; nothing here spends money or wall time.
+      - run: npm test
       - run: npm run lint
       - run: npm run check
 

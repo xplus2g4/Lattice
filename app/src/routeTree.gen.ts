@@ -11,6 +11,11 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as CoursesCourseRouteImport } from './routes/courses/$course'
+import { Route as CoursesCourseIndexRouteImport } from './routes/courses/$course/index'
+import { Route as CoursesCourseMaterialsRouteImport } from './routes/courses/$course/materials'
+import { Route as CoursesCourseNotesRouteImport } from './routes/courses/$course/notes'
+import { Route as CoursesCourseAskIndexRouteImport } from './routes/courses/$course/ask.index'
+import { Route as CoursesCourseAskSessionIdRouteImport } from './routes/courses/$course/ask.$sessionId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +27,92 @@ const CoursesCourseRoute = CoursesCourseRouteImport.update({
   path: '/courses/$course',
   getParentRoute: () => rootRouteImport,
 } as any)
+const CoursesCourseIndexRoute = CoursesCourseIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CoursesCourseRoute,
+} as any)
+const CoursesCourseMaterialsRoute = CoursesCourseMaterialsRouteImport.update({
+  id: '/materials',
+  path: '/materials',
+  getParentRoute: () => CoursesCourseRoute,
+} as any)
+const CoursesCourseNotesRoute = CoursesCourseNotesRouteImport.update({
+  id: '/notes',
+  path: '/notes',
+  getParentRoute: () => CoursesCourseRoute,
+} as any)
+const CoursesCourseAskIndexRoute = CoursesCourseAskIndexRouteImport.update({
+  id: '/ask/',
+  path: '/ask/',
+  getParentRoute: () => CoursesCourseRoute,
+} as any)
+const CoursesCourseAskSessionIdRoute =
+  CoursesCourseAskSessionIdRouteImport.update({
+    id: '/ask/$sessionId',
+    path: '/ask/$sessionId',
+    getParentRoute: () => CoursesCourseRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/courses/$course': typeof CoursesCourseRoute
+  '/courses/$course': typeof CoursesCourseRouteWithChildren
+  '/courses/$course/materials': typeof CoursesCourseMaterialsRoute
+  '/courses/$course/notes': typeof CoursesCourseNotesRoute
+  '/courses/$course/': typeof CoursesCourseIndexRoute
+  '/courses/$course/ask/$sessionId': typeof CoursesCourseAskSessionIdRoute
+  '/courses/$course/ask/': typeof CoursesCourseAskIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/courses/$course': typeof CoursesCourseRoute
+  '/courses/$course/materials': typeof CoursesCourseMaterialsRoute
+  '/courses/$course/notes': typeof CoursesCourseNotesRoute
+  '/courses/$course': typeof CoursesCourseIndexRoute
+  '/courses/$course/ask/$sessionId': typeof CoursesCourseAskSessionIdRoute
+  '/courses/$course/ask': typeof CoursesCourseAskIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/courses/$course': typeof CoursesCourseRoute
+  '/courses/$course': typeof CoursesCourseRouteWithChildren
+  '/courses/$course/materials': typeof CoursesCourseMaterialsRoute
+  '/courses/$course/notes': typeof CoursesCourseNotesRoute
+  '/courses/$course/': typeof CoursesCourseIndexRoute
+  '/courses/$course/ask/$sessionId': typeof CoursesCourseAskSessionIdRoute
+  '/courses/$course/ask/': typeof CoursesCourseAskIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/courses/$course'
+  fullPaths:
+    | '/'
+    | '/courses/$course'
+    | '/courses/$course/materials'
+    | '/courses/$course/notes'
+    | '/courses/$course/'
+    | '/courses/$course/ask/$sessionId'
+    | '/courses/$course/ask/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/courses/$course'
-  id: '__root__' | '/' | '/courses/$course'
+  to:
+    | '/'
+    | '/courses/$course/materials'
+    | '/courses/$course/notes'
+    | '/courses/$course'
+    | '/courses/$course/ask/$sessionId'
+    | '/courses/$course/ask'
+  id:
+    | '__root__'
+    | '/'
+    | '/courses/$course'
+    | '/courses/$course/materials'
+    | '/courses/$course/notes'
+    | '/courses/$course/'
+    | '/courses/$course/ask/$sessionId'
+    | '/courses/$course/ask/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  CoursesCourseRoute: typeof CoursesCourseRoute
+  CoursesCourseRoute: typeof CoursesCourseRouteWithChildren
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +131,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoursesCourseRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/courses/$course/': {
+      id: '/courses/$course/'
+      path: '/'
+      fullPath: '/courses/$course/'
+      preLoaderRoute: typeof CoursesCourseIndexRouteImport
+      parentRoute: typeof CoursesCourseRoute
+    }
+    '/courses/$course/materials': {
+      id: '/courses/$course/materials'
+      path: '/materials'
+      fullPath: '/courses/$course/materials'
+      preLoaderRoute: typeof CoursesCourseMaterialsRouteImport
+      parentRoute: typeof CoursesCourseRoute
+    }
+    '/courses/$course/notes': {
+      id: '/courses/$course/notes'
+      path: '/notes'
+      fullPath: '/courses/$course/notes'
+      preLoaderRoute: typeof CoursesCourseNotesRouteImport
+      parentRoute: typeof CoursesCourseRoute
+    }
+    '/courses/$course/ask/': {
+      id: '/courses/$course/ask/'
+      path: '/ask'
+      fullPath: '/courses/$course/ask/'
+      preLoaderRoute: typeof CoursesCourseAskIndexRouteImport
+      parentRoute: typeof CoursesCourseRoute
+    }
+    '/courses/$course/ask/$sessionId': {
+      id: '/courses/$course/ask/$sessionId'
+      path: '/ask/$sessionId'
+      fullPath: '/courses/$course/ask/$sessionId'
+      preLoaderRoute: typeof CoursesCourseAskSessionIdRouteImport
+      parentRoute: typeof CoursesCourseRoute
+    }
   }
 }
 
+interface CoursesCourseRouteChildren {
+  CoursesCourseMaterialsRoute: typeof CoursesCourseMaterialsRoute
+  CoursesCourseNotesRoute: typeof CoursesCourseNotesRoute
+  CoursesCourseIndexRoute: typeof CoursesCourseIndexRoute
+  CoursesCourseAskSessionIdRoute: typeof CoursesCourseAskSessionIdRoute
+  CoursesCourseAskIndexRoute: typeof CoursesCourseAskIndexRoute
+}
+
+const CoursesCourseRouteChildren: CoursesCourseRouteChildren = {
+  CoursesCourseMaterialsRoute: CoursesCourseMaterialsRoute,
+  CoursesCourseNotesRoute: CoursesCourseNotesRoute,
+  CoursesCourseIndexRoute: CoursesCourseIndexRoute,
+  CoursesCourseAskSessionIdRoute: CoursesCourseAskSessionIdRoute,
+  CoursesCourseAskIndexRoute: CoursesCourseAskIndexRoute,
+}
+
+const CoursesCourseRouteWithChildren = CoursesCourseRoute._addFileChildren(
+  CoursesCourseRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  CoursesCourseRoute: CoursesCourseRoute,
+  CoursesCourseRoute: CoursesCourseRouteWithChildren,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
