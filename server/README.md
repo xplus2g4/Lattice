@@ -40,6 +40,12 @@ the chunks they cite — so `/sessions.get` replays a conversation after a reloa
 shows a student's conversations in a course, newest first. A Session is readable only by the
 student who asked, and `/feedback.record` puts one rating per student on an answer.
 
+Quizzes are records only: something else writes the questions and marks the answers, and
+`/quizzes.create` stores the result, `/quizAnswers.record` keeps every attempt as its own row, and
+`/quizStats.byTopic` counts attempts and misses per Topic for weighting later questions. A Quiz is
+private to the student it was set for, and closes once through `/quizzes.submit` or
+`/quizzes.abandon`.
+
 Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model.
 
 Identity is dev-only: with `DEV_HEADER_AUTH=true` the `X-User: <email>` header is the caller. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.

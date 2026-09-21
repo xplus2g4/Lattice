@@ -115,6 +115,48 @@ class AskOut(BaseModel):
     turn: TurnOut
 
 
+class QuizAnswerOut(Record):
+    id: UUID
+    question_id: UUID
+    attempt_no: int
+    answer_text: str
+    correct: bool | None
+    feedback_json: dict[str, Any] | None
+    created_at: datetime
+
+
+class QuizQuestionOut(Record):
+    id: UUID
+    quiz_id: UUID
+    topic_id: UUID | None
+    material_id: UUID | None
+    position: int
+    kind: str
+    prompt: str
+    options_json: list[str] | None
+    expected_json: dict[str, Any] | None
+    citation_json: dict[str, Any] | None
+    answers: list[QuizAnswerOut]
+
+
+class QuizOut(Record):
+    id: UUID
+    course_id: UUID
+    kind: str
+    scope_json: dict[str, Any]
+    status: str
+    score: float | None
+    questions: list[QuizQuestionOut]
+    created_at: datetime
+    submitted_at: datetime | None
+
+
+class TopicStat(BaseModel):
+    topic_id: UUID | None
+    attempts: int
+    misses: int
+
+
 class MeOut(BaseModel):
     user: UserOut
     courses: list[CourseOut]
