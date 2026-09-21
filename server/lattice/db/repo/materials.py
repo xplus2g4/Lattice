@@ -116,6 +116,10 @@ async def topics_for(session: AsyncSession, material: Material) -> list[Topic]:
     )
 
 
+async def topic(session: AsyncSession, topic_id: UUID) -> Topic | None:
+    return await session.get(Topic, topic_id)
+
+
 async def set_reading_position(
     session: AsyncSession, *, user: User, material: Material, page: int
 ) -> ReadingPosition:
