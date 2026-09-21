@@ -1,9 +1,14 @@
-const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+/** The API surface the app codes against.
+ *
+ * Every call is served by `#/lib/mock-backend`: this branch ships the product
+ * shell without a server behind it, and the RPC endpoints on `main` land here
+ * in the integration change.
+ */
+import * as backend from './mock-backend'
 
-export type IngestStatus =
-  'queued' | 'converting' | 'cognifying' | 'ready' | 'failed'
+export { ApiError } from './api-error'
 
-export type NoteStatus = 'dirty' | 'indexing' | 'ready' | 'failed'
+export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
 
 export type QueryType =
   'GRAPH_COMPLETION' | 'RAG_COMPLETION' | 'HYBRID_COMPLETION' | 'CHUNKS'
@@ -15,81 +20,76 @@ export const QUERY_TYPES: ReadonlyArray<QueryType> = [
   'CHUNKS',
 ]
 
-export interface Course {
-  id: string
+export interface CourseSummary {
   code: string
-  name: string
-  term: string | null
-  owner_user_id: string
-  global_dataset_name: string
+  material_count: number
+  note_count: number
+  pending_count: number
+}
+
+export interface SessionSummary {
+  id: string
   created_at: string
+  turn_count: number
+  first_question: string | null
 }
 
 export interface Material {
-  id: string
-  course_id: string
-  title: string
+  course: string
   filename: string
-  week: number | null
-  lecture_no: number | null
-  kind: string | null
-  page_count: number | null
-  sha256: string
   status: IngestStatus
   error: string | null
-  created_by: string
   created_at: string
   updated_at: string
-}
-
-export interface Upload {
-  material: Material
-  deduplicated: boolean
 }
 
 export interface Note {
+  course: string
+  owner: string
   id: string
-  course_id: string
-  material_id: string | null
-  page: number | null
   body_md: string
-  status: NoteStatus
+  status: IngestStatus
   error: string | null
-  created_at: string
   updated_at: string
 }
 
-export interface Evidence {
+/** The (course, user) pair every call is made within: the caller's enrolment. */
+export interface Enrolment {
+  course: string
+  user: string
+}
+
+export interface Citation {
   kind: string
-  dataset_id: string | null
-  data_id: string | null
-  chunk_id: string | null
+  filename: string | null
   chunk_index: number | null
-  document_name: string | null
+  relation: string | null
   label: string | null
-  relationship_name: string | null
 }
 
 export interface TierResult {
-  tier: 'course' | 'notes'
-  dataset_name: string
+  tier: 'global' | 'private'
   answer: string | null
-  evidence: Array<Evidence>
+  citations: Array<Citation>
 }
 
-/** What a Turn says: the text, and for an answer the Tier results behind it. */
-export interface TurnContent {
-  text: string
-  query_type: string | null
-  results?: Array<TierResult>
+export function describeCitation(c: Citation): string {
+  switch (c.kind) {
+    case 'chunk':
+      return `${c.filename ?? '?'}${c.chunk_index !== null ? ` #${c.chunk_index}` : ''}`
+    case 'relation':
+      return `${c.relation ?? '?'} · relation`
+    default:
+      return `${c.label ?? '?'} · ${c.kind}`
+  }
 }
 
 export interface Turn {
-  id: string
-  session_id: string
+  id?: string
   role: 'user' | 'assistant'
-  content_json: TurnContent
-  cited_chunk_ids: Array<string>
+  content: string
+  query_type: string | null
+  results: Array<TierResult>
   used_notes: boolean
   latency_ms: number | null
   created_at: string
@@ -97,143 +97,73 @@ export interface Turn {
 
 export interface Session {
   id: string
-  course_id: string
+  course: string
+  owner: string
   turns: Array<Turn>
   created_at: string
-  last_turn_at: string
 }
 
 export interface AskRequest {
   question: string
   query_type: QueryType
-  session?: string | null
+  session_id?: string | null
 }
 
 export interface AskResponse {
-  session: string
+  session_id: string
   turn: Turn
 }
 
-/** Non-2xx response; `message` is the server's `detail`. */
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    detail: string,
-  ) {
-    super(detail)
-    this.name = 'ApiError'
-  }
+export function listCourses(user: string) {
+  return backend.listCourses(user)
 }
 
-interface ValidationError {
-  loc: Array<string | number>
-  msg: string
+export function listSessions(user: string, course: string) {
+  return backend.listSessions(user, course)
 }
 
-function formatDetail(status: number, statusText: string, body: unknown) {
-  const detail =
-    body && typeof body === 'object' && 'detail' in body ? body.detail : body
-  if (typeof detail === 'string') return detail
-  if (Array.isArray(detail)) {
-    return (detail as Array<ValidationError>)
-      .map((e) => `${e.loc.join('.')}: ${e.msg}`)
-      .join('; ')
-  }
-  return `${status} ${statusText}`
-}
-
-async function request<T>(
+export function downloadMaterial(
   user: string,
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const headers = new Headers(init.headers)
-  headers.set('X-User', user)
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers })
-  const text = await res.text()
-  let body: unknown = text
-  try {
-    body = text ? JSON.parse(text) : null
-  } catch {
-    // non-JSON body; keep the raw text
-  }
-  if (!res.ok) {
-    throw new ApiError(
-      res.status,
-      formatDetail(res.status, res.statusText, body),
-    )
-  }
-  return body as T
-}
-
-function json(method: string, payload: unknown): RequestInit {
-  return {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }
-}
-
-function query(args: Record<string, string>) {
-  return `?${new URLSearchParams(args).toString()}`
-}
-
-export function joinCourse(user: string, course: string) {
-  return request<unknown>(user, '/enrolments.join', json('POST', { course }))
-}
-
-export function createCourse(user: string, code: string, name: string) {
-  return request<Course>(user, '/courses.create', json('POST', { code, name }))
+  course: string,
+  filename: string,
+) {
+  return backend.downloadMaterial(user, course, filename)
 }
 
 export function listMaterials(user: string, course: string) {
-  return request<Array<Material>>(user, `/materials.list${query({ course })}`)
+  return backend.listMaterials(user, course)
 }
 
 export function uploadMaterial(user: string, course: string, file: File) {
-  const form = new FormData()
-  form.append('course', course)
-  form.append('file', file)
-  return request<Upload>(user, '/materials.upload', {
-    method: 'POST',
-    body: form,
-  })
+  return backend.uploadMaterial(user, course, file)
 }
 
 export function listNotes(user: string, course: string) {
-  return request<Array<Note>>(user, `/notes.list${query({ course })}`)
+  return backend.listNotes(user, course)
 }
 
 export function saveNote(
   user: string,
   course: string,
+  id: string,
   body_md: string,
-  note?: string,
 ) {
-  return request<Note>(
-    user,
-    '/notes.save',
-    json('POST', { course, body_md, note }),
-  )
+  return backend.saveNote(user, course, id, body_md)
 }
 
 export function ask(user: string, course: string, req: AskRequest) {
-  return request<AskResponse>(user, '/ask', json('POST', { course, ...req }))
+  return backend.ask(user, course, req)
 }
 
-export function getSession(user: string, session: string) {
-  return request<Session>(user, `/sessions.get${query({ session })}`)
+export function getSession(user: string, course: string, id: string) {
+  return backend.getSession(user, course, id)
 }
 
-export function rateTurn(
-  user: string,
-  turn: string,
-  rating: 1 | -1,
-  comment?: string,
+/** react-query refetchInterval helper: poll while anything is still ingesting. */
+export function pollWhilePending<T extends { status: IngestStatus }>(
+  items: Array<T> | undefined,
 ) {
-  return request<{ rating: number }>(
-    user,
-    '/feedback.record',
-    json('POST', { turn, rating, comment }),
-  )
+  return items?.some((i) => i.status === 'queued' || i.status === 'cognifying')
+    ? 2000
+    : false
 }
