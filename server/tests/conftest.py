@@ -25,6 +25,7 @@ from lattice.api.deps import get_engine, get_ingest, get_session
 from lattice.config import Settings, get_settings
 from lattice.db.migrate import upgrade
 from lattice.main import create_app
+from lattice.retrieval import TierResult
 
 DEFAULT_TEST_DATABASE_URL = "postgresql+asyncpg://lattice:lattice@localhost:5432/lattice_test"
 
@@ -108,6 +109,8 @@ class FakeEngine:
     def __init__(self) -> None:
         self.enrolled: list[tuple[str, str]] = []
         self.cognified: list[str] = []
+        self.searched: list[dict[UUID, str]] = []
+        self.results: list[TierResult] = []
         self.fail_with: Exception | None = None
 
     async def principal(self, email: str) -> FakePrincipal:
@@ -128,15 +131,33 @@ class FakeEngine:
             raise self.fail_with
         self.cognified.append(str(path))
 
+    async def search(
+        self,
+        user: FakePrincipal,
+        datasets: dict[UUID, str],
+        question: str,
+        query_type: str,
+        session_id: str,
+    ) -> list[TierResult]:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.searched.append(datasets)
+        tiers = set(datasets.values())
+        return [result for result in self.results if result.tier in tiers]
+
 
 class RecordingIngest:
     """Captures what the request queued, instead of cognifying in the background."""
 
     def __init__(self) -> None:
         self.queued: list[UUID] = []
+        self.notes: list[UUID] = []
 
     async def material(self, material_id: UUID) -> None:
         self.queued.append(material_id)
+
+    async def note(self, note_id: UUID) -> None:
+        self.notes.append(note_id)
 
 
 @pytest.fixture

@@ -1,4 +1,12 @@
-const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+/** The API surface the app codes against.
+ *
+ * Every call is served by `#/lib/mock-backend`: this branch ships the product
+ * shell without a server behind it, and the RPC endpoints on `main` land here
+ * in the integration change.
+ */
+import * as backend from './mock-backend'
+
+export { ApiError } from './api-error'
 
 export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
 
@@ -106,108 +114,32 @@ export interface AskResponse {
   turn: Turn
 }
 
-/** Non-2xx response; `message` is the server's `detail`. */
-export class ApiError extends Error {
-  constructor(
-    readonly status: number,
-    detail: string,
-  ) {
-    super(detail)
-    this.name = 'ApiError'
-  }
-}
-
-interface ValidationError {
-  loc: Array<string | number>
-  msg: string
-}
-
-function formatDetail(status: number, statusText: string, body: unknown) {
-  const detail =
-    body && typeof body === 'object' && 'detail' in body ? body.detail : body
-  if (typeof detail === 'string') return detail
-  if (Array.isArray(detail)) {
-    return (detail as Array<ValidationError>)
-      .map((e) => `${e.loc.join('.')}: ${e.msg}`)
-      .join('; ')
-  }
-  return `${status} ${statusText}`
-}
-
-async function assertOk(res: Response): Promise<void> {
-  if (res.ok) return
-  const text = await res.text()
-  let body: unknown = text
-  try {
-    body = text ? JSON.parse(text) : null
-  } catch {
-    // non-JSON body; keep the raw text
-  }
-  throw new ApiError(res.status, formatDetail(res.status, res.statusText, body))
-}
-
-async function request<T>(
-  user: string,
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
-  const headers = new Headers(init.headers)
-  headers.set('X-User', user)
-  const res = await fetch(`${API_URL}${path}`, { ...init, headers })
-  await assertOk(res)
-  const text = await res.text()
-  try {
-    return (text ? JSON.parse(text) : null) as T
-  } catch {
-    return text as T
-  }
-}
-
-function json(method: string, payload: unknown): RequestInit {
-  return {
-    method,
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-  }
-}
-
 export function listCourses(user: string) {
-  return request<Array<CourseSummary>>(user, '/courses')
+  return backend.listCourses(user)
 }
 
 export function listSessions(user: string, course: string) {
-  return request<Array<SessionSummary>>(user, `/courses/${course}/sessions`)
+  return backend.listSessions(user, course)
 }
 
-/** Raw download: the file endpoint needs the X-User header, so no plain <a href>. */
-export async function downloadMaterial(
+export function downloadMaterial(
   user: string,
   course: string,
   filename: string,
-): Promise<Blob> {
-  const res = await fetch(
-    `${API_URL}/courses/${course}/materials/${encodeURIComponent(filename)}`,
-    { headers: { 'X-User': user } },
-  )
-  await assertOk(res)
-  return res.blob()
+) {
+  return backend.downloadMaterial(user, course, filename)
 }
 
 export function listMaterials(user: string, course: string) {
-  return request<Array<Material>>(user, `/courses/${course}/materials`)
+  return backend.listMaterials(user, course)
 }
 
 export function uploadMaterial(user: string, course: string, file: File) {
-  const form = new FormData()
-  form.append('file', file)
-  return request<Material>(user, `/courses/${course}/materials`, {
-    method: 'POST',
-    body: form,
-  })
+  return backend.uploadMaterial(user, course, file)
 }
 
 export function listNotes(user: string, course: string) {
-  return request<Array<Note>>(user, `/courses/${course}/notes`)
+  return backend.listNotes(user, course)
 }
 
 export function saveNote(
@@ -216,22 +148,15 @@ export function saveNote(
   id: string,
   body_md: string,
 ) {
-  return request<Note>(
-    user,
-    `/courses/${course}/notes/${encodeURIComponent(id)}`,
-    json('PUT', { body_md }),
-  )
+  return backend.saveNote(user, course, id, body_md)
 }
 
 export function ask(user: string, course: string, req: AskRequest) {
-  return request<AskResponse>(user, `/courses/${course}/ask`, json('POST', req))
+  return backend.ask(user, course, req)
 }
 
 export function getSession(user: string, course: string, id: string) {
-  return request<Session>(
-    user,
-    `/courses/${course}/sessions/${encodeURIComponent(id)}`,
-  )
+  return backend.getSession(user, course, id)
 }
 
 /** react-query refetchInterval helper: poll while anything is still ingesting. */

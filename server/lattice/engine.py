@@ -24,7 +24,7 @@ from cognee.modules.users.models import User
 from cognee.modules.users.permissions.methods import give_permission_on_dataset
 
 from lattice.config import Settings
-from lattice.registry import Citation, TierResult
+from lattice.retrieval import Evidence, TierResult
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
@@ -37,6 +37,7 @@ class Engine:
             (root / sub).mkdir(parents=True, exist_ok=True)
         cognee.config.system_root_directory(str(root / "system"))
         cognee.config.data_root_directory(str(root / "data"))
+        # Unbounded process-local cache; consider moving this to Redis if cardinality becomes large.
         self._principals: dict[str, User] = {}
         self._datasets: dict[tuple[str, UUID], Dataset] = {}
         self._enrolled: set[tuple[UUID, str]] = set()
@@ -134,9 +135,10 @@ class Engine:
 def _tier_result(raw: dict[str, Any], datasets: dict[UUID, str]) -> TierResult:
     dataset_id = raw.get("dataset_id")
     return TierResult(
-        tier=datasets.get(dataset_id, "global"),  # type: ignore[arg-type]
+        tier=datasets.get(dataset_id, "course"),  # type: ignore[arg-type]
+        dataset_name=raw.get("dataset_name") or "",
         answer=_answer_text(raw.get("text_result")),
-        citations=_dedupe_citations(raw.get("evidence") or []),
+        evidence=_dedupe_evidence(raw.get("evidence") or []),
     )
 
 
@@ -150,36 +152,14 @@ def _answer_text(text: Any) -> str | None:
     return str(text)
 
 
-_CITATION_KIND = {"segment": "chunk", "graph_edge": "relation"}
-
-
-def _dedupe_citations(items: list[dict[str, Any]]) -> list[Citation]:
-    """Cognee lists a segment once per graph edge citing it; keep one entry per artifact.
-
-    An item with nothing to point at is unresolvable and never reaches the client.
-    """
+def _dedupe_evidence(items: list[dict[str, Any]]) -> list[Evidence]:
+    """Cognee lists a segment once per graph edge citing it; keep one entry per artifact."""
     seen: set[str] = set()
-    out: list[Citation] = []
+    out: list[Evidence] = []
     for item in items:
         key = f"{item.get('kind')}:{item.get('artifact_id')}"
         if key in seen:
             continue
         seen.add(key)
-        kind = str(item.get("kind") or "")
-        citation = Citation(
-            kind=_CITATION_KIND.get(kind, kind),
-            filename=item.get("document_name"),
-            chunk_index=item.get("chunk_index"),
-            relation=item.get("relationship_name"),
-            label=item.get("label"),
-        )
-        if _resolvable(citation):
-            out.append(citation)
+        out.append(Evidence.model_validate(item))
     return out
-
-
-def _resolvable(citation: Citation) -> bool:
-    return any(
-        field is not None
-        for field in (citation.filename, citation.chunk_index, citation.relation, citation.label)
-    )
