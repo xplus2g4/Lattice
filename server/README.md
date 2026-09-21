@@ -19,6 +19,11 @@ not part of that database. Migrations are Alembic: `uv run alembic upgrade head`
 `DATABASE_AUTO_MIGRATE=true` to have start-up do it in dev. Tests need a Postgres too and create
 their own database from `TEST_DATABASE_URL` (default `…/lattice_test`).
 
+The persisted endpoints are RPC-shaped: a verb-named path, GET with query arguments for reads and
+POST with a JSON body for writes (`/me.get`, `/courses.search`, `/courses.create`,
+`/enrolments.join`, …). The older `/courses/{course}/...` routes still run off `registry.py` and
+move over a phase at a time.
+
 Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model.
 
 Identity is dev-only: with `DEV_HEADER_AUTH=true` the `X-User: <email>` header is the caller. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.

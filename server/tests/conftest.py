@@ -7,16 +7,17 @@ see each other's schema but never each other's rows.
 
 import os
 from collections.abc import AsyncIterator, Iterator
+from uuid import NAMESPACE_URL, uuid5
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, create_async_engine
 from sqlalchemy.sql import text
 
-from lattice.api.deps import get_session
-from lattice.config import Settings
+from lattice.api.deps import get_engine, get_session
+from lattice.config import Settings, get_settings
 from lattice.db.migrate import upgrade
 from lattice.main import create_app
 
@@ -84,8 +85,39 @@ def settings(tmp_path, migrated_database: str) -> Settings:
     )
 
 
+class FakePrincipal:
+    def __init__(self, email: str) -> None:
+        self.email = email
+        self.id = uuid5(NAMESPACE_URL, f"principal:{email}")
+
+
+class FakeDataset:
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.id = uuid5(NAMESPACE_URL, f"dataset:{name}")
+
+
+class FakeEngine:
+    """Stands in for the Cognee seam: records the calls, touches no embedded store."""
+
+    def __init__(self) -> None:
+        self.enrolled: list[tuple[str, str]] = []
+
+    async def principal(self, email: str) -> FakePrincipal:
+        return FakePrincipal(email)
+
+    async def enrol(self, course: str, user: FakePrincipal) -> tuple[FakeDataset, FakeDataset]:
+        self.enrolled.append((course, user.email))
+        return FakeDataset(f"{course}-global"), FakeDataset(f"{course}-user-{user.id}")
+
+
 @pytest.fixture
-def app(settings: Settings, session: AsyncSession) -> Iterator[FastAPI]:
+def engine() -> FakeEngine:
+    return FakeEngine()
+
+
+@pytest.fixture
+def app(settings: Settings, session: AsyncSession, engine: FakeEngine) -> Iterator[FastAPI]:
     app = create_app(settings)
 
     async def override() -> AsyncIterator[AsyncSession]:
@@ -98,11 +130,24 @@ def app(settings: Settings, session: AsyncSession) -> Iterator[FastAPI]:
         await session.commit()
 
     app.dependency_overrides[get_session] = override
+    app.dependency_overrides[get_engine] = lambda: engine
+    app.dependency_overrides[get_settings] = lambda: settings
     yield app
     app.dependency_overrides.clear()
 
 
-@pytest.fixture
-def client(app: FastAPI) -> TestClient:
-    """No lifespan: these tests exercise Postgres records, not Cognee start-up."""
-    return TestClient(app)
+@pytest_asyncio.fixture
+async def client(app: FastAPI) -> AsyncIterator[AsyncClient]:
+    """In-process and in the test's own event loop, so it shares the rolled-back session.
+
+    No lifespan either: these tests exercise Postgres records, not Cognee start-up.
+    """
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        yield client
+
+
+@pytest_asyncio.fixture
+async def student(client: AsyncClient) -> AsyncClient:
+    """A client that always identifies as the same student."""
+    client.headers["X-User"] = "ada@example.com"
+    return client
