@@ -21,8 +21,13 @@ their own database from `TEST_DATABASE_URL` (default `…/lattice_test`).
 
 The persisted endpoints are RPC-shaped: a verb-named path, GET with query arguments for reads and
 POST with a JSON body for writes (`/me.get`, `/courses.search`, `/courses.create`,
-`/enrolments.join`, …). The older `/courses/{course}/...` routes still run off `registry.py` and
-move over a phase at a time.
+`/enrolments.join`, `/materials.upload`, `/topics.replace`, `/readingPosition.set`, …). The older
+`/courses/{course}/...` routes still run off `registry.py` and move over a phase at a time.
+
+Materials are content-addressed: `/materials.upload` hashes the bytes and a file already in the
+course comes back as the existing Material with `deduplicated: true`, cognifying nothing. Ingest
+runs in the background and writes `status` (`queued`, `cognifying`, `ready`, `failed`) plus `error`
+onto the Material; `/materials.retry` requeues a failed one.
 
 Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model.
 
