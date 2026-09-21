@@ -134,9 +134,13 @@ class RecordingIngest:
 
     def __init__(self) -> None:
         self.queued: list[UUID] = []
+        self.notes: list[UUID] = []
 
     async def material(self, material_id: UUID) -> None:
         self.queued.append(material_id)
+
+    async def note(self, note_id: UUID) -> None:
+        self.notes.append(note_id)
 
 
 @pytest.fixture
