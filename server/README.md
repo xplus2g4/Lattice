@@ -64,7 +64,9 @@ or paid requests; use `--output` to retain results. Native PPTX ingestion curren
 its optional loader dependency is absent; no production conversion was installed.
 
 For a paid ontology or Material run, add `--run --ledger .cognee/probe-budget.sqlite3 --output
-"path/to/new-results.json"`; the output directory must exist and results are never overwritten.
+"../.scratch/new-results.json"`; create the repository-root `.scratch/` directory first if absent.
+Results are never overwritten. Keep raw outputs in this ignored directory; commit concise findings
+and evidence links under `docs/research/`, not raw experiment dumps.
 The guarded canary command is:
 
 ```sh
