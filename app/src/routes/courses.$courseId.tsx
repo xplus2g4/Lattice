@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { ArrowLeft01Icon, Cancel01Icon } from '@hugeicons/core-free-icons'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -28,14 +28,22 @@ function CourseWorkspace() {
   const { material } = Route.useSearch()
   const [user] = useUser()
   const { markOpened } = useLibrary()
+  const [mobileView, setMobileView] = useState<'material' | 'ask'>('material')
 
   useEffect(() => {
+    setMobileView('material')
     if (material) markOpened(courseId, material)
   }, [courseId, material, markOpened])
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background md:flex-row">
-      <aside className="flex max-h-[45%] w-full shrink-0 flex-col border-b border-border bg-sidebar md:max-h-none md:w-80 md:border-b-0 md:border-r">
+      <aside
+        className={
+          material
+            ? 'hidden w-80 shrink-0 flex-col border-r border-border bg-sidebar lg:flex'
+            : 'flex max-h-[45%] w-full shrink-0 flex-col border-b border-border bg-sidebar md:max-h-none md:w-80 md:border-b-0 md:border-r'
+        }
+      >
         <div className="space-y-2 border-b border-border p-3">
           <Link
             to="/"
@@ -55,37 +63,81 @@ function CourseWorkspace() {
           <NotesPanel course={courseId} user={user} />
         </div>
       </aside>
-      <main className="flex min-h-0 min-w-0 flex-1">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         {material && (
-          <section className="flex min-w-0 flex-1 flex-col">
-            <div className="flex items-center gap-2 border-b border-border px-4 py-2">
-              <p className="min-w-0 flex-1 truncate text-sm font-medium">
-                {material}
-              </p>
-              <Button asChild variant="ghost" size="icon-xs">
-                <Link
-                  to="/courses/$courseId"
-                  params={{ courseId }}
-                  search={{ material: undefined }}
-                  aria-label="Close material"
-                >
-                  <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
-                </Link>
-              </Button>
-            </div>
-            <div className="min-h-0 flex-1">
-              <MaterialViewer course={courseId} filename={material} />
-            </div>
-          </section>
+          <div className="flex items-center gap-1 border-b border-border p-1.5 lg:hidden">
+            <button
+              type="button"
+              onClick={() => setMobileView('material')}
+              className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                mobileView === 'material'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Material
+            </button>
+            <button
+              type="button"
+              onClick={() => setMobileView('ask')}
+              className={`flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
+                mobileView === 'ask'
+                  ? 'bg-accent text-foreground'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Ask
+            </button>
+            <Button asChild variant="ghost" size="icon-xs">
+              <Link
+                to="/courses/$courseId"
+                params={{ courseId }}
+                search={{ material: undefined }}
+                aria-label="Close material"
+              >
+                <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+              </Link>
+            </Button>
+          </div>
         )}
-        <div
-          className={
-            material
-              ? 'hidden min-h-0 w-96 shrink-0 flex-col border-l border-border md:flex'
-              : 'flex min-h-0 min-w-0 flex-1 flex-col'
-          }
-        >
-          <AskPanel course={courseId} user={user} />
+        <div className="flex min-h-0 min-w-0 flex-1">
+          {material && (
+            <section
+              className={`min-w-0 flex-1 flex-col lg:flex ${
+                mobileView === 'material' ? 'flex' : 'hidden'
+              }`}
+            >
+              <div className="hidden items-center gap-2 border-b border-border px-4 py-2 lg:flex">
+                <p className="min-w-0 flex-1 truncate text-sm font-medium">
+                  {material}
+                </p>
+                <Button asChild variant="ghost" size="icon-xs">
+                  <Link
+                    to="/courses/$courseId"
+                    params={{ courseId }}
+                    search={{ material: undefined }}
+                    aria-label="Close material"
+                  >
+                    <HugeiconsIcon icon={Cancel01Icon} className="size-4" />
+                  </Link>
+                </Button>
+              </div>
+              <div className="min-h-0 flex-1">
+                <MaterialViewer course={courseId} filename={material} />
+              </div>
+            </section>
+          )}
+          <div
+            className={
+              material
+                ? `min-h-0 min-w-0 flex-1 flex-col lg:flex lg:w-80 lg:flex-none lg:border-l lg:border-border xl:w-96 ${
+                    mobileView === 'ask' ? 'flex' : 'hidden'
+                  }`
+                : 'flex min-h-0 min-w-0 flex-1 flex-col'
+            }
+          >
+            <AskPanel course={courseId} user={user} />
+          </div>
         </div>
       </main>
     </div>
