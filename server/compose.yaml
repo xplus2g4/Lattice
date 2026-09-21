@@ -1,0 +1,40 @@
+name: lattice
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: lattice
+      POSTGRES_PASSWORD: lattice
+      POSTGRES_DB: lattice
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lattice -d lattice"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build: .
+    env_file: .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://lattice:lattice@postgres:5432/lattice
+      DATABASE_AUTO_MIGRATE: "true"
+      COGNEE_ROOT: /srv/.cognee
+      UPLOADS_DIR: /srv/data/uploads
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - cognee:/srv/.cognee
+      - uploads:/srv/data/uploads
+
+volumes:
+  pgdata:
+  cognee:
+  uploads:

@@ -13,6 +13,19 @@ uv run pytest                             # needs Postgres; see below
 uv run ruff check . && uv run ruff format .
 ```
 
+Or with Docker, which brings its own Postgres and needs no uv or Python on the host:
+
+```sh
+cp .env.example .env                      # then set LLM_API_KEY (DeepSeek)
+docker compose up --build                 # http://localhost:8000; migrations run on start-up
+```
+
+`compose.yaml` runs the API against a `pgvector` Postgres 16 and keeps Postgres data, Cognee's
+embedded stores (`/srv/.cognee`) and uploads (`/srv/data/uploads`) in named volumes, so a rebuild
+keeps a cognified course. It reads `.env` for everything except `DATABASE_URL` (the `postgres`
+service) and `DATABASE_AUTO_MIGRATE` (on, so `up` is enough). The Worker has no entrypoint yet;
+when it does, it is another service from the same image.
+
 Application records (users, courses, materials, notes, sessions, quizzes, the job queue) live in
 Lattice's own Postgres, reached through `DATABASE_URL`; Cognee keeps its own embedded stores and is
 not part of that database. Migrations are Alembic: `uv run alembic upgrade head`, or set

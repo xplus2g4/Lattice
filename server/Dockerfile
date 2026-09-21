@@ -7,6 +7,8 @@ COPY pyproject.toml uv.lock ./
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-install-project
 COPY lattice ./lattice
 RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked
+COPY alembic.ini ./
+COPY migrations ./migrations
 
 ENV PATH="/srv/.venv/bin:$PATH"
 EXPOSE 8000
