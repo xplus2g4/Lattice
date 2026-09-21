@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from lattice.api import ask, health, materials, notes
+from lattice.api import ask, courses, health, materials, me, notes
 from lattice.config import Settings, get_settings
 from lattice.db import Database
 from lattice.db.migrate import upgrade_async
@@ -35,7 +35,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.database = database
     app.state.registry = Registry()
-    for router in (health.router, materials.router, notes.router, ask.router):
+    for router in (
+        health.router,
+        me.router,
+        courses.router,
+        materials.router,
+        notes.router,
+        ask.router,
+    ):
         app.include_router(router)
     return app
 

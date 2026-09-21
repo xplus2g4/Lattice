@@ -7,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.config import Settings, get_settings
 from lattice.db import Database
+from lattice.db.models import User
+from lattice.db.repo import users
 from lattice.engine import Engine
 from lattice.registry import Registry
 
@@ -48,3 +50,11 @@ def current_email(
 
 
 CurrentEmail = Annotated[str, Depends(current_email)]
+
+
+async def current_user(email: CurrentEmail, session: SessionDep) -> User:
+    """The caller's `users` row, created on first sight. OAuth replaces `current_email` only."""
+    return await users.get_or_create(session, email)
+
+
+CurrentUser = Annotated[User, Depends(current_user)]
