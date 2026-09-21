@@ -5,6 +5,7 @@ body for writes. Nothing carries a resource id in the path.
 """
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict
@@ -88,6 +89,30 @@ class NoteOut(Record):
     error: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class TurnOut(Record):
+    id: UUID
+    session_id: UUID
+    role: str
+    content_json: dict[str, Any]
+    cited_chunk_ids: list[str]
+    used_notes: bool
+    latency_ms: int | None
+    created_at: datetime
+
+
+class SessionOut(Record):
+    id: UUID
+    course_id: UUID
+    turns: list[TurnOut]
+    created_at: datetime
+    last_turn_at: datetime
+
+
+class AskOut(BaseModel):
+    session: UUID
+    turn: TurnOut
 
 
 class MeOut(BaseModel):

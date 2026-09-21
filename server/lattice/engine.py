@@ -24,7 +24,7 @@ from cognee.modules.users.models import User
 from cognee.modules.users.permissions.methods import give_permission_on_dataset
 
 from lattice.config import Settings
-from lattice.registry import Evidence, TierResult
+from lattice.retrieval import Evidence, TierResult
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
@@ -37,6 +37,7 @@ class Engine:
             (root / sub).mkdir(parents=True, exist_ok=True)
         cognee.config.system_root_directory(str(root / "system"))
         cognee.config.data_root_directory(str(root / "data"))
+        # Unbounded process-local cache; consider moving this to Redis if cardinality becomes large.
         self._principals: dict[str, User] = {}
         self._datasets: dict[tuple[str, UUID], Dataset] = {}
         self._enrolled: set[tuple[UUID, str]] = set()
