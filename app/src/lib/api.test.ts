@@ -31,7 +31,7 @@ describe('caller identity', () => {
 describe('reporting an API error', () => {
   it('surfaces the detail the API sent', async () => {
     server.use(
-      http.get('*/courses/:course/materials', () =>
+      http.get('*/materials.list', () =>
         HttpResponse.json({ detail: 'not enrolled in cs101' }, { status: 403 }),
       ),
     )
@@ -43,7 +43,7 @@ describe('reporting an API error', () => {
 
   it('carries the status code so callers can branch on it', async () => {
     server.use(
-      http.get('*/courses/:course/materials', () =>
+      http.get('*/materials.list', () =>
         HttpResponse.json({ detail: 'nope' }, { status: 403 }),
       ),
     )
@@ -58,7 +58,7 @@ describe('reporting an API error', () => {
 
   it('flattens a FastAPI validation error into one readable line', async () => {
     server.use(
-      http.get('*/courses/:course/materials', () =>
+      http.get('*/materials.list', () =>
         HttpResponse.json(
           {
             detail: [
@@ -87,7 +87,7 @@ describe('reporting an API error', () => {
   it('falls back to the raw body when the API did not send JSON', async () => {
     server.use(
       http.get(
-        '*/courses/:course/materials',
+        '*/materials.list',
         () => new HttpResponse('<html>502 Bad Gateway</html>', { status: 502 }),
       ),
     )

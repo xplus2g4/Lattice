@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
 import { ApiError, QUERY_TYPES, ask, getSession } from '#/lib/api'
-import type { Evidence, QueryType, Session, TierResult, Turn } from '#/lib/api'
+import type { Citation, QueryType, Session, TierResult, Turn } from '#/lib/api'
 import { ErrorLine, buttonClass, inputClass } from '#/components/common'
 import type { Scope } from '#/components/common'
 
@@ -166,8 +166,8 @@ function TurnView({ turn }: { turn: Turn }) {
 }
 
 const tierLabel: Record<TierResult['tier'], string> = {
-  course: 'Course materials',
-  notes: 'Your notes',
+  global: 'Course materials',
+  private: 'Your notes',
 }
 
 function TierView({ result }: { result: TierResult }) {
@@ -181,10 +181,10 @@ function TierView({ result }: { result: TierResult }) {
           <span className="italic text-gray-500">no answer</span>
         )}
       </p>
-      {result.evidence.length > 0 && (
+      {result.citations.length > 0 && (
         <ul className="mt-1 list-disc pl-5 text-xs text-gray-600">
-          {result.evidence.map((e, i) => (
-            <li key={i}>{describeEvidence(e)}</li>
+          {result.citations.map((e, i) => (
+            <li key={i}>{describeCitation(e)}</li>
           ))}
         </ul>
       )}
@@ -192,12 +192,12 @@ function TierView({ result }: { result: TierResult }) {
   )
 }
 
-function describeEvidence(e: Evidence): string {
+function describeCitation(e: Citation): string {
   switch (e.kind) {
-    case 'segment':
-      return `${e.document_name ?? '?'}${e.chunk_index !== null ? ` #${e.chunk_index}` : ''} · chunk`
-    case 'graph_edge':
-      return `${e.relationship_name ?? '?'} · edge`
+    case 'chunk':
+      return `${e.filename ?? '?'}${e.chunk_index !== null ? ` #${e.chunk_index}` : ''} · chunk`
+    case 'relation':
+      return `${e.relation ?? '?'} · edge`
     default:
       return `${e.label ?? '?'} · ${e.kind}`
   }

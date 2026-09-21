@@ -1,8 +1,14 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 
-// Asking is the point of a course page, so the bare course URL opens there.
+import { CourseWorkspace } from '#/components/lattice/course-workspace'
+
+// The bare course URL opens the reader workspace with Ask beside the Material.
 export const Route = createFileRoute('/courses/$course/')({
-  beforeLoad: ({ params }) => {
-    throw redirect({ to: '/courses/$course/ask', params })
-  },
+  component: Workspace,
 })
+
+function Workspace() {
+  const { course } = Route.useParams()
+  const { material } = Route.useSearch()
+  return <CourseWorkspace course={course} material={material} />
+}

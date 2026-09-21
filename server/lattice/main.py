@@ -1,14 +1,16 @@
 import asyncio
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from filelock import FileLock
 
-from lattice.api import ask, health, materials, notes
+from lattice.api import ask, courses, health, material_records, me, note_records, quiz_records
 from lattice.config import Settings, get_settings
+from lattice.db import Database
+from lattice.db.migrate import upgrade_async
 from lattice.engine import Engine
-from lattice.registry import Registry
+from lattice.ingest import Ingest
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -18,26 +20,32 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "MCP currently requires development header identity and loopback-only access"
         )
     engine = Engine(settings)
+    database = Database(settings)
 
     async def ingest_notes():
         while True:
-            if not await page_notes.cognify_pending(app.state.engine.cognify_note):
+            if not await app.state.ingest.cognify_pending():
                 await asyncio.sleep(1)
 
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        await app.state.engine.start()
-        if not settings.mcp_enabled:
-            yield
-            return
-        with FileLock(page_notes.root / "worker.lock", timeout=0):
-            await asyncio.to_thread(page_notes.recover)
-            async with mcp.session_manager.run(), asyncio.TaskGroup() as workers:
-                task = workers.create_task(ingest_notes())
-                try:
-                    yield
-                finally:
-                    task.cancel()
+        try:
+            await app.state.engine.start()
+            if settings.database_auto_migrate:
+                await upgrade_async(settings.database_url)
+            with FileLock(settings.cognee_root.resolve() / "note-ingest.lock", timeout=0):
+                await app.state.ingest.recover_notes()
+                async with AsyncExitStack() as stack:
+                    if settings.mcp_enabled:
+                        await stack.enter_async_context(mcp.session_manager.run())
+                    async with asyncio.TaskGroup() as workers:
+                        task = workers.create_task(ingest_notes())
+                        try:
+                            yield
+                        finally:
+                            task.cancel()
+        finally:
+            await database.dispose()
 
     app = FastAPI(title="Lattice API", lifespan=lifespan)
     app.dependency_overrides[get_settings] = lambda: settings
@@ -49,16 +57,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         allow_headers=["*"],
     )
     app.state.engine = engine
-    app.state.registry = Registry()
-    for router in (health.router, materials.router, notes.router, ask.router):
+    app.state.database = database
+    app.state.ingest = Ingest(database.sessionmaker, engine, settings)
+    for router in (
+        health.router,
+        me.router,
+        courses.router,
+        material_records.router,
+        note_records.router,
+        ask.router,
+        quiz_records.router,
+    ):
         app.include_router(router)
     if settings.mcp_enabled:
         from lattice.mcp import LocalMCP, create_mcp
-        from lattice.page_notes import PageNotes
 
-        page_notes = PageNotes(settings.uploads_dir, max_bytes=settings.max_upload_mb * 1024**2)
-        mcp = create_mcp(app, page_notes)
-        app.state.page_notes = page_notes
+        mcp = create_mcp(app, settings)
         app.state.mcp = mcp
         app.mount("/mcp", LocalMCP(mcp.streamable_http_app(), settings))
     return app

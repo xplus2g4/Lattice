@@ -5,6 +5,16 @@ import { cleanup } from '@testing-library/react'
 import { resetStore } from './handlers'
 import { server } from './server'
 
+vi.stubEnv('VITE_USE_MOCK_BACKEND', 'false')
+Object.defineProperty(window, 'scrollTo', {
+  configurable: true,
+  value: vi.fn(),
+})
+Object.defineProperty(HTMLElement.prototype, 'scrollTo', {
+  configurable: true,
+  value: vi.fn(),
+})
+
 // The root shell mounts the devtools overlay, which expects the dev server's bridge and
 // throws without it. It is a development affordance, not behaviour, so it is stubbed
 // here rather than guarded in `__root.tsx`.

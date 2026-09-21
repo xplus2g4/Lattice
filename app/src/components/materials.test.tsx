@@ -74,7 +74,7 @@ describe('the materials list', () => {
 
   it('reports an upload the API rejected', async () => {
     server.use(
-      http.post('*/courses/:course/materials', () =>
+      http.post('*/materials.upload', () =>
         HttpResponse.json(
           { detail: 'material exceeds the 20 MB ceiling' },
           { status: 413 },

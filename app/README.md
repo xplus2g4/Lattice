@@ -2,7 +2,9 @@
 
 The browser-facing component of the course knowledge store: TanStack Start (React, file-based routing, SSR) with TanStack Query for talking to the API. Architecture and ownership are in [`docs/wiki/components.md`](../docs/wiki/components.md).
 
-First time on a machine: `scripts/dev-setup.sh` from the repo root sets up both `app/` and `server/`, including `app/.env` (`VITE_API_URL`, where the API listens). By hand:
+The app runs on demo data by default through `src/lib/mock-backend.ts`. Set `VITE_USE_MOCK_BACKEND=false` and `VITE_API_URL` to use the persistent RPC API instead. The shared facade normalizes server records for both the reader workspace and existing study routes.
+
+First time on a machine: `scripts/dev-setup.sh` from the repo root sets up both `app/` and `server/`. By hand:
 
 ```bash
 npm install
@@ -15,35 +17,34 @@ Other scripts: `typecheck`, `lint`, `format`, `check` (prettier), `test` (vitest
 
 ## Layout
 
-| Path                                                   | What it holds                                                                                                     |
-| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------- |
-| `src/routes/index.tsx`                                 | Course picker at `/`.                                                                                             |
-| `src/routes/courses/$course.tsx`                       | Per-course layout: course-code guard, user email, tab bar, `<Outlet/>`.                                           |
-| `src/routes/courses/$course/`                          | One route per section: `materials`, `notes`, `ask.index`, `ask.$sessionId`, and an `index` that redirects to ask. |
-| `src/routes/__root.tsx`                                | The document shell.                                                                                               |
-| `src/components/materials.tsx`, `notes.tsx`, `ask.tsx` | One section each. Each takes `{ course, user }` and owns its own queries.                                         |
-| `src/components/common.tsx`                            | `ErrorLine`, `StatusBadge`, `pollWhilePending`, shared class strings, the `Scope` prop type.                      |
-| `src/lib/generated/`                                   | Types generated from the contract. Committed, never hand-edited.                                                  |
-| `src/lib/api.ts`                                       | The transport: base URL, the `X-User` header, `ApiError`, one function per endpoint.                              |
-| `src/lib/storage.ts`                                   | `useStored`, localStorage as an external store so SSR renders the fallback.                                       |
-| `src/lib/course.ts`                                    | Course-code regex and the recent-courses list.                                                                    |
-| `src/router.tsx`                                       | Router construction and the Query/SSR integration.                                                                |
-| `src/integrations/tanstack-query/`                     | `QueryClient` context and devtools panel.                                                                         |
-| `src/test/`                                            | Test harness: MSW handlers, contract-typed fixtures, render helpers. No production code.                          |
-| `src/styles.css`                                       | Tailwind entry.                                                                                                   |
+| Path                                                   | What it holds                                                                                                                 |
+| ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
+| `src/routes/index.tsx`                                 | Course picker at `/`.                                                                                                         |
+| `src/routes/courses/$course.tsx`                       | Per-course layout: course-code guard, user email, tab bar, `<Outlet/>`.                                                       |
+| `src/routes/courses/$course/`                          | One route per section: `materials`, `notes`, `ask.index`, `ask.$sessionId`, and an `index` that renders the reader workspace. |
+| `src/routes/__root.tsx`                                | The document shell.                                                                                                           |
+| `src/components/materials.tsx`, `notes.tsx`, `ask.tsx` | One section each. Each takes `{ course, user }` and owns its own queries.                                                     |
+| `src/components/common.tsx`                            | `ErrorLine`, `StatusBadge`, `pollWhilePending`, shared class strings, the `Scope` prop type.                                  |
+| `src/lib/generated/`                                   | Types generated from the contract. Committed, never hand-edited.                                                              |
+| `src/lib/api.ts`                                       | The transport: base URL, the `X-User` header, `ApiError`, one function per endpoint.                                          |
+| `src/lib/storage.ts`                                   | `useStored`, localStorage as an external store so SSR renders the fallback.                                                   |
+| `src/lib/course.ts`                                    | Course-code regex and the recent-courses list.                                                                                |
+| `src/router.tsx`                                       | Router construction and the Query/SSR integration.                                                                            |
+| `src/integrations/tanstack-query/`                     | `QueryClient` context and devtools panel.                                                                                     |
+| `src/test/`                                            | Test harness: MSW handlers, contract-typed fixtures, render helpers. No production code.                                      |
+| `src/styles.css`                                       | Tailwind entry.                                                                                                               |
 
 Import from `src/` with the `#/` alias.
 
-Never declare an API shape by hand. `Material`, `Note`, `Turn` and the rest are generated
-from `contracts/openapi.json` into `src/lib/generated/` and re-exported by `src/lib/api.ts`,
-so import them from `#/lib/api` as before and regenerate when the API changes
-([ADR 0005](../docs/adr/0005-generated-openapi-contract.md)). `api.ts` owns the transport
-only. Unions that FastAPI inlines rather than names, `IngestStatus` and `QueryType`, are
-derived there from the generated types rather than retyped.
+Wire types are generated from `contracts/openapi.json` into `src/lib/generated/`
+([ADR 0005](../docs/adr/0005-generated-openapi-contract.md)). `api.ts` consumes those RPC
+types and projects them into the UI's Material, Note, Session and Citation view models.
+Import UI types from `#/lib/api`; regenerate the wire types when the backend changes.
+The query-type union is derived from the generated request, not maintained independently.
 
-Scope lives in the URL, not in state. A section gets its course from the route param, and
-the conversation being read is `$sessionId`, not a stored pointer: that is what makes a
-conversation linkable and back and forward work through it. `Ask` therefore takes
+The course lives in the URL. The standalone study routes keep a conversation in
+`$sessionId`, making it linkable and supporting back/forward. The reader workspace also
+retains the mock shell's local Session pointer and history picker. `Ask` therefore takes
 `sessionId` plus `onSessionStarted` and `onLeaveSession`, and the route decides where
 those go; the component never navigates and never touches storage.
 
@@ -64,9 +65,9 @@ loads Nitro, TanStack Start and devtools; a jsdom run needs none of that.
 
 Three rules keep the harness honest:
 
-- **Fixtures are typed as the generated contract types.** A response model that changes on
-  the server regenerates `src/lib/generated/` and fails `npm run typecheck` in
-  `src/test/fixtures.ts`, so the mocks cannot drift into a hand-written parallel shape.
+- **HTTP handlers return generated contract types.** UI fixtures are serialized into the
+  RPC shapes in `src/test/handlers.ts`, so a changed wire model fails typecheck rather
+  than drifting into a hand-written parallel response shape.
 - **Mock only at the HTTP boundary.** Never mock `src/lib/api.ts` or a component; the
   transport, the `X-User` header and the error flattening are behaviour under test.
 - **An unmocked request fails the run** (`onUnhandledRequest: 'error'`). Reach for

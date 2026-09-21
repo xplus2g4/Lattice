@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { listNotes, saveNote } from '#/lib/api'
+import { listNotes, saveNote, usesMockBackend } from '#/lib/api'
 import type { Note } from '#/lib/api'
 import {
   ErrorLine,
@@ -20,16 +20,29 @@ export function Notes({ course, user }: Scope) {
     queryFn: () => listNotes(user, course),
     refetchInterval: (q) => pollWhilePending<Note>(q.state.data),
   })
-  const [noteId, setNoteId] = useState('n1')
+  const [noteId, setNoteId] = useState(() => (usesMockBackend() ? 'n1' : ''))
   const [body, setBody] = useState('')
   const save = useMutation({
     mutationFn: () => saveNote(user, course, noteId, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
+    onSuccess: (note) => {
+      setNoteId(note.id)
+      return queryClient.invalidateQueries({ queryKey: key })
+    },
   })
 
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold">Notes</h2>
+      <button
+        type="button"
+        className={buttonClass}
+        onClick={() => {
+          setNoteId(usesMockBackend() ? crypto.randomUUID() : '')
+          setBody('')
+        }}
+      >
+        New Note
+      </button>
       <form
         className="space-y-2"
         onSubmit={(e) => {
@@ -37,13 +50,15 @@ export function Notes({ course, user }: Scope) {
           save.mutate()
         }}
       >
-        <input
-          className={inputClass}
-          value={noteId}
-          pattern="[A-Za-z0-9_\-]{1,64}"
-          placeholder="note id"
-          onChange={(e) => setNoteId(e.target.value)}
-        />
+        {usesMockBackend() && (
+          <input
+            className={inputClass}
+            value={noteId}
+            pattern="[A-Za-z0-9_\-]{1,64}"
+            placeholder="note id"
+            onChange={(e) => setNoteId(e.target.value)}
+          />
+        )}
         <textarea
           className={`${inputClass} block w-full`}
           rows={4}
@@ -54,7 +69,7 @@ export function Notes({ course, user }: Scope) {
         <button
           className={buttonClass}
           type="submit"
-          disabled={!noteId || !body.trim() || save.isPending}
+          disabled={!body.trim() || save.isPending}
         >
           {save.isPending ? 'Saving…' : 'Save'}
         </button>
@@ -64,7 +79,16 @@ export function Notes({ course, user }: Scope) {
       <ul className="divide-y divide-gray-200">
         {notes.data?.map((n) => (
           <li key={n.id} className="flex flex-wrap items-center gap-2 py-1">
-            <span className="font-mono text-sm">{n.id}</span>
+            <button
+              type="button"
+              className="font-mono text-sm"
+              onClick={() => {
+                setNoteId(n.id)
+                setBody(n.body_md)
+              }}
+            >
+              {n.id}
+            </button>
             <StatusBadge status={n.status} />
             <span className="text-sm text-gray-600">
               {n.body_md.slice(0, 80)}

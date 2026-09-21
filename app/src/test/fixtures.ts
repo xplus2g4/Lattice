@@ -1,6 +1,6 @@
 import type {
   AskResponse,
-  Evidence,
+  Citation,
   Material,
   Note,
   Session,
@@ -8,9 +8,9 @@ import type {
   Turn,
 } from '#/lib/api'
 
-// Typed as the generated contract types on purpose (ADR 0005): a response model that
-// changes on the server regenerates `src/lib/generated/` and fails `npm run typecheck`
-// here, so the mocks cannot drift into a parallel hand-written shape.
+// These fixtures describe the UI view models; the HTTP handlers serialize them into
+// generated RPC contract types (ADR 0005). A server model change therefore fails
+// typecheck in the handlers rather than drifting into a parallel wire shape.
 
 const AT = '2026-01-01T00:00:00.000Z'
 
@@ -39,26 +39,23 @@ export function note(over: Partial<Note> = {}): Note {
   }
 }
 
-export function evidence(over: Partial<Evidence> = {}): Evidence {
+export function evidence(over: Partial<Citation> = {}): Citation {
   return {
-    kind: 'segment',
-    dataset_id: null,
-    data_id: null,
+    kind: 'chunk',
     chunk_id: 'chunk-1',
     chunk_index: 3,
-    document_name: 'week1.pdf',
+    filename: 'week1.pdf',
     label: null,
-    relationship_name: null,
+    relation: null,
     ...over,
   }
 }
 
 export function tierResult(over: Partial<TierResult> = {}): TierResult {
   return {
-    tier: 'course',
-    dataset_name: 'cs101-global',
+    tier: 'global',
     answer: 'A hash table maps keys to buckets.',
-    evidence: [evidence()],
+    citations: [evidence()],
     ...over,
   }
 }

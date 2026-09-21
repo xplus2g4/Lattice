@@ -12,6 +12,7 @@ from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from lattice.config import Settings
+from lattice.db.repo import courses, users
 from lattice.note_review import NoteReview, NoteReviewer
 from lattice.page_notes import (
     Course,
@@ -81,7 +82,7 @@ async def checked(operation):
     try:
         async with asyncio.timeout(125):
             return await operation
-    except (RevisionConflict, SessionAccessError) as exc:
+    except (RevisionConflict, SessionAccessError, courses.CourseAccessError) as exc:
         raise ToolError(str(exc)) from None
     except ValueError:
         raise ToolError(
@@ -91,7 +92,11 @@ async def checked(operation):
         raise ToolError("Operation could not be completed; please retry") from None
 
 
-def create_mcp(app, notes: PageNotes) -> FastMCP:
+def create_mcp(app, settings: Settings) -> FastMCP:
+    async def transact(ctx: Context, operation):
+        async with app.state.database.sessionmaker() as session, session.begin():
+            return await operation(session, caller(ctx))
+
     mcp = FastMCP(
         "Lattice Study Tools",
         host="127.0.0.1",
@@ -129,8 +134,14 @@ def create_mcp(app, notes: PageNotes) -> FastMCP:
     async def get_material_context(
         course: Course, filename: Filename, ctx: Context
     ) -> MaterialContext:
-        caller(ctx)
-        return await checked(asyncio.to_thread(notes.context, course, filename))
+        return await checked(
+            transact(
+                ctx,
+                lambda session, owner: PageNotes(session, settings).context(
+                    owner, course, filename
+                ),
+            )
+        )
 
     @mcp.tool(
         description=(
@@ -139,7 +150,9 @@ def create_mcp(app, notes: PageNotes) -> FastMCP:
         annotations=read_only,
     )
     async def get_page_note(anchor: PageAnchor, ctx: Context) -> PageNote:
-        return await checked(asyncio.to_thread(notes.get, caller(ctx), anchor))
+        return await checked(
+            transact(ctx, lambda session, owner: PageNotes(session, settings).get(owner, anchor))
+        )
 
     @mcp.tool(
         description=(
@@ -159,8 +172,11 @@ def create_mcp(app, notes: PageNotes) -> FastMCP:
         ctx: Context,
     ) -> PageNote:
         return await checked(
-            asyncio.to_thread(
-                notes.upsert, caller(ctx), anchor, body_md, expected_revision=expected_revision
+            transact(
+                ctx,
+                lambda session, owner: PageNotes(session, settings).upsert(
+                    owner, anchor, body_md, expected_revision=expected_revision
+                ),
             )
         )
 
@@ -174,8 +190,14 @@ def create_mcp(app, notes: PageNotes) -> FastMCP:
         annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True),
     )
     async def review_note(course: Course, body_md: NoteText, ctx: Context) -> NoteReview:
+        async def authorize(session, owner):
+            user = await users.get_or_create(session, owner)
+            await courses.require_enrolment(session, user, course)
+            return user.email
+
+        owner = await checked(transact(ctx, authorize))
         reviewer = NoteReviewer(app.state.engine.retrieve_official, app.state.engine.generate)
-        return await checked(reviewer.review(course, caller(ctx), body_md))
+        return await checked(reviewer.review(course, owner, body_md))
 
     @mcp.tool(
         name="ask_course",
@@ -195,12 +217,15 @@ def create_mcp(app, notes: PageNotes) -> FastMCP:
         query_type: QueryType = "GRAPH_COMPLETION",
     ) -> AskResponse:
         return await checked(
-            ask_course(
-                app.state.engine,
-                app.state.registry,
-                course,
-                caller(ctx),
-                AskRequest(question=question, session_id=session_id, query_type=query_type),
+            transact(
+                ctx,
+                lambda session, owner: ask_course(
+                    app.state.engine,
+                    session,
+                    course,
+                    owner,
+                    AskRequest(question=question, session_id=session_id, query_type=query_type),
+                ),
             )
         )
 

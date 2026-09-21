@@ -5,9 +5,24 @@ export type ClientOptions = {
 }
 
 /**
+ * AskOut
+ */
+export type AskOut = {
+  /**
+   * Session
+   */
+  session: string
+  turn: TurnOut
+}
+
+/**
  * AskRequest
  */
 export type AskRequest = {
+  /**
+   * Course
+   */
+  course: string
   /**
    * Query Type
    */
@@ -18,26 +33,19 @@ export type AskRequest = {
    */
   question: string
   /**
-   * Session Id
+   * Session
    */
-  session_id?: string | null
+  session?: string | null
 }
 
 /**
- * AskResponse
+ * Body_upload_material_materials_upload_post
  */
-export type AskResponse = {
+export type BodyUploadMaterialMaterialsUploadPost = {
   /**
-   * Session Id
+   * Course
    */
-  session_id: string
-  turn: Turn
-}
-
-/**
- * Body_upload_material_courses__course__materials_post
- */
-export type BodyUploadMaterialCoursesCourseMaterialsPost = {
+  course: string
   /**
    * File
    */
@@ -45,46 +53,108 @@ export type BodyUploadMaterialCoursesCourseMaterialsPost = {
 }
 
 /**
- * Evidence
- *
- * A Cognee `EvidenceReference`, normalised so every field is present, possibly null.
- *
- * Which fields Cognee populates depends on `kind` (`segment`, `graph_node`, `graph_edge`),
- * so the incoming dict is sparse; the contract is not.
+ * CourseOut
  */
-export type Evidence = {
+export type CourseOut = {
   /**
-   * Chunk Id
+   * Code
    */
-  chunk_id: string | null
+  code: string
   /**
-   * Chunk Index
+   * Created At
    */
-  chunk_index: number | null
+  created_at: string
   /**
-   * Data Id
+   * Global Dataset Name
    */
-  data_id: string | null
+  global_dataset_name: string
   /**
-   * Dataset Id
+   * Id
    */
-  dataset_id: string | null
+  id: string
   /**
-   * Document Name
+   * Name
    */
-  document_name: string | null
+  name: string
   /**
-   * Kind
+   * Owner User Id
    */
-  kind: string
+  owner_user_id: string
   /**
-   * Label
+   * Term
    */
-  label: string | null
+  term: string | null
+}
+
+/**
+ * CourseRef
+ */
+export type CourseRef = {
   /**
-   * Relationship Name
+   * Course
    */
-  relationship_name: string | null
+  course: string
+}
+
+/**
+ * CourseSearchHit
+ */
+export type CourseSearchHit = {
+  course: CourseOut
+  /**
+   * Enrolled
+   */
+  enrolled: boolean
+}
+
+/**
+ * CourseSearchOut
+ */
+export type CourseSearchOut = {
+  /**
+   * Results
+   */
+  results: Array<CourseSearchHit>
+}
+
+/**
+ * CreateCourse
+ */
+export type CreateCourse = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Term
+   */
+  term?: string | null
+}
+
+/**
+ * EnrolmentOut
+ */
+export type EnrolmentOut = {
+  /**
+   * Course Id
+   */
+  course_id: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * User Dataset Name
+   */
+  user_dataset_name: string
+  /**
+   * User Id
+   */
+  user_id: string
 }
 
 /**
@@ -98,17 +168,21 @@ export type HttpValidationError = {
 }
 
 /**
- * Material
+ * MaterialOut
  */
-export type Material = {
+export type MaterialOut = {
   /**
-   * Course
+   * Course Id
    */
-  course: string
+  course_id: string
   /**
    * Created At
    */
   created_at: string
+  /**
+   * Created By
+   */
+  created_by: string
   /**
    * Error
    */
@@ -118,27 +192,146 @@ export type Material = {
    */
   filename: string
   /**
+   * Id
+   */
+  id: string
+  /**
+   * Kind
+   */
+  kind: string | null
+  /**
+   * Lecture No
+   */
+  lecture_no: number | null
+  /**
+   * Page Count
+   */
+  page_count: number | null
+  /**
+   * Sha256
+   */
+  sha256: string
+  /**
    * Status
    */
-  status: 'queued' | 'cognifying' | 'ready' | 'failed'
+  status: string
+  /**
+   * Title
+   */
+  title: string
   /**
    * Updated At
    */
   updated_at: string
+  /**
+   * Week
+   */
+  week: number | null
 }
 
 /**
- * Note
+ * MaterialRef
  */
-export type Note = {
+export type MaterialRef = {
+  /**
+   * Material
+   */
+  material: string
+}
+
+/**
+ * MeOut
+ */
+export type MeOut = {
+  /**
+   * Courses
+   */
+  courses: Array<CourseOut>
+  user: UserOut
+}
+
+/**
+ * NewQuestion
+ */
+export type NewQuestion = {
+  /**
+   * Citation Json
+   */
+  citation_json?: {
+    [key: string]: unknown
+  } | null
+  /**
+   * Expected Json
+   */
+  expected_json?: {
+    [key: string]: unknown
+  } | null
+  /**
+   * Kind
+   */
+  kind: 'short_answer' | 'mcq'
+  /**
+   * Material Id
+   */
+  material_id?: string | null
+  /**
+   * Options Json
+   */
+  options_json?: Array<string> | null
+  /**
+   * Prompt
+   */
+  prompt: string
+  /**
+   * Topic Id
+   */
+  topic_id?: string | null
+}
+
+/**
+ * NewQuiz
+ */
+export type NewQuiz = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Kind
+   */
+  kind: 'pop' | 'grill'
+  /**
+   * Questions
+   */
+  questions: Array<NewQuestion>
+  /**
+   * Scope
+   */
+  scope?: {
+    [key: string]: unknown
+  }
+}
+
+/**
+ * NoteOut
+ */
+export type NoteOut = {
   /**
    * Body Md
    */
   body_md: string
   /**
-   * Course
+   * Cognified Revision
    */
-  course: string
+  cognified_revision: number
+  /**
+   * Course Id
+   */
+  course_id: string
+  /**
+   * Created At
+   */
+  created_at: string
   /**
    * Error
    */
@@ -148,13 +341,21 @@ export type Note = {
    */
   id: string
   /**
-   * Owner
+   * Material Id
    */
-  owner: string
+  material_id: string | null
+  /**
+   * Page
+   */
+  page: number | null
+  /**
+   * Revision
+   */
+  revision: number
   /**
    * Status
    */
-  status: 'queued' | 'cognifying' | 'ready' | 'failed'
+  status: string
   /**
    * Updated At
    */
@@ -162,23 +363,59 @@ export type Note = {
 }
 
 /**
- * NoteBody
+ * NoteRef
  */
-export type NoteBody = {
+export type NoteRef = {
   /**
-   * Body Md
+   * Note
    */
-  body_md: string
+  note: string
 }
 
 /**
- * Session
+ * QuizAnswerOut
  */
-export type Session = {
+export type QuizAnswerOut = {
   /**
-   * Course
+   * Answer Text
    */
-  course: string
+  answer_text: string
+  /**
+   * Attempt No
+   */
+  attempt_no: number
+  /**
+   * Correct
+   */
+  correct: boolean | null
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Feedback Json
+   */
+  feedback_json: {
+    [key: string]: unknown
+  } | null
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Question Id
+   */
+  question_id: string
+}
+
+/**
+ * QuizOut
+ */
+export type QuizOut = {
+  /**
+   * Course Id
+   */
+  course_id: string
   /**
    * Created At
    */
@@ -188,45 +425,335 @@ export type Session = {
    */
   id: string
   /**
-   * Owner
+   * Kind
    */
-  owner: string
+  kind: string
+  /**
+   * Questions
+   */
+  questions: Array<QuizQuestionOut>
+  /**
+   * Scope Json
+   */
+  scope_json: {
+    [key: string]: unknown
+  }
+  /**
+   * Score
+   */
+  score: number | null
+  /**
+   * Status
+   */
+  status: string
+  /**
+   * Submitted At
+   */
+  submitted_at: string | null
+}
+
+/**
+ * QuizQuestionOut
+ */
+export type QuizQuestionOut = {
+  /**
+   * Answers
+   */
+  answers: Array<QuizAnswerOut>
+  /**
+   * Citation Json
+   */
+  citation_json: {
+    [key: string]: unknown
+  } | null
+  /**
+   * Expected Json
+   */
+  expected_json: {
+    [key: string]: unknown
+  } | null
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Kind
+   */
+  kind: string
+  /**
+   * Material Id
+   */
+  material_id: string | null
+  /**
+   * Options Json
+   */
+  options_json: Array<string> | null
+  /**
+   * Position
+   */
+  position: number
+  /**
+   * Prompt
+   */
+  prompt: string
+  /**
+   * Quiz Id
+   */
+  quiz_id: string
+  /**
+   * Topic Id
+   */
+  topic_id: string | null
+}
+
+/**
+ * QuizRef
+ */
+export type QuizRef = {
+  /**
+   * Quiz
+   */
+  quiz: string
+}
+
+/**
+ * Rating
+ */
+export type Rating = {
+  /**
+   * Comment
+   */
+  comment?: string | null
+  /**
+   * Rating
+   */
+  rating: -1 | 1
+  /**
+   * Turn
+   */
+  turn: string
+}
+
+/**
+ * ReadingPositionOut
+ */
+export type ReadingPositionOut = {
+  /**
+   * Material Id
+   */
+  material_id: string
+  /**
+   * Page
+   */
+  page: number
+  /**
+   * Updated At
+   */
+  updated_at: string
+}
+
+/**
+ * RecordAnswer
+ */
+export type RecordAnswer = {
+  /**
+   * Answer Text
+   */
+  answer_text: string
+  /**
+   * Correct
+   */
+  correct?: boolean | null
+  /**
+   * Feedback
+   */
+  feedback?: {
+    [key: string]: unknown
+  } | null
+  /**
+   * Question
+   */
+  question: string
+}
+
+/**
+ * ReplaceTopics
+ */
+export type ReplaceTopics = {
+  /**
+   * Material
+   */
+  material: string
+  /**
+   * Topics
+   */
+  topics: Array<TopicIn>
+}
+
+/**
+ * SaveNote
+ */
+export type SaveNote = {
+  /**
+   * Body Md
+   */
+  body_md: string
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Expected Revision
+   */
+  expected_revision?: number | null
+  /**
+   * Material
+   */
+  material?: string | null
+  /**
+   * Note
+   */
+  note?: string | null
+  /**
+   * Page
+   */
+  page?: number | null
+}
+
+/**
+ * SessionOut
+ */
+export type SessionOut = {
+  /**
+   * Course Id
+   */
+  course_id: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Last Turn At
+   */
+  last_turn_at: string
   /**
    * Turns
    */
-  turns: Array<Turn>
+  turns: Array<TurnOut>
 }
 
 /**
- * TierResult
+ * SetReadingPosition
  */
-export type TierResult = {
+export type SetReadingPosition = {
   /**
-   * Answer
+   * Material
    */
-  answer: string | null
+  material: string
   /**
-   * Dataset Name
+   * Page
    */
-  dataset_name: string
-  /**
-   * Evidence
-   */
-  evidence: Array<Evidence>
-  /**
-   * Tier
-   */
-  tier: 'course' | 'notes'
+  page: number
 }
 
 /**
- * Turn
+ * SubmitQuiz
  */
-export type Turn = {
+export type SubmitQuiz = {
   /**
-   * Content
+   * Quiz
    */
-  content: string
+  quiz: string
+  /**
+   * Score
+   */
+  score?: number | null
+}
+
+/**
+ * TopicIn
+ */
+export type TopicIn = {
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Page End
+   */
+  page_end: number
+  /**
+   * Page Start
+   */
+  page_start: number
+}
+
+/**
+ * TopicOut
+ */
+export type TopicOut = {
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Label
+   */
+  label: string
+  /**
+   * Material Id
+   */
+  material_id: string
+  /**
+   * Page End
+   */
+  page_end: number
+  /**
+   * Page Start
+   */
+  page_start: number
+  /**
+   * Position
+   */
+  position: number
+}
+
+/**
+ * TopicStat
+ */
+export type TopicStat = {
+  /**
+   * Attempts
+   */
+  attempts: number
+  /**
+   * Misses
+   */
+  misses: number
+  /**
+   * Topic Id
+   */
+  topic_id: string | null
+}
+
+/**
+ * TurnOut
+ */
+export type TurnOut = {
+  /**
+   * Cited Chunk Ids
+   */
+  cited_chunk_ids: Array<string>
+  /**
+   * Content Json
+   */
+  content_json: {
+    [key: string]: unknown
+  }
   /**
    * Created At
    */
@@ -240,21 +767,120 @@ export type Turn = {
    */
   latency_ms: number | null
   /**
-   * Query Type
-   */
-  query_type: string | null
-  /**
-   * Results
-   */
-  results: Array<TierResult>
-  /**
    * Role
    */
-  role: 'user' | 'assistant'
+  role: string
+  /**
+   * Session Id
+   */
+  session_id: string
   /**
    * Used Notes
    */
   used_notes: boolean
+}
+
+/**
+ * UpdateCourse
+ */
+export type UpdateCourse = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Term
+   */
+  term?: string | null
+}
+
+/**
+ * UpdateMaterial
+ */
+export type UpdateMaterial = {
+  /**
+   * Kind
+   */
+  kind?: string | null
+  /**
+   * Lecture No
+   */
+  lecture_no?: number | null
+  /**
+   * Material
+   */
+  material: string
+  /**
+   * Page Count
+   */
+  page_count?: number | null
+  /**
+   * Title
+   */
+  title?: string | null
+  /**
+   * Week
+   */
+  week?: number | null
+}
+
+/**
+ * UpdateMe
+ */
+export type UpdateMe = {
+  /**
+   * Name
+   */
+  name?: string | null
+  /**
+   * Notes Opt Out
+   */
+  notes_opt_out?: boolean | null
+}
+
+/**
+ * UploadOut
+ */
+export type UploadOut = {
+  /**
+   * Deduplicated
+   */
+  deduplicated: boolean
+  material: MaterialOut
+}
+
+/**
+ * UserOut
+ */
+export type UserOut = {
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Email
+   */
+  email: string
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string | null
+  /**
+   * Notes Opt Out
+   */
+  notes_opt_out: boolean
+  /**
+   * Role
+   */
+  role: string
 }
 
 /**
@@ -285,7 +911,7 @@ export type ValidationError = {
   type: string
 }
 
-export type AskCoursesCourseAskPostData = {
+export type AskAskPostData = {
   body: AskRequest
   headers?: {
     /**
@@ -293,37 +919,63 @@ export type AskCoursesCourseAskPostData = {
      */
     'x-user'?: string | null
   }
-  path: {
-    /**
-     * Course
-     */
-    course: string
-  }
+  path?: never
   query?: never
-  url: '/courses/{course}/ask'
+  url: '/ask'
 }
 
-export type AskCoursesCourseAskPostErrors = {
+export type AskAskPostErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError
 }
 
-export type AskCoursesCourseAskPostError =
-  AskCoursesCourseAskPostErrors[keyof AskCoursesCourseAskPostErrors]
+export type AskAskPostError = AskAskPostErrors[keyof AskAskPostErrors]
 
-export type AskCoursesCourseAskPostResponses = {
+export type AskAskPostResponses = {
   /**
    * Successful Response
    */
-  200: AskResponse
+  200: AskOut
 }
 
-export type AskCoursesCourseAskPostResponse =
-  AskCoursesCourseAskPostResponses[keyof AskCoursesCourseAskPostResponses]
+export type AskAskPostResponse = AskAskPostResponses[keyof AskAskPostResponses]
 
-export type ListMaterialsCoursesCourseMaterialsGetData = {
+export type CreateCourseCoursesCreatePostData = {
+  body: CreateCourse
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/courses.create'
+}
+
+export type CreateCourseCoursesCreatePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type CreateCourseCoursesCreatePostError =
+  CreateCourseCoursesCreatePostErrors[keyof CreateCourseCoursesCreatePostErrors]
+
+export type CreateCourseCoursesCreatePostResponses = {
+  /**
+   * Successful Response
+   */
+  201: CourseOut
+}
+
+export type CreateCourseCoursesCreatePostResponse =
+  CreateCourseCoursesCreatePostResponses[keyof CreateCourseCoursesCreatePostResponses]
+
+export type GetCourseCoursesGetGetData = {
   body?: never
   headers?: {
     /**
@@ -331,77 +983,72 @@ export type ListMaterialsCoursesCourseMaterialsGetData = {
      */
     'x-user'?: string | null
   }
-  path: {
+  path?: never
+  query: {
     /**
      * Course
      */
     course: string
   }
-  query?: never
-  url: '/courses/{course}/materials'
+  url: '/courses.get'
 }
 
-export type ListMaterialsCoursesCourseMaterialsGetErrors = {
+export type GetCourseCoursesGetGetErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError
 }
 
-export type ListMaterialsCoursesCourseMaterialsGetError =
-  ListMaterialsCoursesCourseMaterialsGetErrors[keyof ListMaterialsCoursesCourseMaterialsGetErrors]
+export type GetCourseCoursesGetGetError =
+  GetCourseCoursesGetGetErrors[keyof GetCourseCoursesGetGetErrors]
 
-export type ListMaterialsCoursesCourseMaterialsGetResponses = {
+export type GetCourseCoursesGetGetResponses = {
   /**
-   * Response List Materials Courses  Course  Materials Get
+   * Successful Response
+   */
+  200: CourseOut
+}
+
+export type GetCourseCoursesGetGetResponse =
+  GetCourseCoursesGetGetResponses[keyof GetCourseCoursesGetGetResponses]
+
+export type ListCoursesCoursesListGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/courses.list'
+}
+
+export type ListCoursesCoursesListGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListCoursesCoursesListGetError =
+  ListCoursesCoursesListGetErrors[keyof ListCoursesCoursesListGetErrors]
+
+export type ListCoursesCoursesListGetResponses = {
+  /**
+   * Response List Courses Courses List Get
    *
    * Successful Response
    */
-  200: Array<Material>
+  200: Array<CourseOut>
 }
 
-export type ListMaterialsCoursesCourseMaterialsGetResponse =
-  ListMaterialsCoursesCourseMaterialsGetResponses[keyof ListMaterialsCoursesCourseMaterialsGetResponses]
+export type ListCoursesCoursesListGetResponse =
+  ListCoursesCoursesListGetResponses[keyof ListCoursesCoursesListGetResponses]
 
-export type UploadMaterialCoursesCourseMaterialsPostData = {
-  body: BodyUploadMaterialCoursesCourseMaterialsPost
-  headers?: {
-    /**
-     * X-User
-     */
-    'x-user'?: string | null
-  }
-  path: {
-    /**
-     * Course
-     */
-    course: string
-  }
-  query?: never
-  url: '/courses/{course}/materials'
-}
-
-export type UploadMaterialCoursesCourseMaterialsPostErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError
-}
-
-export type UploadMaterialCoursesCourseMaterialsPostError =
-  UploadMaterialCoursesCourseMaterialsPostErrors[keyof UploadMaterialCoursesCourseMaterialsPostErrors]
-
-export type UploadMaterialCoursesCourseMaterialsPostResponses = {
-  /**
-   * Successful Response
-   */
-  202: Material
-}
-
-export type UploadMaterialCoursesCourseMaterialsPostResponse =
-  UploadMaterialCoursesCourseMaterialsPostResponses[keyof UploadMaterialCoursesCourseMaterialsPostResponses]
-
-export type ListNotesCoursesCourseNotesGetData = {
+export type SearchCoursesCoursesSearchGetData = {
   body?: never
   headers?: {
     /**
@@ -409,81 +1056,140 @@ export type ListNotesCoursesCourseNotesGetData = {
      */
     'x-user'?: string | null
   }
-  path: {
+  path?: never
+  query?: {
     /**
-     * Course
+     * Q
      */
-    course: string
+    q?: string
   }
-  query?: never
-  url: '/courses/{course}/notes'
+  url: '/courses.search'
 }
 
-export type ListNotesCoursesCourseNotesGetErrors = {
+export type SearchCoursesCoursesSearchGetErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError
 }
 
-export type ListNotesCoursesCourseNotesGetError =
-  ListNotesCoursesCourseNotesGetErrors[keyof ListNotesCoursesCourseNotesGetErrors]
+export type SearchCoursesCoursesSearchGetError =
+  SearchCoursesCoursesSearchGetErrors[keyof SearchCoursesCoursesSearchGetErrors]
 
-export type ListNotesCoursesCourseNotesGetResponses = {
+export type SearchCoursesCoursesSearchGetResponses = {
   /**
-   * Response List Notes Courses  Course  Notes Get
+   * Successful Response
+   */
+  200: CourseSearchOut
+}
+
+export type SearchCoursesCoursesSearchGetResponse =
+  SearchCoursesCoursesSearchGetResponses[keyof SearchCoursesCoursesSearchGetResponses]
+
+export type UpdateCourseCoursesUpdatePostData = {
+  body: UpdateCourse
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/courses.update'
+}
+
+export type UpdateCourseCoursesUpdatePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type UpdateCourseCoursesUpdatePostError =
+  UpdateCourseCoursesUpdatePostErrors[keyof UpdateCourseCoursesUpdatePostErrors]
+
+export type UpdateCourseCoursesUpdatePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: CourseOut
+}
+
+export type UpdateCourseCoursesUpdatePostResponse =
+  UpdateCourseCoursesUpdatePostResponses[keyof UpdateCourseCoursesUpdatePostResponses]
+
+export type JoinCourseEnrolmentsJoinPostData = {
+  body: CourseRef
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/enrolments.join'
+}
+
+export type JoinCourseEnrolmentsJoinPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type JoinCourseEnrolmentsJoinPostError =
+  JoinCourseEnrolmentsJoinPostErrors[keyof JoinCourseEnrolmentsJoinPostErrors]
+
+export type JoinCourseEnrolmentsJoinPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: EnrolmentOut
+}
+
+export type JoinCourseEnrolmentsJoinPostResponse =
+  JoinCourseEnrolmentsJoinPostResponses[keyof JoinCourseEnrolmentsJoinPostResponses]
+
+export type LeaveCourseEnrolmentsLeavePostData = {
+  body: CourseRef
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/enrolments.leave'
+}
+
+export type LeaveCourseEnrolmentsLeavePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type LeaveCourseEnrolmentsLeavePostError =
+  LeaveCourseEnrolmentsLeavePostErrors[keyof LeaveCourseEnrolmentsLeavePostErrors]
+
+export type LeaveCourseEnrolmentsLeavePostResponses = {
+  /**
+   * Response Leave Course Enrolments Leave Post
    *
    * Successful Response
    */
-  200: Array<Note>
-}
-
-export type ListNotesCoursesCourseNotesGetResponse =
-  ListNotesCoursesCourseNotesGetResponses[keyof ListNotesCoursesCourseNotesGetResponses]
-
-export type SaveNoteCoursesCourseNotesNoteIdPutData = {
-  body: NoteBody
-  headers?: {
-    /**
-     * X-User
-     */
-    'x-user'?: string | null
+  200: {
+    [key: string]: boolean
   }
-  path: {
-    /**
-     * Course
-     */
-    course: string
-    /**
-     * Note Id
-     */
-    note_id: string
-  }
-  query?: never
-  url: '/courses/{course}/notes/{note_id}'
 }
 
-export type SaveNoteCoursesCourseNotesNoteIdPutErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError
-}
+export type LeaveCourseEnrolmentsLeavePostResponse =
+  LeaveCourseEnrolmentsLeavePostResponses[keyof LeaveCourseEnrolmentsLeavePostResponses]
 
-export type SaveNoteCoursesCourseNotesNoteIdPutError =
-  SaveNoteCoursesCourseNotesNoteIdPutErrors[keyof SaveNoteCoursesCourseNotesNoteIdPutErrors]
-
-export type SaveNoteCoursesCourseNotesNoteIdPutResponses = {
-  /**
-   * Successful Response
-   */
-  202: Note
-}
-
-export type SaveNoteCoursesCourseNotesNoteIdPutResponse =
-  SaveNoteCoursesCourseNotesNoteIdPutResponses[keyof SaveNoteCoursesCourseNotesNoteIdPutResponses]
-
-export type GetSessionCoursesCourseSessionsSessionIdGetData = {
+export type ListEnrolmentsEnrolmentsListGetData = {
   body?: never
   headers?: {
     /**
@@ -491,39 +1197,74 @@ export type GetSessionCoursesCourseSessionsSessionIdGetData = {
      */
     'x-user'?: string | null
   }
-  path: {
+  path?: never
+  query: {
     /**
      * Course
      */
     course: string
-    /**
-     * Session Id
-     */
-    session_id: string
   }
-  query?: never
-  url: '/courses/{course}/sessions/{session_id}'
+  url: '/enrolments.list'
 }
 
-export type GetSessionCoursesCourseSessionsSessionIdGetErrors = {
+export type ListEnrolmentsEnrolmentsListGetErrors = {
   /**
    * Validation Error
    */
   422: HttpValidationError
 }
 
-export type GetSessionCoursesCourseSessionsSessionIdGetError =
-  GetSessionCoursesCourseSessionsSessionIdGetErrors[keyof GetSessionCoursesCourseSessionsSessionIdGetErrors]
+export type ListEnrolmentsEnrolmentsListGetError =
+  ListEnrolmentsEnrolmentsListGetErrors[keyof ListEnrolmentsEnrolmentsListGetErrors]
 
-export type GetSessionCoursesCourseSessionsSessionIdGetResponses = {
+export type ListEnrolmentsEnrolmentsListGetResponses = {
   /**
+   * Response List Enrolments Enrolments List Get
+   *
    * Successful Response
    */
-  200: Session
+  200: Array<UserOut>
 }
 
-export type GetSessionCoursesCourseSessionsSessionIdGetResponse =
-  GetSessionCoursesCourseSessionsSessionIdGetResponses[keyof GetSessionCoursesCourseSessionsSessionIdGetResponses]
+export type ListEnrolmentsEnrolmentsListGetResponse =
+  ListEnrolmentsEnrolmentsListGetResponses[keyof ListEnrolmentsEnrolmentsListGetResponses]
+
+export type RecordFeedbackFeedbackRecordPostData = {
+  body: Rating
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/feedback.record'
+}
+
+export type RecordFeedbackFeedbackRecordPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type RecordFeedbackFeedbackRecordPostError =
+  RecordFeedbackFeedbackRecordPostErrors[keyof RecordFeedbackFeedbackRecordPostErrors]
+
+export type RecordFeedbackFeedbackRecordPostResponses = {
+  /**
+   * Response Record Feedback Feedback Record Post
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: number
+  }
+}
+
+export type RecordFeedbackFeedbackRecordPostResponse =
+  RecordFeedbackFeedbackRecordPostResponses[keyof RecordFeedbackFeedbackRecordPostResponses]
 
 export type HealthHealthGetData = {
   body?: never
@@ -545,3 +1286,1004 @@ export type HealthHealthGetResponses = {
 
 export type HealthHealthGetResponse =
   HealthHealthGetResponses[keyof HealthHealthGetResponses]
+
+export type DeleteMaterialMaterialsDeletePostData = {
+  body: MaterialRef
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/materials.delete'
+}
+
+export type DeleteMaterialMaterialsDeletePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type DeleteMaterialMaterialsDeletePostError =
+  DeleteMaterialMaterialsDeletePostErrors[keyof DeleteMaterialMaterialsDeletePostErrors]
+
+export type DeleteMaterialMaterialsDeletePostResponses = {
+  /**
+   * Response Delete Material Materials Delete Post
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: boolean
+  }
+}
+
+export type DeleteMaterialMaterialsDeletePostResponse =
+  DeleteMaterialMaterialsDeletePostResponses[keyof DeleteMaterialMaterialsDeletePostResponses]
+
+export type DownloadMaterialMaterialsDownloadGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Material
+     */
+    material: string
+  }
+  url: '/materials.download'
+}
+
+export type DownloadMaterialMaterialsDownloadGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type DownloadMaterialMaterialsDownloadGetError =
+  DownloadMaterialMaterialsDownloadGetErrors[keyof DownloadMaterialMaterialsDownloadGetErrors]
+
+export type DownloadMaterialMaterialsDownloadGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown
+}
+
+export type GetMaterialMaterialsGetGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Material
+     */
+    material: string
+  }
+  url: '/materials.get'
+}
+
+export type GetMaterialMaterialsGetGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetMaterialMaterialsGetGetError =
+  GetMaterialMaterialsGetGetErrors[keyof GetMaterialMaterialsGetGetErrors]
+
+export type GetMaterialMaterialsGetGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: MaterialOut
+}
+
+export type GetMaterialMaterialsGetGetResponse =
+  GetMaterialMaterialsGetGetResponses[keyof GetMaterialMaterialsGetGetResponses]
+
+export type ListMaterialsMaterialsListGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Course
+     */
+    course: string
+  }
+  url: '/materials.list'
+}
+
+export type ListMaterialsMaterialsListGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListMaterialsMaterialsListGetError =
+  ListMaterialsMaterialsListGetErrors[keyof ListMaterialsMaterialsListGetErrors]
+
+export type ListMaterialsMaterialsListGetResponses = {
+  /**
+   * Response List Materials Materials List Get
+   *
+   * Successful Response
+   */
+  200: Array<MaterialOut>
+}
+
+export type ListMaterialsMaterialsListGetResponse =
+  ListMaterialsMaterialsListGetResponses[keyof ListMaterialsMaterialsListGetResponses]
+
+export type RetryMaterialMaterialsRetryPostData = {
+  body: MaterialRef
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/materials.retry'
+}
+
+export type RetryMaterialMaterialsRetryPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type RetryMaterialMaterialsRetryPostError =
+  RetryMaterialMaterialsRetryPostErrors[keyof RetryMaterialMaterialsRetryPostErrors]
+
+export type RetryMaterialMaterialsRetryPostResponses = {
+  /**
+   * Successful Response
+   */
+  202: MaterialOut
+}
+
+export type RetryMaterialMaterialsRetryPostResponse =
+  RetryMaterialMaterialsRetryPostResponses[keyof RetryMaterialMaterialsRetryPostResponses]
+
+export type UpdateMaterialMaterialsUpdatePostData = {
+  body: UpdateMaterial
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/materials.update'
+}
+
+export type UpdateMaterialMaterialsUpdatePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type UpdateMaterialMaterialsUpdatePostError =
+  UpdateMaterialMaterialsUpdatePostErrors[keyof UpdateMaterialMaterialsUpdatePostErrors]
+
+export type UpdateMaterialMaterialsUpdatePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: MaterialOut
+}
+
+export type UpdateMaterialMaterialsUpdatePostResponse =
+  UpdateMaterialMaterialsUpdatePostResponses[keyof UpdateMaterialMaterialsUpdatePostResponses]
+
+export type UploadMaterialMaterialsUploadPostData = {
+  body: BodyUploadMaterialMaterialsUploadPost
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/materials.upload'
+}
+
+export type UploadMaterialMaterialsUploadPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type UploadMaterialMaterialsUploadPostError =
+  UploadMaterialMaterialsUploadPostErrors[keyof UploadMaterialMaterialsUploadPostErrors]
+
+export type UploadMaterialMaterialsUploadPostResponses = {
+  /**
+   * Successful Response
+   */
+  202: UploadOut
+}
+
+export type UploadMaterialMaterialsUploadPostResponse =
+  UploadMaterialMaterialsUploadPostResponses[keyof UploadMaterialMaterialsUploadPostResponses]
+
+export type GetMeMeGetGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/me.get'
+}
+
+export type GetMeMeGetGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetMeMeGetGetError = GetMeMeGetGetErrors[keyof GetMeMeGetGetErrors]
+
+export type GetMeMeGetGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: MeOut
+}
+
+export type GetMeMeGetGetResponse =
+  GetMeMeGetGetResponses[keyof GetMeMeGetGetResponses]
+
+export type UpdateMeMeUpdatePostData = {
+  body: UpdateMe
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/me.update'
+}
+
+export type UpdateMeMeUpdatePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type UpdateMeMeUpdatePostError =
+  UpdateMeMeUpdatePostErrors[keyof UpdateMeMeUpdatePostErrors]
+
+export type UpdateMeMeUpdatePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserOut
+}
+
+export type UpdateMeMeUpdatePostResponse =
+  UpdateMeMeUpdatePostResponses[keyof UpdateMeMeUpdatePostResponses]
+
+export type DeleteNoteNotesDeletePostData = {
+  body: NoteRef
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/notes.delete'
+}
+
+export type DeleteNoteNotesDeletePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type DeleteNoteNotesDeletePostError =
+  DeleteNoteNotesDeletePostErrors[keyof DeleteNoteNotesDeletePostErrors]
+
+export type DeleteNoteNotesDeletePostResponses = {
+  /**
+   * Response Delete Note Notes Delete Post
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: boolean
+  }
+}
+
+export type DeleteNoteNotesDeletePostResponse =
+  DeleteNoteNotesDeletePostResponses[keyof DeleteNoteNotesDeletePostResponses]
+
+export type GetNoteNotesGetGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: {
+    /**
+     * Note
+     */
+    note?: string | null
+    /**
+     * Material
+     */
+    material?: string | null
+    /**
+     * Page
+     */
+    page?: number | null
+  }
+  url: '/notes.get'
+}
+
+export type GetNoteNotesGetGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetNoteNotesGetGetError =
+  GetNoteNotesGetGetErrors[keyof GetNoteNotesGetGetErrors]
+
+export type GetNoteNotesGetGetResponses = {
+  /**
+   * Response Get Note Notes Get Get
+   *
+   * Successful Response
+   */
+  200: NoteOut | null
+}
+
+export type GetNoteNotesGetGetResponse =
+  GetNoteNotesGetGetResponses[keyof GetNoteNotesGetGetResponses]
+
+export type ListNotesNotesListGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Course
+     */
+    course: string
+    /**
+     * Material
+     */
+    material?: string | null
+  }
+  url: '/notes.list'
+}
+
+export type ListNotesNotesListGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListNotesNotesListGetError =
+  ListNotesNotesListGetErrors[keyof ListNotesNotesListGetErrors]
+
+export type ListNotesNotesListGetResponses = {
+  /**
+   * Response List Notes Notes List Get
+   *
+   * Successful Response
+   */
+  200: Array<NoteOut>
+}
+
+export type ListNotesNotesListGetResponse =
+  ListNotesNotesListGetResponses[keyof ListNotesNotesListGetResponses]
+
+export type SaveNoteNotesSavePostData = {
+  body: SaveNote
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/notes.save'
+}
+
+export type SaveNoteNotesSavePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type SaveNoteNotesSavePostError =
+  SaveNoteNotesSavePostErrors[keyof SaveNoteNotesSavePostErrors]
+
+export type SaveNoteNotesSavePostResponses = {
+  /**
+   * Successful Response
+   */
+  202: NoteOut
+}
+
+export type SaveNoteNotesSavePostResponse =
+  SaveNoteNotesSavePostResponses[keyof SaveNoteNotesSavePostResponses]
+
+export type RecordAnswerQuizAnswersRecordPostData = {
+  body: RecordAnswer
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizAnswers.record'
+}
+
+export type RecordAnswerQuizAnswersRecordPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type RecordAnswerQuizAnswersRecordPostError =
+  RecordAnswerQuizAnswersRecordPostErrors[keyof RecordAnswerQuizAnswersRecordPostErrors]
+
+export type RecordAnswerQuizAnswersRecordPostResponses = {
+  /**
+   * Successful Response
+   */
+  201: QuizAnswerOut
+}
+
+export type RecordAnswerQuizAnswersRecordPostResponse =
+  RecordAnswerQuizAnswersRecordPostResponses[keyof RecordAnswerQuizAnswersRecordPostResponses]
+
+export type StatsByTopicQuizStatsByTopicGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Course
+     */
+    course: string
+  }
+  url: '/quizStats.byTopic'
+}
+
+export type StatsByTopicQuizStatsByTopicGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type StatsByTopicQuizStatsByTopicGetError =
+  StatsByTopicQuizStatsByTopicGetErrors[keyof StatsByTopicQuizStatsByTopicGetErrors]
+
+export type StatsByTopicQuizStatsByTopicGetResponses = {
+  /**
+   * Response Stats By Topic Quizstats Bytopic Get
+   *
+   * Successful Response
+   */
+  200: Array<TopicStat>
+}
+
+export type StatsByTopicQuizStatsByTopicGetResponse =
+  StatsByTopicQuizStatsByTopicGetResponses[keyof StatsByTopicQuizStatsByTopicGetResponses]
+
+export type AbandonQuizQuizzesAbandonPostData = {
+  body: QuizRef
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.abandon'
+}
+
+export type AbandonQuizQuizzesAbandonPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type AbandonQuizQuizzesAbandonPostError =
+  AbandonQuizQuizzesAbandonPostErrors[keyof AbandonQuizQuizzesAbandonPostErrors]
+
+export type AbandonQuizQuizzesAbandonPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: QuizOut
+}
+
+export type AbandonQuizQuizzesAbandonPostResponse =
+  AbandonQuizQuizzesAbandonPostResponses[keyof AbandonQuizQuizzesAbandonPostResponses]
+
+export type CreateQuizQuizzesCreatePostData = {
+  body: NewQuiz
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.create'
+}
+
+export type CreateQuizQuizzesCreatePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type CreateQuizQuizzesCreatePostError =
+  CreateQuizQuizzesCreatePostErrors[keyof CreateQuizQuizzesCreatePostErrors]
+
+export type CreateQuizQuizzesCreatePostResponses = {
+  /**
+   * Successful Response
+   */
+  201: QuizOut
+}
+
+export type CreateQuizQuizzesCreatePostResponse =
+  CreateQuizQuizzesCreatePostResponses[keyof CreateQuizQuizzesCreatePostResponses]
+
+export type DeleteQuizQuizzesDeletePostData = {
+  body: QuizRef
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.delete'
+}
+
+export type DeleteQuizQuizzesDeletePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type DeleteQuizQuizzesDeletePostError =
+  DeleteQuizQuizzesDeletePostErrors[keyof DeleteQuizQuizzesDeletePostErrors]
+
+export type DeleteQuizQuizzesDeletePostResponses = {
+  /**
+   * Response Delete Quiz Quizzes Delete Post
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: boolean
+  }
+}
+
+export type DeleteQuizQuizzesDeletePostResponse =
+  DeleteQuizQuizzesDeletePostResponses[keyof DeleteQuizQuizzesDeletePostResponses]
+
+export type GetQuizQuizzesGetGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Quiz
+     */
+    quiz: string
+  }
+  url: '/quizzes.get'
+}
+
+export type GetQuizQuizzesGetGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetQuizQuizzesGetGetError =
+  GetQuizQuizzesGetGetErrors[keyof GetQuizQuizzesGetGetErrors]
+
+export type GetQuizQuizzesGetGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: QuizOut
+}
+
+export type GetQuizQuizzesGetGetResponse =
+  GetQuizQuizzesGetGetResponses[keyof GetQuizQuizzesGetGetResponses]
+
+export type ListQuizzesQuizzesListGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Course
+     */
+    course: string
+    /**
+     * Kind
+     */
+    kind?: 'pop' | 'grill' | null
+    /**
+     * Status
+     */
+    status?: 'open' | 'submitted' | 'abandoned' | null
+    /**
+     * Topic Id
+     */
+    topic_id?: string | null
+  }
+  url: '/quizzes.list'
+}
+
+export type ListQuizzesQuizzesListGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListQuizzesQuizzesListGetError =
+  ListQuizzesQuizzesListGetErrors[keyof ListQuizzesQuizzesListGetErrors]
+
+export type ListQuizzesQuizzesListGetResponses = {
+  /**
+   * Response List Quizzes Quizzes List Get
+   *
+   * Successful Response
+   */
+  200: Array<QuizOut>
+}
+
+export type ListQuizzesQuizzesListGetResponse =
+  ListQuizzesQuizzesListGetResponses[keyof ListQuizzesQuizzesListGetResponses]
+
+export type SubmitQuizQuizzesSubmitPostData = {
+  body: SubmitQuiz
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.submit'
+}
+
+export type SubmitQuizQuizzesSubmitPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type SubmitQuizQuizzesSubmitPostError =
+  SubmitQuizQuizzesSubmitPostErrors[keyof SubmitQuizQuizzesSubmitPostErrors]
+
+export type SubmitQuizQuizzesSubmitPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: QuizOut
+}
+
+export type SubmitQuizQuizzesSubmitPostResponse =
+  SubmitQuizQuizzesSubmitPostResponses[keyof SubmitQuizQuizzesSubmitPostResponses]
+
+export type GetReadingPositionReadingPositionGetGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Material
+     */
+    material: string
+  }
+  url: '/readingPosition.get'
+}
+
+export type GetReadingPositionReadingPositionGetGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetReadingPositionReadingPositionGetGetError =
+  GetReadingPositionReadingPositionGetGetErrors[keyof GetReadingPositionReadingPositionGetGetErrors]
+
+export type GetReadingPositionReadingPositionGetGetResponses = {
+  /**
+   * Response Get Reading Position Readingposition Get Get
+   *
+   * Successful Response
+   */
+  200: ReadingPositionOut | null
+}
+
+export type GetReadingPositionReadingPositionGetGetResponse =
+  GetReadingPositionReadingPositionGetGetResponses[keyof GetReadingPositionReadingPositionGetGetResponses]
+
+export type SetReadingPositionReadingPositionSetPostData = {
+  body: SetReadingPosition
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/readingPosition.set'
+}
+
+export type SetReadingPositionReadingPositionSetPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type SetReadingPositionReadingPositionSetPostError =
+  SetReadingPositionReadingPositionSetPostErrors[keyof SetReadingPositionReadingPositionSetPostErrors]
+
+export type SetReadingPositionReadingPositionSetPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: ReadingPositionOut
+}
+
+export type SetReadingPositionReadingPositionSetPostResponse =
+  SetReadingPositionReadingPositionSetPostResponses[keyof SetReadingPositionReadingPositionSetPostResponses]
+
+export type GetSessionSessionsGetGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Session
+     */
+    session: string
+  }
+  url: '/sessions.get'
+}
+
+export type GetSessionSessionsGetGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetSessionSessionsGetGetError =
+  GetSessionSessionsGetGetErrors[keyof GetSessionSessionsGetGetErrors]
+
+export type GetSessionSessionsGetGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: SessionOut
+}
+
+export type GetSessionSessionsGetGetResponse =
+  GetSessionSessionsGetGetResponses[keyof GetSessionSessionsGetGetResponses]
+
+export type ListSessionsSessionsListGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Course
+     */
+    course: string
+  }
+  url: '/sessions.list'
+}
+
+export type ListSessionsSessionsListGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListSessionsSessionsListGetError =
+  ListSessionsSessionsListGetErrors[keyof ListSessionsSessionsListGetErrors]
+
+export type ListSessionsSessionsListGetResponses = {
+  /**
+   * Response List Sessions Sessions List Get
+   *
+   * Successful Response
+   */
+  200: Array<SessionOut>
+}
+
+export type ListSessionsSessionsListGetResponse =
+  ListSessionsSessionsListGetResponses[keyof ListSessionsSessionsListGetResponses]
+
+export type ListTopicsTopicsListGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Material
+     */
+    material: string
+  }
+  url: '/topics.list'
+}
+
+export type ListTopicsTopicsListGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListTopicsTopicsListGetError =
+  ListTopicsTopicsListGetErrors[keyof ListTopicsTopicsListGetErrors]
+
+export type ListTopicsTopicsListGetResponses = {
+  /**
+   * Response List Topics Topics List Get
+   *
+   * Successful Response
+   */
+  200: Array<TopicOut>
+}
+
+export type ListTopicsTopicsListGetResponse =
+  ListTopicsTopicsListGetResponses[keyof ListTopicsTopicsListGetResponses]
+
+export type ReplaceTopicsTopicsReplacePostData = {
+  body: ReplaceTopics
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/topics.replace'
+}
+
+export type ReplaceTopicsTopicsReplacePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ReplaceTopicsTopicsReplacePostError =
+  ReplaceTopicsTopicsReplacePostErrors[keyof ReplaceTopicsTopicsReplacePostErrors]
+
+export type ReplaceTopicsTopicsReplacePostResponses = {
+  /**
+   * Response Replace Topics Topics Replace Post
+   *
+   * Successful Response
+   */
+  200: Array<TopicOut>
+}
+
+export type ReplaceTopicsTopicsReplacePostResponse =
+  ReplaceTopicsTopicsReplacePostResponses[keyof ReplaceTopicsTopicsReplacePostResponses]

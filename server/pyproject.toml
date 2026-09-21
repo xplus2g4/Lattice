@@ -4,12 +4,15 @@ version = "0.0.0"
 description = "Course knowledge store backend: API and Worker."
 requires-python = ">=3.14"
 dependencies = [
+    "alembic>=1.19.2",
+    "asyncpg>=0.31.0",
     "cognee[fastembed]==1.5.4",
     "fastapi",
     "filelock==3.32.6",
     "mcp==1.30.0",
     "pydantic-settings",
     "pypdf==6.18.0",
+    "sqlalchemy[asyncio]>=2.0",
     "uvicorn",
 ]
 
@@ -20,6 +23,7 @@ exclude-newer = "2026-09-14T16:00:00Z"
 dev = [
     "httpx",
     "pytest",
+    "pytest-asyncio>=1.4.0",
     "ruff",
 ]
 
@@ -40,3 +44,5 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"

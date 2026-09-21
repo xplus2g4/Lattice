@@ -15,8 +15,12 @@ The engine's unit of storage and permissioning. Each course has one global datas
 _Avoid_: collection, index, namespace
 
 **Material**:
-An official teaching artifact uploaded by an instructor — slides, tutorial, or memo — belonging to the global tier.
+An official teaching artifact — slides, tutorial, or memo — uploaded by any enrolled user and belonging to the global tier.
 _Avoid_: document, file, upload
+
+**Page**:
+The unit of a Material the reader shows and citations point to. Slides are pages; "slide" is acceptable in reader copy for decks.
+_Avoid_: slide (outside reader copy), screen
 
 **Note**:
 A student-authored text belonging to that student's private tier for one course.
@@ -27,7 +31,11 @@ The expensive indexing step that turns added content into searchable knowledge (
 _Avoid_: index, process, embed (as verbs for this step)
 
 **Chunk**:
-The smallest retrievable unit of indexed content; what citations resolve to. Every chunk carries provenance back to a material page/slide or a note.
+The smallest retrievable unit of indexed content; what citations resolve to. Every chunk carries provenance back to a Material page or a Note.
+
+**Topic**:
+A contiguous run of pages about one idea within a Material, produced at Cognify time. What "the topic the student just read" resolves to.
+_Avoid_: unit, module, section, segment
 
 ### Identity
 
@@ -56,14 +64,22 @@ _Avoid_: source, reference
 **Related concept**:
 A concept surfaced alongside an answer, derived from graph structure (not the LLM) and only explained by the LLM.
 
+### Quizzing
+
+**Quiz**:
+A set of generated questions plus the student's results, always grounded in one course's Materials.
+_Avoid_: session, test, exam
+
+**Pop quiz**:
+A Quiz the assistant initiates on the Topic the student just read; at most three questions; skippable.
+
+**Grill me**:
+A Quiz the student initiates over a scope they choose; about ten questions; ends with a per-Topic summary.
+
 ### Concept graph (Phase 2)
 
-**Topic**:
-A syllabus unit, usually a week or lecture.
-_Avoid_: unit, module
-
 **Concept**:
-A named idea taught inside a Topic; the node type related concepts are drawn from.
+A named idea taught inside a Topic; the node type related concepts are drawn from. This feature is out of scope.
 
 ### System
 
@@ -82,3 +98,7 @@ A product feature milestone: Phase 1 is knowledge retrieval, Phase 2 is relation
 
 **Stage**:
 An engine implementation milestone: Stage 1 is Cognee-backed, Stage 2 is pgvector plus an own concept graph. Distinct from Phase.
+
+**Approved / Rejected**:
+The two outcomes of an evaluation, whether of a candidate engine or of an alternative in an ADR.
+_Avoid_: go/no-go, go, no-go, greenlit

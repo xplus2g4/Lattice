@@ -2,7 +2,7 @@
 
 Decisions deliberately left open, and the backlog issues that close most of them. Settled decisions live in [`docs/adr/`](../adr/); this page is only for what is still undecided.
 
-Settled at the go/no-go ([ADR 0006](../adr/0006-cognee-go-for-phase-1.md)) and no longer listed here: Cognee stays for Stage 1, and the graph store stays the embedded Ladybug with Neo4j as an off-by-default profile.
+Settled in [ADR 0006](../adr/0006-cognee-go-for-phase-1.md) and no longer listed here: Cognee stays for Stage 1, and the graph store stays the embedded Ladybug with Neo4j as an off-by-default profile.
 
 ## Deferred decisions
 
@@ -12,7 +12,7 @@ Current stance: one GCP VM, docker compose, nightly dumps to GCS. This follows f
 
 ## Open backlog issues
 
-What the go/no-go left open, in the order worth doing. The [first-cut findings](../research/cognee-1.5.4-first-cut-findings.md) closed #4 and #5; they can be closed on GitHub with the finding quoted.
+These gate launch. Each is tracked in GitHub. The [first-cut findings](../research/cognee-1.5.4-first-cut-findings.md) resolved #4 and #5; they can be closed on GitHub with the finding quoted.
 
 1. **Ontology quality and related-concept retrieval.** ([#7](https://github.com/xplus2g4/Lattice/issues/7)) Evaluate real-course extraction quality, ranking, seed/type filtering and citation resolution before production adoption. The [fixture findings](../research/2026-09-20-cognee-ontology-findings.md) recommend a Pydantic-plus-validation and scoped-Cypher prototype, not a production Phase 2 API.
 2. **A production per-Material budget.** ([#8](https://github.com/xplus2g4/Lattice/issues/8)) Measure broader Materials and verify on-wire output/retry limits before setting a ceiling. The [real-deck measurement](../research/2026-09-20-cognee-material-provenance-cost.md) replaces the old extrapolation as a baseline, not a universal budget.

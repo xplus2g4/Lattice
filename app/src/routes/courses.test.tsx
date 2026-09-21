@@ -44,12 +44,13 @@ describe('a course URL', () => {
     ).not.toBeInTheDocument()
   })
 
-  it('opens on the ask section', async () => {
+  it('opens on the reader workspace with Ask', async () => {
     renderRoute('/courses/cs101')
 
     expect(
-      await screen.findByPlaceholderText(/Ask a question/),
+      await screen.findByPlaceholderText(/Ask about CS101/),
     ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument()
   })
 
   it('names the course it is scoped to', async () => {

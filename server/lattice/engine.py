@@ -29,10 +29,10 @@ from cognee.modules.users.models import User
 from cognee.modules.users.permissions.methods import give_permission_on_dataset
 
 from lattice.config import Settings
+from lattice.grounding import GROUNDING_POLICY, install_retrievers
 from lattice.note_review import ReviewChunk
 from lattice.page_notes import PageNote
-from lattice.registry import Evidence, TierResult
-from lattice.retrieval import GROUNDING_POLICY, install_retrievers
+from lattice.retrieval import Evidence, TierResult
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
@@ -56,6 +56,7 @@ class Engine:
             (root / sub).mkdir(parents=True, exist_ok=True)
         cognee.config.system_root_directory(str(root / "system"))
         cognee.config.data_root_directory(str(root / "data"))
+        # Unbounded process-local cache; consider moving this to Redis if cardinality becomes large.
         self._principals: dict[str, User] = {}
         self._datasets: dict[tuple[str, UUID], Dataset] = {}
         self._enrolled: set[tuple[UUID, str]] = set()
@@ -120,6 +121,10 @@ class Engine:
         for data in await get_dataset_data(dataset.id):
             if data.name in (filename, Path(filename).stem):
                 await cognee.datasets.delete_data(dataset.id, data.id, user=user, mode="hard")
+
+    async def clear(self, dataset: Dataset, user: User, filename: str) -> None:
+        async with self._ingest_lock:
+            await self._remove_named(dataset, user, filename)
 
     async def cognify_note(self, note: PageNote) -> None:
         user = await self.principal(note.owner)

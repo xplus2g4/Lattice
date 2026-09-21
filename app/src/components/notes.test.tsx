@@ -1,4 +1,4 @@
-import { screen } from '@testing-library/react'
+import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
@@ -69,15 +69,17 @@ describe('writing a note', () => {
     show()
     await screen.findByText('No notes yet.')
 
-    await user.clear(screen.getByPlaceholderText('note id'))
-    await user.type(screen.getByPlaceholderText('note id'), 'week3')
     await user.type(
       screen.getByPlaceholderText('Markdown body'),
       'hash tables are week 3',
     )
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    expect(await screen.findByText('week3')).toBeInTheDocument()
+    expect(
+      await within(screen.getByRole('list')).findByText(
+        'hash tables are week 3',
+      ),
+    ).toBeInTheDocument()
     expect(await screen.findByText('queued')).toBeInTheDocument()
   })
 

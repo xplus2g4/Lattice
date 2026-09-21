@@ -1,4 +1,9 @@
-import { Link, Outlet, createFileRoute } from '@tanstack/react-router'
+import {
+  Link,
+  Outlet,
+  createFileRoute,
+  useLocation,
+} from '@tanstack/react-router'
 import { useEffect } from 'react'
 
 import { inputClass } from '#/components/common'
@@ -6,6 +11,13 @@ import { COURSE_RE, recordRecentCourse } from '#/lib/course'
 import { useUser } from '#/lib/storage'
 
 export const Route = createFileRoute('/courses/$course')({
+  validateSearch: (search: Record<string, unknown>): { material?: string } => ({
+    material:
+      typeof search.material === 'string' &&
+      search.material.toLowerCase().endsWith('.pdf')
+        ? search.material
+        : undefined,
+  }),
   component: CourseLayout,
 })
 
@@ -16,10 +28,18 @@ function CourseLayout() {
   const { course } = Route.useParams()
   const [user, setUser] = useUser()
   const courseOk = COURSE_RE.test(course)
+  const pathname = useLocation({ select: (location) => location.pathname })
 
   useEffect(() => {
     if (courseOk) recordRecentCourse(course)
   }, [course, courseOk])
+
+  if (
+    courseOk &&
+    (pathname === `/courses/${course}` || pathname === `/courses/${course}/`)
+  ) {
+    return <Outlet />
+  }
 
   return (
     <main className="mx-auto max-w-3xl space-y-8 p-8">

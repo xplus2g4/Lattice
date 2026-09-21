@@ -7,9 +7,9 @@ import pytest
 
 import lattice.engine as module
 from lattice.config import Settings
+from lattice.db.base import utcnow as now
 from lattice.engine import Engine, IsolationError
 from lattice.page_notes import PageAnchor, PageNote, text_hash
-from lattice.registry import now
 
 GLOBAL = UUID("00000000-0000-0000-0000-000000000001")
 PRIVATE = UUID("00000000-0000-0000-0000-000000000002")

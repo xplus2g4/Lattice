@@ -1,11 +1,15 @@
 import time
+from datetime import datetime
 from typing import Literal
-from uuid import uuid4
+from uuid import UUID
 
 from pydantic import BaseModel, Field
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from lattice.db.models import Session, Turn, User
+from lattice.db.repo import courses, sessions, users
 from lattice.engine import QUERY_TYPES, Engine
-from lattice.registry import Registry, Turn, now, user_turn
+from lattice.retrieval import TierResult
 
 QueryType = Literal["GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS"]
 assert set(QueryType.__args__) == set(QUERY_TYPES)
@@ -17,39 +21,89 @@ class AskRequest(BaseModel):
     session_id: str | None = Field(default=None, max_length=64)
 
 
+class AnswerTurn(BaseModel):
+    id: str
+    role: Literal["assistant"] = "assistant"
+    content: str
+    query_type: str
+    results: list[TierResult]
+    used_notes: bool
+    latency_ms: int | None
+    created_at: datetime
+
+
 class AskResponse(BaseModel):
     session_id: str
-    turn: Turn
+    turn: AnswerTurn
 
 
 class SessionAccessError(PermissionError):
-    pass
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail)
+        self.status_code = status_code
 
 
-async def ask_course(
-    engine: Engine, registry: Registry, course: str, email: str, body: AskRequest
-) -> AskResponse:
-    try:
-        session = registry.get_or_create_session(body.session_id, course, email)
-    except KeyError:
-        raise SessionAccessError("session belongs to another course or user") from None
-    user = await engine.principal(email)
-    global_ds, private_ds = await engine.enrol(course, user)
-    datasets = {global_ds.id: "course", private_ds.id: "notes"}
+async def answer_course(
+    engine: Engine, db: AsyncSession, user: User, course_code: str, body: AskRequest
+) -> tuple[Session, Turn]:
+    course = await courses.require_enrolment(db, user, course_code)
+    if body.session_id is None:
+        session = await sessions.create(db, user=user, course=course)
+    else:
+        try:
+            session_id = UUID(body.session_id)
+        except ValueError:
+            raise SessionAccessError(404, "no such session") from None
+        session = await sessions.get(db, session_id)
+        if session is None or session.user_id != user.id:
+            raise SessionAccessError(404, "no such session")
+        if session.course_id != course.id:
+            raise SessionAccessError(403, "session belongs to another course")
+    principal = await engine.principal(user.email)
+    global_ds, private_ds = await engine.enrol(course.code, principal)
+    datasets = {global_ds.id: "course"}
+    if not user.notes_opt_out:
+        datasets[private_ds.id] = "notes"
     started = time.monotonic()
-    results = await engine.search(user, datasets, body.question, body.query_type, session.id)
-    answer = Turn(
-        id=uuid4().hex,
+    results = await engine.search(
+        principal, datasets, body.question, body.query_type, str(session.id)
+    )
+    await sessions.add_turn(
+        db, session, role="user", content={"text": body.question, "query_type": body.query_type}
+    )
+    answer = await sessions.add_turn(
+        db,
+        session,
         role="assistant",
-        content="\n\n".join(r.answer for r in results if r.answer),
-        query_type=body.query_type,
-        results=results,
+        content={
+            "text": "\n\n".join(r.answer for r in results if r.answer),
+            "query_type": body.query_type,
+            "results": [r.model_dump(mode="json") for r in results],
+        },
+        cited_chunk_ids=[e.chunk_id for r in results for e in r.evidence if e.chunk_id is not None],
         used_notes=any(
             r.tier == "notes" and (r.evidence or (body.query_type == "CHUNKS" and r.answer))
             for r in results
         ),
         latency_ms=int((time.monotonic() - started) * 1000),
-        created_at=now(),
     )
-    session.turns.extend([user_turn(body.question), answer])
-    return AskResponse(session_id=session.id, turn=answer)
+    return session, answer
+
+
+async def ask_course(
+    engine: Engine, db: AsyncSession, course: str, email: str, body: AskRequest
+) -> AskResponse:
+    user = await users.get_or_create(db, email)
+    session, answer = await answer_course(engine, db, user, course, body)
+    return AskResponse(
+        session_id=str(session.id),
+        turn=AnswerTurn(
+            id=str(answer.id),
+            content=answer.content_json["text"],
+            query_type=body.query_type,
+            results=answer.content_json["results"],
+            used_notes=answer.used_notes,
+            latency_ms=answer.latency_ms,
+            created_at=answer.created_at,
+        ),
+    )

@@ -1,15 +1,19 @@
 import re
+from collections.abc import AsyncIterator
 from typing import Annotated
 
-from fastapi import Depends, Header, HTTPException, Path, Request
+from fastapi import Depends, Header, HTTPException, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.config import Settings, get_settings
+from lattice.db import Database
+from lattice.db.models import User
+from lattice.db.repo import users
 from lattice.engine import Engine
-from lattice.registry import Registry
+from lattice.ingest import Ingest
 
 COURSE_CODE = re.compile(r"^[a-z][a-z0-9]{1,15}$")
 
-CourseCode = Annotated[str, Path(pattern=COURSE_CODE.pattern)]
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
@@ -17,12 +21,19 @@ def get_engine(request: Request) -> Engine:
     return request.app.state.engine
 
 
-def get_registry(request: Request) -> Registry:
-    return request.app.state.registry
+def get_ingest(request: Request) -> Ingest:
+    return request.app.state.ingest
+
+
+async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    database: Database = request.app.state.database
+    async for session in database.session():
+        yield session
 
 
 EngineDep = Annotated[Engine, Depends(get_engine)]
-RegistryDep = Annotated[Registry, Depends(get_registry)]
+IngestDep = Annotated[Ingest, Depends(get_ingest)]
+SessionDep = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
 def current_email(
@@ -38,3 +49,11 @@ def current_email(
 
 
 CurrentEmail = Annotated[str, Depends(current_email)]
+
+
+async def current_user(email: CurrentEmail, session: SessionDep) -> User:
+    """The caller's `users` row, created on first sight. OAuth replaces `current_email` only."""
+    return await users.get_or_create(session, email)
+
+
+CurrentUser = Annotated[User, Depends(current_user)]

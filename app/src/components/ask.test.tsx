@@ -46,12 +46,11 @@ describe('asking a question', () => {
       assistantTurn({
         results: [
           tierResult({
-            tier: 'course',
+            tier: 'global',
             answer: 'Buckets and a hash function.',
           }),
           tierResult({
-            tier: 'notes',
-            dataset_name: 'cs101-user-1',
+            tier: 'private',
             answer: 'You wrote that week 3 covers this.',
           }),
         ],
@@ -108,7 +107,7 @@ describe('asking a question', () => {
 
   it('reports an API failure instead of a blank answer', async () => {
     server.use(
-      http.post('*/courses/:course/ask', () =>
+      http.post('*/ask', () =>
         HttpResponse.json(
           { detail: 'RuntimeError: cognify never ran' },
           { status: 502 },
@@ -139,7 +138,7 @@ describe('an answer with nothing behind it', () => {
 
   it('marks a tier that searched but could not answer', async () => {
     answerNextAskWith(
-      assistantTurn({ results: [tierResult({ answer: null, evidence: [] })] }),
+      assistantTurn({ results: [tierResult({ answer: null, citations: [] })] }),
     )
     show()
 
@@ -155,9 +154,7 @@ describe('the evidence behind an answer', () => {
       assistantTurn({
         results: [
           tierResult({
-            evidence: [
-              evidence({ document_name: 'week1.pdf', chunk_index: 3 }),
-            ],
+            citations: [evidence({ filename: 'week1.pdf', chunk_index: 3 })],
           }),
         ],
       }),
@@ -174,10 +171,10 @@ describe('the evidence behind an answer', () => {
       assistantTurn({
         results: [
           tierResult({
-            evidence: [
+            citations: [
               evidence({
-                kind: 'graph_edge',
-                relationship_name: 'prerequisite_of',
+                kind: 'relation',
+                relation: 'prerequisite_of',
               }),
             ],
           }),
