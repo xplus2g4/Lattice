@@ -16,6 +16,7 @@ This is the first runnable cut, built to answer the open questions before the Co
 | `docs/adr/` | Settled decisions and why. |
 | `docs/research/` | Dated findings. [cognee-1.5.4-first-cut-findings.md](docs/research/cognee-1.5.4-first-cut-findings.md) is what the live run showed. |
 | `CONTEXT.md` | The glossary. Use its words: Material, Note, Cognify, Tier, Principal. |
+| `AGENTS.md`, `.agents/skills/` | Instructions and skills for coding agents. `CLAUDE.md` and `.claude/skills` point Claude Code at them. |
 | `scripts/dev-setup.sh` | First-time setup wizard. |
 
 ## Local development

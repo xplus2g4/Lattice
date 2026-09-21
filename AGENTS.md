@@ -17,6 +17,13 @@ Read [CONTEXT.md](./CONTEXT.md) before writing anything. Use its terms verbatim,
 
 Write an ADR only when all three hold: hard to reverse, surprising without context, the result of a real trade-off. One to three sentences is a complete ADR; add Considered Options or Consequences only when they earn it. Full format: [.agents/skills/domain-modeling/ADR-FORMAT.md](./.agents/skills/domain-modeling/ADR-FORMAT.md).
 
+## Harness wiring
+
+Skills are harness-agnostic: one directory per skill at `.agents/skills/<name>/SKILL.md`, with its
+supporting files beside it. Claude Code reads them through `.claude/skills`, a checked-in symlink to
+`.agents/skills`, and reads this file through `CLAUDE.md`, which imports it. A new skill needs nothing
+beyond a new directory under `.agents/skills/`; both entry points follow.
+
 ## Agent skills
 
 ### Issue tracker
