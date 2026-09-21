@@ -1,9 +1,12 @@
 import re
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Path, Request
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.config import Settings, get_settings
+from lattice.db import Database
 from lattice.engine import Engine
 from lattice.registry import Registry
 
@@ -21,8 +24,15 @@ def get_registry(request: Request) -> Registry:
     return request.app.state.registry
 
 
+async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    database: Database = request.app.state.database
+    async for session in database.session():
+        yield session
+
+
 EngineDep = Annotated[Engine, Depends(get_engine)]
 RegistryDep = Annotated[Registry, Depends(get_registry)]
+SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
 def current_email(
