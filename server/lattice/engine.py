@@ -37,6 +37,7 @@ class Engine:
             (root / sub).mkdir(parents=True, exist_ok=True)
         cognee.config.system_root_directory(str(root / "system"))
         cognee.config.data_root_directory(str(root / "data"))
+        # Unbounded process-local cache; consider moving this to Redis if cardinality becomes large.
         self._principals: dict[str, User] = {}
         self._datasets: dict[tuple[str, UUID], Dataset] = {}
         self._enrolled: set[tuple[UUID, str]] = set()
