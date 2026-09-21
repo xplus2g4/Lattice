@@ -1,100 +1,130 @@
-from pathlib import Path
+"""Courses and enrolments: create-or-join (#34), search (#33), and who may see what."""
 
-import pytest
-from fastapi.testclient import TestClient
+from httpx import AsyncClient, Response
 
-from lattice.config import Settings, get_settings
-from lattice.main import create_app
-
-USER = {"X-User": "alice@example.com"}
+BOB = {"X-User": "bob@example.com"}
 
 
-@pytest.fixture()
-def client(tmp_path: Path):
-    settings = Settings(
-        dev_header_auth=True,
-        uploads_dir=tmp_path / "uploads",
-        cognee_root=tmp_path / "cognee",
-        cors_origins=[],
+async def create(
+    client: AsyncClient, code: str = "cs3216", name: str = "Software Engineering", **extra
+) -> Response:
+    return await client.post("/courses.create", json={"code": code, "name": name, **extra})
+
+
+async def join(client: AsyncClient, code: str = "cs3216", **kwargs) -> Response:
+    return await client.post("/enrolments.join", json={"course": code}, **kwargs)
+
+
+async def test_create_returns_the_course(student: AsyncClient) -> None:
+    body = (await create(student, term="24/25 S1")).json()
+    assert (body["code"], body["name"], body["term"]) == (
+        "cs3216",
+        "Software Engineering",
+        "24/25 S1",
     )
-    app = create_app(settings)
-    # Endpoints resolve Settings through the cached get_settings dependency,
-    # not the app constructor, so tests must override it.
-    app.dependency_overrides[get_settings] = lambda: settings
-    return TestClient(app)
+    assert body["global_dataset_name"] == "cs3216-global"
 
 
-def seed_file(client: TestClient, course: str, name: str, body: bytes = b"x") -> Path:
-    uploads = client.app.dependency_overrides[get_settings]().uploads_dir
-    path = uploads / course / name
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(body)
-    return path
+async def test_course_survives_a_new_request(student: AsyncClient) -> None:
+    created = (await create(student)).json()
+    fetched = await student.get("/courses.get", params={"course": "cs3216"})
+    assert fetched.json()["id"] == created["id"]
 
 
-def test_courses_requires_auth(client: TestClient) -> None:
-    assert client.get("/courses").status_code == 401
+async def test_duplicate_code_returns_the_existing_course_to_join(student: AsyncClient) -> None:
+    first = (await create(student)).json()
+    clash = await create(student, name="Something else")
+    assert clash.status_code == 409
+    detail = clash.json()["detail"]
+    assert detail["reason"] == "course_exists"
+    assert detail["course"]["id"] == first["id"]
 
 
-def test_courses_empty(client: TestClient) -> None:
-    assert client.get("/courses", headers=USER).json() == []
+async def test_unknown_code_is_404(student: AsyncClient) -> None:
+    assert (await student.get("/courses.get", params={"course": "cs9999"})).status_code == 404
 
 
-def test_courses_discovers_upload_dirs(client: TestClient) -> None:
-    seed_file(client, "cs3216", "lecture-1.pdf")
-    seed_file(client, "cs3216", "lecture-2.pdf")
-    seed_file(client, "cs2040s", "tutorial.md")
-    (client.app.dependency_overrides[get_settings]().uploads_dir / "NOT-A-COURSE").mkdir()
-
-    res = client.get("/courses", headers=USER)
-    assert res.status_code == 200
-    assert res.json() == [
-        {"code": "cs2040s", "material_count": 1, "note_count": 0, "pending_count": 0},
-        {"code": "cs3216", "material_count": 2, "note_count": 0, "pending_count": 0},
-    ]
+async def test_malformed_code_is_rejected(student: AsyncClient) -> None:
+    assert (await create(student, code="CS 3216")).status_code == 422
 
 
-def test_materials_lists_disk_files_as_ready(client: TestClient) -> None:
-    seed_file(client, "cs3216", "lecture-1.pdf")
-
-    res = client.get("/courses/cs3216/materials", headers=USER)
-    assert res.status_code == 200
-    [material] = res.json()
-    assert material["filename"] == "lecture-1.pdf"
-    assert material["status"] == "ready"
-
-
-def test_materials_skips_notes_dir_and_dotfiles(client: TestClient) -> None:
-    seed_file(client, "cs3216", "notes/u1/n1.md")
-    seed_file(client, "cs3216", ".DS_Store")
-    seed_file(client, "cs3216", "slides.pdf")
-
-    res = client.get("/courses/cs3216/materials", headers=USER)
-    assert [m["filename"] for m in res.json()] == ["slides.pdf"]
+async def test_search_matches_exact_code_and_title_substring(student: AsyncClient) -> None:
+    await create(student, code="cs3216", name="Software Engineering")
+    await create(student, code="cs2103", name="Software Engineering II")
+    by_code = (await student.get("/courses.search", params={"q": "cs3216"})).json()["results"]
+    assert [hit["course"]["code"] for hit in by_code] == ["cs3216"]
+    by_title = (await student.get("/courses.search", params={"q": "engineering"})).json()["results"]
+    assert [hit["course"]["code"] for hit in by_title] == ["cs2103", "cs3216"]
 
 
-def test_get_material_streams_file(client: TestClient) -> None:
-    seed_file(client, "cs3216", "memo.txt", b"hello lattice")
-
-    res = client.get("/courses/cs3216/materials/memo.txt", headers=USER)
-    assert res.status_code == 200
-    assert res.content == b"hello lattice"
-
-
-def test_get_material_missing(client: TestClient) -> None:
-    res = client.get("/courses/cs3216/materials/nope.pdf", headers=USER)
-    assert res.status_code == 404
+async def test_search_reports_the_callers_enrolment(student: AsyncClient) -> None:
+    await create(student)
+    before = (await student.get("/courses.search", params={"q": "cs3216"})).json()["results"]
+    assert before[0]["enrolled"] is False
+    await join(student)
+    after = (await student.get("/courses.search", params={"q": "cs3216"})).json()["results"]
+    assert after[0]["enrolled"] is True
 
 
-def test_get_material_rejects_traversal(client: TestClient) -> None:
-    seed_file(client, "cs3216", "notes/u1/n1.md")
+async def test_only_the_owner_may_update(student: AsyncClient) -> None:
+    await create(student)
+    renamed = await student.post("/courses.update", json={"course": "cs3216", "name": "Renamed"})
+    assert renamed.status_code == 200
+    intruder = await student.post(
+        "/courses.update", json={"course": "cs3216", "name": "Hijacked"}, headers=BOB
+    )
+    assert intruder.status_code == 403
+    current = await student.get("/courses.get", params={"course": "cs3216"})
+    assert current.json()["name"] == "Renamed"
 
-    res = client.get("/courses/cs3216/materials/notes%2Fu1%2Fn1.md", headers=USER)
-    # 400 if the guard sees the decoded slash; 404 if routing rejects it first.
-    assert res.status_code in (400, 404)
+
+async def test_join_records_the_private_dataset(student: AsyncClient, engine) -> None:
+    await create(student)
+    enrolment = (await join(student)).json()
+    assert enrolment["user_dataset_name"].startswith("cs3216-user-")
+    assert engine.enrolled == [("cs3216", "ada@example.com")]
 
 
-def test_sessions_empty(client: TestClient) -> None:
-    res = client.get("/courses/cs3216/sessions", headers=USER)
-    assert res.status_code == 200
-    assert res.json() == []
+async def test_join_is_idempotent(student: AsyncClient) -> None:
+    await create(student)
+    first = (await join(student)).json()
+    assert (await join(student)).json() == first
+    assert len((await student.get("/courses.list")).json()) == 1
+
+
+async def test_list_only_returns_courses_the_caller_joined(student: AsyncClient) -> None:
+    await create(student, code="cs3216")
+    await create(student, code="cs2103", name="Software Engineering II")
+    await join(student)
+    mine = (await student.get("/courses.list")).json()
+    assert [course["code"] for course in mine] == ["cs3216"]
+    assert (await student.get("/courses.list", headers=BOB)).json() == []
+
+
+async def test_leave_removes_the_enrolment_only(student: AsyncClient) -> None:
+    await create(student)
+    await join(student)
+    left = await student.post("/enrolments.leave", json={"course": "cs3216"})
+    assert left.json() == {"left": True}
+    assert (await student.get("/courses.list")).json() == []
+    again = await student.post("/enrolments.leave", json={"course": "cs3216"})
+    assert again.json() == {"left": False}
+    assert (await student.get("/courses.get", params={"course": "cs3216"})).status_code == 200
+
+
+async def test_roster_lists_members_and_is_closed_to_outsiders(student: AsyncClient) -> None:
+    await create(student)
+    await join(student)
+    await join(student, headers=BOB)
+    roster = await student.get("/enrolments.list", params={"course": "cs3216"})
+    assert [user["email"] for user in roster.json()] == ["ada@example.com", "bob@example.com"]
+    outsider = await student.get(
+        "/enrolments.list", params={"course": "cs3216"}, headers={"X-User": "eve@example.com"}
+    )
+    assert outsider.status_code == 403
+
+
+async def test_every_endpoint_needs_an_identity(client: AsyncClient) -> None:
+    assert (await client.get("/courses.list")).status_code == 401
+    created = await client.post("/courses.create", json={"code": "cs3216", "name": "x"})
+    assert created.status_code == 401
