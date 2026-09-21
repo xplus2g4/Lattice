@@ -79,8 +79,8 @@ function PdfPages({ blob }: { blob: Blob }) {
           <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
             <p className="font-semibold">Could not render this PDF</p>
             <p className="text-sm text-muted-foreground">
-              The file downloaded fine but the reader failed — try downloading
-              it instead.
+              The material downloaded fine but the reader failed — try
+              downloading it instead.
             </p>
           </div>
         }
@@ -138,7 +138,7 @@ export function MaterialViewer({
       )}
       {file.data?.kind === 'download' && (
         <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="font-semibold">This file type can't be previewed</p>
+          <p className="font-semibold">This material can't be previewed</p>
           <p className="max-w-md text-sm leading-6 text-muted-foreground">
             Download it to view. It is still searchable — cognified content
             feeds the course's answers.

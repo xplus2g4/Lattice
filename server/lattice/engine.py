@@ -154,7 +154,10 @@ _CITATION_KIND = {"segment": "chunk", "graph_edge": "relation"}
 
 
 def _dedupe_citations(items: list[dict[str, Any]]) -> list[Citation]:
-    """Cognee lists a segment once per graph edge citing it; keep one entry per artifact."""
+    """Cognee lists a segment once per graph edge citing it; keep one entry per artifact.
+
+    An item with nothing to point at is unresolvable and never reaches the client.
+    """
     seen: set[str] = set()
     out: list[Citation] = []
     for item in items:
@@ -163,13 +166,20 @@ def _dedupe_citations(items: list[dict[str, Any]]) -> list[Citation]:
             continue
         seen.add(key)
         kind = str(item.get("kind") or "")
-        out.append(
-            Citation(
-                kind=_CITATION_KIND.get(kind, kind),
-                filename=item.get("document_name"),
-                chunk_index=item.get("chunk_index"),
-                relation=item.get("relationship_name"),
-                label=item.get("label"),
-            )
+        citation = Citation(
+            kind=_CITATION_KIND.get(kind, kind),
+            filename=item.get("document_name"),
+            chunk_index=item.get("chunk_index"),
+            relation=item.get("relationship_name"),
+            label=item.get("label"),
         )
+        if _resolvable(citation):
+            out.append(citation)
     return out
+
+
+def _resolvable(citation: Citation) -> bool:
+    return any(
+        field is not None
+        for field in (citation.filename, citation.chunk_index, citation.relation, citation.label)
+    )

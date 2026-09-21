@@ -171,7 +171,8 @@ export function AskPanel({ course, user }: Enrolment) {
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault()
-                if (question.trim()) submit.mutate(question.trim())
+                if (question.trim() && !submit.isPending)
+                  submit.mutate(question.trim())
               }
             }}
           />

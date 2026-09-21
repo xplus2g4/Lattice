@@ -21,7 +21,13 @@ export function MaterialsPanel({ course, user }: Enrolment) {
   const inputRef = useRef<HTMLInputElement>(null)
   const upload = useMutation({
     mutationFn: (f: File) => uploadMaterial(user, course, f),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
+    onSuccess: (_, f) => {
+      void queryClient.invalidateQueries({ queryKey: key })
+      // An upload replaces the bytes under an existing filename; drop the cached blob.
+      void queryClient.invalidateQueries({
+        queryKey: ['material-file', course, f.name, user],
+      })
+    },
   })
 
   return (
