@@ -16,6 +16,12 @@ class Settings(BaseSettings):
 
     cors_origins: list[str] = ["http://localhost:3000"]
 
+    # Lattice's own Postgres: application records only. Cognee keeps its embedded stores.
+    database_url: str = "postgresql+asyncpg://lattice:lattice@localhost:5432/lattice"
+    database_pool_size: int = 5
+    # Run `alembic upgrade head` on start-up. Convenient in dev; deploys run it explicitly.
+    database_auto_migrate: bool = False
+
     # Honour the `X-User` header as the caller's identity. Dev only; there is no OAuth yet.
     dev_header_auth: bool = False
 
