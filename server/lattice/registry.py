@@ -37,22 +37,24 @@ class Note(BaseModel):
     updated_at: datetime = Field(default_factory=now)
 
 
-class Evidence(BaseModel):
+class Citation(BaseModel):
+    """What a cited chunk or relation resolves to, in domain terms.
+
+    Engine payloads are translated into this shape in `engine.py`, so nothing
+    Cognee-specific (dataset ids, document names) crosses the API.
+    """
+
     kind: str
-    dataset_id: str | None = None
-    data_id: str | None = None
-    chunk_id: str | None = None
+    filename: str | None = None
     chunk_index: int | None = None
-    document_name: str | None = None
+    relation: str | None = None
     label: str | None = None
-    relationship_name: str | None = None
 
 
 class TierResult(BaseModel):
-    tier: Literal["course", "notes"]
-    dataset_name: str
+    tier: Literal["global", "private"]
     answer: str | None
-    evidence: list[Evidence]
+    citations: list[Citation]
 
 
 class Turn(BaseModel):
@@ -118,6 +120,12 @@ class Registry:
                 return session
         session = Session(id=session_id or uuid4().hex, course=course, owner=owner)
         self.sessions[session.id] = session
+        return session
+
+    def get_session(self, session_id: str, course: str, owner: str) -> Session | None:
+        session = self.sessions.get(session_id)
+        if session is None or session.course != course or session.owner != owner:
+            return None
         return session
 
 

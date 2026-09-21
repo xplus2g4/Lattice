@@ -3,24 +3,24 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useState } from 'react'
 
-import { Button } from '@/components/ui/button'
+import { Button } from '#/components/ui/button'
 import {
   Dialog,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from '@/components/ui/dialog'
-import { Textarea } from '@/components/ui/textarea'
+} from '#/components/ui/dialog'
+import { Input } from '#/components/ui/input'
+import { Textarea } from '#/components/ui/textarea'
 import { listNotes, pollWhilePending, saveNote } from '#/lib/api'
 import { StatusBadge } from './status-badge'
 
+import type { Enrolment } from '#/lib/api'
+
 const NOTE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/
 
-const inputClass =
-  'rounded-lg border border-border bg-input/30 px-3 py-2 text-sm outline-none focus:border-ring'
-
-export function NotesPanel({ course, user }: { course: string; user: string }) {
+export function NotesPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
   const key = ['notes', course, user]
   const notes = useQuery({
@@ -116,8 +116,8 @@ export function NotesPanel({ course, user }: { course: string; user: string }) {
                 }
               }}
             >
-              <input
-                className={`${inputClass} w-full font-mono`}
+              <Input
+                className="font-mono"
                 value={editing.id}
                 disabled={!editing.isNew}
                 onChange={(e) => setEditing({ ...editing, id: e.target.value })}

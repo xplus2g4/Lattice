@@ -46,8 +46,8 @@
   --lattice-primary-action: var(--primary);
   --lattice-text-on-primary: var(--primary-foreground);
   --lattice-selected-surface: var(--accent);
-  --lattice-source-context: var(--secondary);
-  --lattice-source-context-text: var(--secondary-foreground);
+  --lattice-citation-context: var(--secondary);
+  --lattice-citation-context-text: var(--secondary-foreground);
   --lattice-strong: oklch(0.93 0.045 160);
   --lattice-strong-text: oklch(0.35 0.09 160);
   --lattice-developing: oklch(0.95 0.055 80);
@@ -112,8 +112,8 @@
   --lattice-primary-action: var(--primary);
   --lattice-text-on-primary: var(--primary-foreground);
   --lattice-selected-surface: var(--accent);
-  --lattice-source-context: var(--secondary);
-  --lattice-source-context-text: var(--secondary-foreground);
+  --lattice-citation-context: oklch(0.34 0.055 181.4);
+  --lattice-citation-context-text: var(--secondary-foreground);
 }
 
 @theme inline {
@@ -149,8 +149,8 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --color-source-context: var(--lattice-source-context);
-  --color-source-context-text: var(--lattice-source-context-text);
+  --color-citation-context: var(--lattice-citation-context);
+  --color-citation-context-text: var(--lattice-citation-context-text);
   --color-feedback-strong: var(--lattice-strong);
   --color-feedback-strong-text: var(--lattice-strong-text);
   --color-feedback-developing: var(--lattice-developing);

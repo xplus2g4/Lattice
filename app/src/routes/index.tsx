@@ -4,9 +4,11 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { ArrowRight01Icon, PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useState } from 'react'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Skeleton } from '@/components/ui/skeleton'
+import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
+import { Card, CardContent } from '#/components/ui/card'
+import { Input } from '#/components/ui/input'
+import { Skeleton } from '#/components/ui/skeleton'
 import { CourseCard } from '#/components/lattice/course-card'
 import { ApiError, listCourses } from '#/lib/api'
 import { useLibrary } from '#/lib/library'
@@ -17,9 +19,6 @@ import type { CourseSummary } from '#/lib/api'
 export const Route = createFileRoute('/')({ component: Home })
 
 const COURSE_RE = /^[a-z][a-z0-9]{1,15}$/
-
-const inputClass =
-  'rounded-lg border border-border bg-input/30 px-3 py-2 text-sm outline-none focus:border-ring'
 
 function Home() {
   const [user, setUser] = useUser()
@@ -61,8 +60,7 @@ function Home() {
           </div>
           <label className="flex flex-col gap-1.5 text-lattice-meta font-medium text-muted-foreground">
             Signed in as
-            <input
-              className={inputClass}
+            <Input
               type="email"
               value={user}
               onChange={(e) => setUser(e.target.value)}
@@ -111,33 +109,35 @@ function Home() {
 
 function ContinueCard({ course, filename }: { course: string; filename: string }) {
   return (
-    <section className="flex flex-col justify-between gap-5 rounded-xl border border-border bg-card p-6 shadow-lattice sm:flex-row sm:items-center">
-      <div className="min-w-0">
-        <p className="text-lattice-meta font-semibold tracking-[0.16em] text-primary">
-          CONTINUE READING
-        </p>
-        <h2 className="mt-2 truncate text-lattice-heading font-semibold tracking-tight">
-          {filename}
-        </h2>
-        <div className="mt-3">
-          <Badge
-            variant="outline"
-            className="border-0 bg-source-context font-mono uppercase text-source-context-text"
-          >
-            {course}
-          </Badge>
+    <Card>
+      <CardContent className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
+        <div className="min-w-0">
+          <p className="text-lattice-meta font-semibold tracking-[0.16em] text-primary">
+            CONTINUE READING
+          </p>
+          <h2 className="mt-2 truncate text-lattice-heading font-semibold tracking-tight">
+            {filename}
+          </h2>
+          <div className="mt-3">
+            <Badge
+              variant="outline"
+              className="border-0 bg-citation-context font-mono uppercase text-citation-context-text"
+            >
+              {course}
+            </Badge>
+          </div>
         </div>
-      </div>
-      <Button asChild size="lg" className="shrink-0">
-        <Link
-          to="/courses/$courseId/materials/$filename"
-          params={{ courseId: course, filename }}
-        >
-          Open material
-          <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" />
-        </Link>
-      </Button>
-    </section>
+        <Button asChild size="lg" className="shrink-0">
+          <Link
+            to="/courses/$courseId/materials/$filename"
+            params={{ courseId: course, filename }}
+          >
+            Open material
+            <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" />
+          </Link>
+        </Button>
+      </CardContent>
+    </Card>
   )
 }
 
@@ -158,8 +158,8 @@ function AddCourse() {
         void navigate({ to: '/courses/$courseId', params: { courseId: code } })
       }}
     >
-      <input
-        className={inputClass}
+      <Input
+        className="w-auto"
         value={value}
         placeholder="New course code — e.g. cs3216"
         aria-invalid={invalid}
@@ -180,12 +180,12 @@ function AddCourse() {
 
 function EmptyCourses() {
   return (
-    <div className="mt-4 flex flex-col items-center gap-3 rounded-xl border border-dashed border-border bg-card px-6 py-14 text-center">
+    <Card className="mt-4 items-center gap-3 border-dashed px-6 py-14 text-center shadow-none">
       <h3 className="font-semibold tracking-tight">No courses yet</h3>
       <p className="max-w-md text-sm leading-6 text-muted-foreground">
         Create a course above, then upload its materials in the workspace to
         start asking questions.
       </p>
-    </div>
+    </Card>
   )
 }

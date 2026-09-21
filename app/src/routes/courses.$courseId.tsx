@@ -2,7 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
 
-import { Badge } from '@/components/ui/badge'
+import { Badge } from '#/components/ui/badge'
 import { AskPanel } from '#/components/lattice/ask-panel'
 import { MaterialsPanel } from '#/components/lattice/materials-panel'
 import { NotesPanel } from '#/components/lattice/notes-panel'

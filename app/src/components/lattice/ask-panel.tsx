@@ -3,22 +3,23 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { ChatQuestionIcon, HistoryIcon } from '@hugeicons/core-free-icons'
 import { useEffect, useRef, useState } from 'react'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
+import { Textarea } from '#/components/ui/textarea'
 import {
   ApiError,
   ask,
+  describeCitation,
   getSession,
   listMaterials,
   listSessions,
 } from '#/lib/api'
 import { useStored } from '#/lib/user'
 
-import type { Evidence, Session, TierResult, Turn } from '#/lib/api'
+import type { Enrolment, Session, TierResult, Turn } from '#/lib/api'
 
-export function AskPanel({ course, user }: { course: string; user: string }) {
+export function AskPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('ask')
   const [sessionId, setSessionId] = useStored(
@@ -267,8 +268,8 @@ function TurnView({ turn }: { turn: Turn }) {
 }
 
 const tierLabel: Record<TierResult['tier'], string> = {
-  course: 'Course materials',
-  notes: 'Your notes',
+  global: 'Course materials',
+  private: 'Your notes',
 }
 
 function TierView({ result }: { result: TierResult }) {
@@ -282,15 +283,15 @@ function TierView({ result }: { result: TierResult }) {
           <span className="italic text-muted-foreground">no answer</span>
         )}
       </p>
-      {result.evidence.length > 0 && (
+      {result.citations.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-1.5">
-          {result.evidence.map((e, i) => (
+          {result.citations.map((c, i) => (
             <li key={i}>
               <Badge
                 variant="outline"
-                className="border-0 bg-source-context text-source-context-text"
+                className="border-0 bg-citation-context text-citation-context-text"
               >
-                {describeEvidence(e)}
+                {describeCitation(c)}
               </Badge>
             </li>
           ))}
@@ -298,15 +299,4 @@ function TierView({ result }: { result: TierResult }) {
       )}
     </div>
   )
-}
-
-function describeEvidence(e: Evidence): string {
-  switch (e.kind) {
-    case 'segment':
-      return `${e.document_name ?? '?'}${e.chunk_index !== null ? ` #${e.chunk_index}` : ''}`
-    case 'graph_edge':
-      return `${e.relationship_name ?? '?'} · edge`
-    default:
-      return `${e.label ?? '?'} · ${e.kind}`
-  }
 }

@@ -4,11 +4,13 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useRef } from 'react'
 
-import { Button } from '@/components/ui/button'
+import { Button } from '#/components/ui/button'
 import { listMaterials, pollWhilePending, uploadMaterial } from '#/lib/api'
 import { StatusBadge } from './status-badge'
 
-export function MaterialsPanel({ course, user }: { course: string; user: string }) {
+import type { Enrolment } from '#/lib/api'
+
+export function MaterialsPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
   const key = ['materials', course, user]
   const materials = useQuery({

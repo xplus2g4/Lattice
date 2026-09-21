@@ -24,7 +24,7 @@ from cognee.modules.users.models import User
 from cognee.modules.users.permissions.methods import give_permission_on_dataset
 
 from lattice.config import Settings
-from lattice.registry import Evidence, TierResult
+from lattice.registry import Citation, TierResult
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
@@ -134,10 +134,9 @@ class Engine:
 def _tier_result(raw: dict[str, Any], datasets: dict[UUID, str]) -> TierResult:
     dataset_id = raw.get("dataset_id")
     return TierResult(
-        tier=datasets.get(dataset_id, "course"),  # type: ignore[arg-type]
-        dataset_name=raw.get("dataset_name") or "",
+        tier=datasets.get(dataset_id, "global"),  # type: ignore[arg-type]
         answer=_answer_text(raw.get("text_result")),
-        evidence=_dedupe_evidence(raw.get("evidence") or []),
+        citations=_dedupe_citations(raw.get("evidence") or []),
     )
 
 
@@ -151,14 +150,26 @@ def _answer_text(text: Any) -> str | None:
     return str(text)
 
 
-def _dedupe_evidence(items: list[dict[str, Any]]) -> list[Evidence]:
+_CITATION_KIND = {"segment": "chunk", "graph_edge": "relation"}
+
+
+def _dedupe_citations(items: list[dict[str, Any]]) -> list[Citation]:
     """Cognee lists a segment once per graph edge citing it; keep one entry per artifact."""
     seen: set[str] = set()
-    out: list[Evidence] = []
+    out: list[Citation] = []
     for item in items:
         key = f"{item.get('kind')}:{item.get('artifact_id')}"
         if key in seen:
             continue
         seen.add(key)
-        out.append(Evidence.model_validate(item))
+        kind = str(item.get("kind") or "")
+        out.append(
+            Citation(
+                kind=_CITATION_KIND.get(kind, kind),
+                filename=item.get("document_name"),
+                chunk_index=item.get("chunk_index"),
+                relation=item.get("relationship_name"),
+                label=item.get("label"),
+            )
+        )
     return out

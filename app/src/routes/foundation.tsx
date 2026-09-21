@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Textarea } from '@/components/ui/textarea'
+import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
+import { Tabs, TabsList, TabsTrigger } from '#/components/ui/tabs'
+import { Textarea } from '#/components/ui/textarea'
 
 export const Route = createFileRoute('/foundation')({
   component: FoundationPreview,

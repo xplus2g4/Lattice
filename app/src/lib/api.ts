@@ -45,22 +45,35 @@ export interface Note {
   updated_at: string
 }
 
-export interface Evidence {
+/** The (course, user) pair every call is made within: the caller's enrolment. */
+export interface Enrolment {
+  course: string
+  user: string
+}
+
+export interface Citation {
   kind: string
-  dataset_id: string | null
-  data_id: string | null
-  chunk_id: string | null
+  filename: string | null
   chunk_index: number | null
-  document_name: string | null
+  relation: string | null
   label: string | null
-  relationship_name: string | null
 }
 
 export interface TierResult {
-  tier: 'course' | 'notes'
-  dataset_name: string
+  tier: 'global' | 'private'
   answer: string | null
-  evidence: Array<Evidence>
+  citations: Array<Citation>
+}
+
+export function describeCitation(c: Citation): string {
+  switch (c.kind) {
+    case 'chunk':
+      return `${c.filename ?? '?'}${c.chunk_index !== null ? ` #${c.chunk_index}` : ''}`
+    case 'relation':
+      return `${c.relation ?? '?'} · relation`
+    default:
+      return `${c.label ?? '?'} · ${c.kind}`
+  }
 }
 
 export interface Turn {

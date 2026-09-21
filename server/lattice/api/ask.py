@@ -41,7 +41,7 @@ async def ask(
 
     user = await engine.principal(email)
     global_ds, private_ds = await engine.enrol(course, user)
-    datasets = {global_ds.id: "course", private_ds.id: "notes"}
+    datasets = {global_ds.id: "global", private_ds.id: "private"}
 
     started = time.monotonic()
     try:
@@ -54,7 +54,7 @@ async def ask(
         content="\n\n".join(r.answer for r in results if r.answer),
         query_type=body.query_type,
         results=results,
-        used_notes=any(r.tier == "notes" and r.evidence for r in results),
+        used_notes=any(r.tier == "private" and r.citations for r in results),
         latency_ms=int((time.monotonic() - started) * 1000),
     )
     session.turns.append(answer)
@@ -87,7 +87,7 @@ async def list_sessions(
 async def get_session(
     course: CourseCode, session_id: str, email: CurrentEmail, registry: RegistryDep
 ) -> Session:
-    session = registry.sessions.get(session_id)
-    if session is None or session.course != course or session.owner != email:
+    session = registry.get_session(session_id, course, email)
+    if session is None:
         raise HTTPException(404, "no such session")
     return session
