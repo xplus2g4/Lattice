@@ -164,7 +164,11 @@ function AddCourse() {
         e.preventDefault()
         if (!COURSE_RE.test(code)) return
         addCourse(code)
-        void navigate({ to: '/courses/$courseId', params: { courseId: code } })
+        void navigate({
+          to: '/courses/$courseId',
+          params: { courseId: code },
+          search: { material: undefined },
+        })
       }}
     >
       <Input

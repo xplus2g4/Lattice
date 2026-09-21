@@ -62,13 +62,9 @@ export function MaterialsPanel({ course, user }: Enrolment) {
         </p>
       )}
       <ul className="space-y-0.5 px-2 pb-2">
-        {materials.data?.map((m) => (
-          <li key={m.filename}>
-            <Link
-              to="/courses/$courseId/materials/$filename"
-              params={{ courseId: course, filename: m.filename }}
-              className="block rounded-lg px-2 py-1.5 transition-colors hover:bg-accent"
-            >
+        {materials.data?.map((m) => {
+          const row = (
+            <>
               <span className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate text-sm">
                   {m.filename}
@@ -80,9 +76,33 @@ export function MaterialsPanel({ course, user }: Enrolment) {
                   {m.error}
                 </span>
               )}
-            </Link>
-          </li>
-        ))}
+            </>
+          )
+          const className =
+            'block rounded-lg px-2 py-1.5 transition-colors hover:bg-accent'
+          return (
+            <li key={m.filename}>
+              {m.filename.toLowerCase().endsWith('.pdf') ? (
+                <Link
+                  to="/courses/$courseId"
+                  params={{ courseId: course }}
+                  search={{ material: m.filename }}
+                  className={className}
+                >
+                  {row}
+                </Link>
+              ) : (
+                <Link
+                  to="/courses/$courseId/materials/$filename"
+                  params={{ courseId: course, filename: m.filename }}
+                  className={className}
+                >
+                  {row}
+                </Link>
+              )}
+            </li>
+          )
+        })}
         {materials.data?.length === 0 && (
           <li className="px-2 py-1.5 text-sm leading-6 text-muted-foreground">
             No materials yet — upload slides or a memo.
