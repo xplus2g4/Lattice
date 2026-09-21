@@ -70,5 +70,10 @@ export function useLibrary() {
     [library],
   )
 
-  return { courses: library.courses, lastOpened: library.lastOpened, addCourse, markOpened }
+  return {
+    courses: library.courses,
+    lastOpened: library.lastOpened,
+    addCourse,
+    markOpened,
+  }
 }

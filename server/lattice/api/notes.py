@@ -4,8 +4,8 @@ from fastapi import APIRouter, BackgroundTasks, Path
 from pydantic import BaseModel, Field
 
 from lattice.api.deps import CourseCode, CurrentEmail, EngineDep, RegistryDep, SettingsDep
-from lattice.engine import Engine
-from lattice.registry import Note, set_status
+from lattice.api.ingest import ingest
+from lattice.registry import Note
 
 router = APIRouter(prefix="/courses/{course}/notes", tags=["notes"])
 
@@ -38,17 +38,5 @@ async def save_note(
     target.write_text(body.body_md)
 
     note = registry.upsert_note(course, email, note_id, body.body_md)
-    background.add_task(_ingest, engine, note, target)
+    background.add_task(ingest, engine, note, target)
     return note
-
-
-async def _ingest(engine: Engine, note: Note, path) -> None:
-    set_status(note, "cognifying")
-    try:
-        user = await engine.principal(note.owner)
-        _, private = await engine.enrol(note.course, user)
-        await engine.replace(private, user, path.resolve())
-    except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
-        set_status(note, "failed", f"{type(exc).__name__}: {exc}")
-        return
-    set_status(note, "ready")

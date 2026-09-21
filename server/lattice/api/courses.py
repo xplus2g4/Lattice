@@ -44,9 +44,5 @@ def _known_courses(registry: Registry, settings: Settings) -> set[str]:
     codes |= {s.course for s in registry.sessions.values()}
     uploads = settings.uploads_dir
     if uploads.is_dir():
-        codes |= {
-            p.name
-            for p in uploads.iterdir()
-            if p.is_dir() and COURSE_CODE.match(p.name)
-        }
+        codes |= {p.name for p in uploads.iterdir() if p.is_dir() and COURSE_CODE.match(p.name)}
     return codes

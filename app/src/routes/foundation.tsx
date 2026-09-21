@@ -2,8 +2,23 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '#/components/ui/card'
+import { Progress } from '#/components/ui/progress'
+import { Skeleton } from '#/components/ui/skeleton'
 import { Tabs, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { Textarea } from '#/components/ui/textarea'
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from '#/components/ui/tooltip'
 
 export const Route = createFileRoute('/foundation')({
   component: FoundationPreview,
@@ -31,7 +46,7 @@ const semanticColours = [
   ['Muted text', '--lattice-text-muted'],
   ['Primary action', '--lattice-primary-action'],
   ['Selected surface', '--lattice-selected-surface'],
-  ['Citation context', '--lattice-source-context'],
+  ['Citation context', '--lattice-citation-context'],
   ['Strong feedback', '--lattice-strong'],
   ['Developing feedback', '--lattice-developing'],
   ['Revisit feedback', '--lattice-revisit'],
@@ -99,7 +114,7 @@ function FoundationPreview() {
             title="A clear reading hierarchy"
             description="Figtree is the active family; the scale balances focused reading and quiet metadata."
           >
-            <div className="overflow-hidden rounded-xl border border-border bg-card">
+            <Card className="gap-0 overflow-hidden py-0 shadow-none">
               <TypeRow
                 token="text-lattice-display"
                 label="Display"
@@ -136,7 +151,7 @@ function FoundationPreview() {
               >
                 LECTURE 05 · SLIDES 12–14
               </TypeRow>
-            </div>
+            </Card>
           </Section>
 
           <Section
@@ -144,7 +159,7 @@ function FoundationPreview() {
             title="Rhythm you can see"
             description="A compact spacing scale gives layouts consistent breathing room."
           >
-            <div className="grid gap-8 rounded-xl border border-border bg-card p-6 lg:grid-cols-[1.25fr_0.75fr]">
+            <Card className="grid gap-8 p-6 shadow-none lg:grid-cols-[1.25fr_0.75fr]">
               <div className="space-y-4">
                 {spacing.map(([, value, token]) => (
                   <div
@@ -173,7 +188,7 @@ function FoundationPreview() {
                   <RadiusSample className="rounded-xl" label="xl · 12px" />
                 </div>
               </div>
-            </div>
+            </Card>
           </Section>
 
           <Section
@@ -194,7 +209,7 @@ function FoundationPreview() {
             description="A small live specimen of the components learners will encounter most often."
           >
             <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
-              <div className="rounded-xl border border-border bg-card p-6 shadow-lattice">
+              <Card className="p-6">
                 <Tabs defaultValue="material">
                   <TabsList
                     variant="line"
@@ -228,20 +243,33 @@ function FoundationPreview() {
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Button>Ask about this</Button>
                   <Button variant="outline">Save Note</Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost">Hint</Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Tooltips explain quiet actions.
+                    </TooltipContent>
+                  </Tooltip>
                 </div>
-              </div>
-              <div className="rounded-xl border border-border bg-card p-6">
-                <p className="text-sm font-medium">Badges & feedback</p>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  <Badge>Cognify complete</Badge>
-                  <Badge variant="secondary">Week 5</Badge>
-                  <Badge className="border-0 bg-source-context text-source-context-text">
-                    Citation · Slides 12–14
-                  </Badge>
-                </div>
-                <div className="mt-8 border-t border-border pt-6">
-                  <p className="text-sm font-medium">Learning feedback</p>
-                  <div className="mt-3 flex flex-wrap gap-2">
+              </Card>
+              <Card>
+                <CardHeader>
+                  <CardTitle>Badges &amp; feedback</CardTitle>
+                  <CardDescription>
+                    Card, Badge, Progress, and Skeleton — the primitives every
+                    screen composes.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="flex flex-wrap gap-2">
+                    <Badge>Cognify complete</Badge>
+                    <Badge variant="secondary">Week 5</Badge>
+                    <Badge className="border-0 bg-citation-context text-citation-context-text">
+                      Citation · Slides 12–14
+                    </Badge>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
                     <Badge className="border-0 bg-feedback-strong text-feedback-strong-text">
                       Strong
                     </Badge>
@@ -252,8 +280,19 @@ function FoundationPreview() {
                       Revisit
                     </Badge>
                   </div>
-                </div>
-              </div>
+                  <div>
+                    <p className="text-sm font-medium">Cognify progress</p>
+                    <Progress value={64} className="mt-2" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Loading state</p>
+                    <div className="mt-2 space-y-2">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </Section>
 
@@ -342,7 +381,7 @@ function ColourSwatch({
   compact?: boolean
 }) {
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-card">
+    <Card className="gap-0 overflow-hidden py-0 shadow-none">
       <div
         className={compact ? 'h-16' : 'h-24'}
         style={{ backgroundColor: `var(${token})` }}
@@ -353,7 +392,7 @@ function ColourSwatch({
           {token}
         </p>
       </div>
-    </div>
+    </Card>
   )
 }
 

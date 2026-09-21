@@ -2,10 +2,15 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
+import { StatusBadge } from '#/components/lattice/status-badge'
+import { Button } from '#/components/ui/button'
+import { Input } from '#/components/ui/input'
+import { Textarea } from '#/components/ui/textarea'
 import {
   ApiError,
   QUERY_TYPES,
   ask,
+  describeCitation,
   getSession,
   listMaterials,
   listNotes,
@@ -15,8 +20,7 @@ import {
 } from '#/lib/api'
 import { useStored } from '#/lib/user'
 import type {
-  Evidence,
-  IngestStatus,
+  Enrolment,
   Material,
   Note,
   QueryType,
@@ -28,10 +32,6 @@ import type {
 export const Route = createFileRoute('/dev')({ component: Home })
 
 const COURSE_RE = /^[a-z][a-z0-9]{1,15}$/
-
-const inputClass = 'rounded border border-gray-300 px-2 py-1 text-sm'
-const buttonClass =
-  'rounded bg-gray-900 px-3 py-1 text-sm text-white disabled:opacity-50'
 
 function Home() {
   const [course, setCourse] = useStored('lattice.course', 'cs101')
@@ -45,16 +45,11 @@ function Home() {
         <h1 className="mr-auto text-2xl font-bold">Course knowledge store</h1>
         <label className="flex flex-col text-xs">
           Course
-          <input
-            className={inputClass}
-            value={course}
-            onChange={(e) => setCourse(e.target.value)}
-          />
+          <Input value={course} onChange={(e) => setCourse(e.target.value)} />
         </label>
         <label className="flex flex-col text-xs">
           User
-          <input
-            className={inputClass}
+          <Input
             type="email"
             value={user}
             onChange={(e) => setUser(e.target.value)}
@@ -62,7 +57,7 @@ function Home() {
         </label>
       </header>
       {!courseOk && (
-        <p className="text-sm text-red-700">
+        <p className="text-sm text-destructive">
           Course code must match {COURSE_RE.source}
         </p>
       )}
@@ -77,36 +72,16 @@ function Home() {
   )
 }
 
-interface Scope {
-  course: string
-  user: string
-}
-
 function ErrorLine({ error }: { error: unknown }) {
   if (!error) return null
   return (
-    <p className="text-sm text-red-700">
+    <p className="text-sm text-destructive">
       {error instanceof Error ? error.message : String(error)}
     </p>
   )
 }
 
-const statusColor: Record<IngestStatus, string> = {
-  queued: 'bg-gray-200 text-gray-800',
-  cognifying: 'bg-yellow-200 text-yellow-900',
-  ready: 'bg-green-200 text-green-900',
-  failed: 'bg-red-200 text-red-900',
-}
-
-function StatusBadge({ status }: { status: IngestStatus }) {
-  return (
-    <span className={`rounded px-2 py-0.5 text-xs ${statusColor[status]}`}>
-      {status}
-    </span>
-  )
-}
-
-function Materials({ course, user }: Scope) {
+function Materials({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
   const key = ['materials', course, user]
   const materials = useQuery({
@@ -139,17 +114,13 @@ function Materials({ course, user }: Scope) {
           accept=".pdf,.pptx,.md,.txt"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
-        <button
-          className={buttonClass}
-          type="submit"
-          disabled={!file || upload.isPending}
-        >
+        <Button type="submit" size="sm" disabled={!file || upload.isPending}>
           {upload.isPending ? 'Uploading…' : 'Upload'}
-        </button>
+        </Button>
       </form>
       <ErrorLine error={upload.error} />
       <ErrorLine error={materials.error} />
-      <ul className="divide-y divide-gray-200">
+      <ul className="divide-y divide-border">
         {materials.data?.map((m) => (
           <li
             key={m.filename}
@@ -158,19 +129,19 @@ function Materials({ course, user }: Scope) {
             <span className="text-sm">{m.filename}</span>
             <StatusBadge status={m.status} />
             {m.status === 'failed' && m.error && (
-              <span className="text-xs text-red-700">{m.error}</span>
+              <span className="text-xs text-destructive">{m.error}</span>
             )}
           </li>
         ))}
         {materials.data?.length === 0 && (
-          <li className="text-sm text-gray-500">No materials yet.</li>
+          <li className="text-sm text-muted-foreground">No materials yet.</li>
         )}
       </ul>
     </section>
   )
 }
 
-function Notes({ course, user }: Scope) {
+function Notes({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
   const key = ['notes', course, user]
   const notes = useQuery({
@@ -195,52 +166,51 @@ function Notes({ course, user }: Scope) {
           save.mutate()
         }}
       >
-        <input
-          className={inputClass}
+        <Input
           value={noteId}
           pattern="[A-Za-z0-9_\-]{1,64}"
           placeholder="note id"
           onChange={(e) => setNoteId(e.target.value)}
         />
-        <textarea
-          className={`${inputClass} block w-full`}
+        <Textarea
+          className="block w-full"
           rows={4}
           value={body}
           placeholder="Markdown body"
           onChange={(e) => setBody(e.target.value)}
         />
-        <button
-          className={buttonClass}
+        <Button
           type="submit"
+          size="sm"
           disabled={!noteId || !body.trim() || save.isPending}
         >
           {save.isPending ? 'Saving…' : 'Save'}
-        </button>
+        </Button>
       </form>
       <ErrorLine error={save.error} />
       <ErrorLine error={notes.error} />
-      <ul className="divide-y divide-gray-200">
+      <ul className="divide-y divide-border">
         {notes.data?.map((n) => (
           <li key={n.id} className="flex flex-wrap items-center gap-2 py-1">
             <span className="font-mono text-sm">{n.id}</span>
             <StatusBadge status={n.status} />
-            <span className="text-sm text-gray-600">
+            <span className="text-sm text-muted-foreground">
               {n.body_md.slice(0, 80)}
             </span>
             {n.status === 'failed' && n.error && (
-              <span className="text-xs text-red-700">{n.error}</span>
+              <span className="text-xs text-destructive">{n.error}</span>
             )}
           </li>
         ))}
         {notes.data?.length === 0 && (
-          <li className="text-sm text-gray-500">No notes yet.</li>
+          <li className="text-sm text-muted-foreground">No notes yet.</li>
         )}
       </ul>
     </section>
   )
 }
 
-function Ask({ course, user }: Scope) {
+function Ask({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
   const [sessionId, setSessionId] = useStored(
     `lattice.session.${course}.${user}`,
@@ -304,15 +274,15 @@ function Ask({ course, user }: Scope) {
           submit.mutate({ question, query_type: queryType })
         }}
       >
-        <input
-          className={`${inputClass} min-w-64 flex-1`}
+        <Input
+          className="min-w-64 flex-1"
           value={question}
           maxLength={2000}
           placeholder="Ask a question about this course"
           onChange={(e) => setQuestion(e.target.value)}
         />
         <select
-          className={inputClass}
+          className="rounded-lg border border-border bg-input/30 px-3 py-2 text-sm outline-none focus:border-ring"
           value={queryType}
           onChange={(e) => setQueryType(e.target.value as QueryType)}
         >
@@ -322,28 +292,31 @@ function Ask({ course, user }: Scope) {
             </option>
           ))}
         </select>
-        <button
-          className={buttonClass}
+        <Button
           type="submit"
+          size="sm"
           disabled={!question.trim() || submit.isPending}
         >
           {submit.isPending ? 'Asking…' : 'Ask'}
-        </button>
-        <button
-          className="rounded border border-gray-300 px-3 py-1 text-sm"
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
           type="button"
           disabled={submit.isPending}
           onClick={() => setSessionId(null)}
         >
           New session
-        </button>
+        </Button>
       </form>
       <ErrorLine error={submit.error} />
       {!(session.error instanceof ApiError && session.error.status === 404) && (
         <ErrorLine error={session.error} />
       )}
       {sessionId && (
-        <p className="font-mono text-xs text-gray-500">session {sessionId}</p>
+        <p className="font-mono text-xs text-muted-foreground">
+          session {sessionId}
+        </p>
       )}
       <ol className="space-y-3">
         {turns.map((t, i) => (
@@ -359,23 +332,23 @@ function Ask({ course, user }: Scope) {
 function TurnView({ turn }: { turn: Turn }) {
   if (turn.role === 'user') {
     return (
-      <p className="rounded bg-gray-100 px-3 py-2 text-sm">
+      <p className="rounded bg-muted px-3 py-2 text-sm">
         <span className="font-semibold">You: </span>
         {turn.content}
       </p>
     )
   }
   return (
-    <div className="space-y-2 rounded border border-gray-200 px-3 py-2">
+    <div className="space-y-2 rounded border border-border px-3 py-2">
       {turn.results.map((r) => (
         <TierView key={r.tier} result={r} />
       ))}
       {turn.results.length === 0 && (
-        <p className="text-sm italic text-gray-500">
+        <p className="text-sm italic text-muted-foreground">
           Nothing cognified in this course yet.
         </p>
       )}
-      <p className="text-xs text-gray-500">
+      <p className="text-xs text-muted-foreground">
         used_notes: {String(turn.used_notes)} · {turn.latency_ms ?? '?'} ms ·{' '}
         {turn.query_type ?? '?'}
       </p>
@@ -384,39 +357,28 @@ function TurnView({ turn }: { turn: Turn }) {
 }
 
 const tierLabel: Record<TierResult['tier'], string> = {
-  course: 'Course materials',
-  notes: 'Your notes',
+  global: 'Course materials',
+  private: 'Your notes',
 }
 
 function TierView({ result }: { result: TierResult }) {
   return (
     <div>
-      <h3 className="text-xs font-semibold uppercase text-gray-500">
+      <h3 className="text-xs font-semibold uppercase text-muted-foreground">
         {tierLabel[result.tier]}
       </h3>
       <p className="text-sm whitespace-pre-wrap">
         {result.answer ?? (
-          <span className="italic text-gray-500">no answer</span>
+          <span className="italic text-muted-foreground">no answer</span>
         )}
       </p>
-      {result.evidence.length > 0 && (
-        <ul className="mt-1 list-disc pl-5 text-xs text-gray-600">
-          {result.evidence.map((e, i) => (
-            <li key={i}>{describeEvidence(e)}</li>
+      {result.citations.length > 0 && (
+        <ul className="mt-1 list-disc pl-5 text-xs text-muted-foreground">
+          {result.citations.map((c, i) => (
+            <li key={i}>{describeCitation(c)}</li>
           ))}
         </ul>
       )}
     </div>
   )
-}
-
-function describeEvidence(e: Evidence): string {
-  switch (e.kind) {
-    case 'segment':
-      return `${e.document_name ?? '?'}${e.chunk_index !== null ? ` #${e.chunk_index}` : ''} · chunk`
-    case 'graph_edge':
-      return `${e.relationship_name ?? '?'} · edge`
-    default:
-      return `${e.label ?? '?'} · ${e.kind}`
-  }
 }

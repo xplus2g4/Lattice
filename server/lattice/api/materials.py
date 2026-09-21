@@ -5,9 +5,9 @@ from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 
 from lattice.api.deps import CourseCode, CurrentEmail, EngineDep, RegistryDep, SettingsDep
+from lattice.api.ingest import ingest
 from lattice.config import Settings
-from lattice.engine import Engine
-from lattice.registry import Material, Registry, set_status
+from lattice.registry import Material, Registry
 
 router = APIRouter(prefix="/courses/{course}/materials", tags=["materials"])
 
@@ -81,16 +81,5 @@ async def upload_material(
 
     await engine.principal(email)
     material = registry.upsert_material(course, filename)
-    background.add_task(_ingest, engine, material, target)
+    background.add_task(ingest, engine, material, target)
     return material
-
-
-async def _ingest(engine: Engine, material: Material, path) -> None:
-    set_status(material, "cognifying")
-    try:
-        dataset = await engine.global_dataset(material.course)
-        await engine.replace(dataset, await engine.instructor(), path.resolve())
-    except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
-        set_status(material, "failed", f"{type(exc).__name__}: {exc}")
-        return
-    set_status(material, "ready")

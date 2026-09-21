@@ -64,14 +64,18 @@ export function NotesPanel({ course, user }: Enrolment) {
         </Button>
       </div>
       {notes.error && (
-        <p className="px-4 pb-1 text-xs text-destructive">{notes.error.message}</p>
+        <p className="px-4 pb-1 text-xs text-destructive">
+          {notes.error.message}
+        </p>
       )}
       <ul className="space-y-0.5 px-2 pb-3">
         {notes.data?.map((n) => (
           <li key={n.id}>
             <button
               type="button"
-              onClick={() => setEditing({ id: n.id, body: n.body_md, isNew: false })}
+              onClick={() =>
+                setEditing({ id: n.id, body: n.body_md, isNew: false })
+              }
               className="block w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent"
             >
               <span className="flex items-center gap-2">
@@ -104,7 +108,9 @@ export function NotesPanel({ course, user }: Enrolment) {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editing?.isNew ? 'New note' : 'Edit note'}</DialogTitle>
+            <DialogTitle>
+              {editing?.isNew ? 'New note' : 'Edit note'}
+            </DialogTitle>
           </DialogHeader>
           {editing && (
             <form
@@ -126,7 +132,9 @@ export function NotesPanel({ course, user }: Enrolment) {
                 className="min-h-40"
                 placeholder="Markdown body"
                 value={editing.body}
-                onChange={(e) => setEditing({ ...editing, body: e.target.value })}
+                onChange={(e) =>
+                  setEditing({ ...editing, body: e.target.value })
+                }
               />
               {save.error && (
                 <p className="text-xs text-destructive">{save.error.message}</p>

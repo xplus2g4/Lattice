@@ -10,9 +10,11 @@ import { downloadMaterial } from '#/lib/api'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
-export const Route = createFileRoute('/courses/$courseId_/materials/$filename')({
-  component: MaterialViewer,
-})
+export const Route = createFileRoute('/courses/$courseId_/materials/$filename')(
+  {
+    component: MaterialViewer,
+  },
+)
 
 type Kind = 'pdf' | 'text' | 'download'
 
@@ -72,7 +74,9 @@ function MaterialViewer() {
         <Badge variant="secondary" className="font-mono uppercase">
           {courseId}
         </Badge>
-        <p className="min-w-0 flex-1 truncate text-sm font-medium">{filename}</p>
+        <p className="min-w-0 flex-1 truncate text-sm font-medium">
+          {filename}
+        </p>
         <Button asChild variant="outline" size="sm" disabled={!url}>
           <a href={url ?? '#'} download={filename}>
             Download

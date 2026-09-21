@@ -69,7 +69,10 @@ function Home() {
         </header>
 
         {lastOpened && (
-          <ContinueCard course={lastOpened.course} filename={lastOpened.filename} />
+          <ContinueCard
+            course={lastOpened.course}
+            filename={lastOpened.filename}
+          />
         )}
 
         <section>
@@ -107,7 +110,13 @@ function Home() {
   )
 }
 
-function ContinueCard({ course, filename }: { course: string; filename: string }) {
+function ContinueCard({
+  course,
+  filename,
+}: {
+  course: string
+  filename: string
+}) {
   return (
     <Card>
       <CardContent className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">

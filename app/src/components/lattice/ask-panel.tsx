@@ -137,8 +137,8 @@ export function AskPanel({ course, user }: Enrolment) {
                 Ask {course.toUpperCase()} anything
               </p>
               <p className="max-w-md text-sm leading-6 text-muted-foreground">
-                Answers cite the materials and your notes they came from.
-                Upload materials in the left rail to feed this course.
+                Answers cite the materials and your notes they came from. Upload
+                materials in the left rail to feed this course.
               </p>
             </div>
           )}
@@ -183,14 +183,20 @@ export function AskPanel({ course, user }: Enrolment) {
                 ⌘↵ to send
               </p>
             )}
-            <Button type="submit" disabled={!question.trim() || submit.isPending}>
+            <Button
+              type="submit"
+              disabled={!question.trim() || submit.isPending}
+            >
               {submit.isPending ? 'Asking…' : 'Ask Lattice'}
             </Button>
           </div>
         </form>
       </TabsContent>
 
-      <TabsContent value="history" className="min-h-0 flex-1 overflow-y-auto p-4">
+      <TabsContent
+        value="history"
+        className="min-h-0 flex-1 overflow-y-auto p-4"
+      >
         <ul className="space-y-2">
           {sessions.data?.map((s) => (
             <li key={s.id}>
