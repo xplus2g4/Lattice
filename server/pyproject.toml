@@ -6,9 +6,15 @@ requires-python = ">=3.14"
 dependencies = [
     "cognee[fastembed]==1.5.4",
     "fastapi",
+    "filelock==3.32.6",
+    "mcp==1.30.0",
     "pydantic-settings",
+    "pypdf==6.18.0",
     "uvicorn",
 ]
+
+[tool.uv]
+exclude-newer = "2026-09-14T16:00:00Z"
 
 [dependency-groups]
 dev = [

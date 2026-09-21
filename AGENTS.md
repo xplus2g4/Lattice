@@ -30,3 +30,11 @@ Default vocabulary: the five canonical labels, unchanged. See `docs/agents/triag
 ### Domain docs
 
 Single-context: `CONTEXT.md` at the root plus `docs/adr/`. See `docs/agents/domain.md`.
+
+## Backend verification
+
+- Use `uv run --locked pytest -m "not canary"` in `server/` for offline checks. A local key makes plain `pytest` eligible to spend real LLM calls.
+- Cognee can populate process environment variables when imported. In isolated tests, `_env_file=None` alone is insufficient: pass identity/MCP flags and temporary storage paths explicitly to `Settings`.
+- MCP is opt-in (`MCP_ENABLED=true`, `DEV_HEADER_AUTH=true`) at `/mcp/`, for loopback development only. Run one API process per uploads directory. Page Note records survive restart under `UPLOADS_DIR/.page-notes`; this local adapter is not the planned Postgres Worker deployment.
+- The additional paid synthetic study evaluation needs `LATTICE_RUN_STUDY_EVAL=1` and an LLM key; run `uv run --locked pytest tests/test_study_evaluation.py -v`. It records Q&A outputs for review and does not substitute for real-course quality evaluation.
+- When relocating existing Cognee storage, stop the API first and check persisted `dataset_database.vector_database_url` values: Cognee 1.5.4 stores absolute LanceDB paths, so changing `COGNEE_ROOT` alone does not rebase existing Datasets. Preserve old content references and record a reversible path mapping.

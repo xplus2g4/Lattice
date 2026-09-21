@@ -3,13 +3,18 @@
 Stage 2 (pgvector plus an own concept graph) replaces this module and nothing above it.
 """
 
+import asyncio
+import json
 import secrets
+import tempfile
+from contextvars import Context
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import cognee
 from cognee.infrastructure.databases.relational import create_db_and_tables
+from cognee.infrastructure.llm.LLMGateway import LLMGateway
 from cognee.modules.data.methods import (
     create_authorized_dataset,
     get_authorized_dataset_by_name,
@@ -24,6 +29,8 @@ from cognee.modules.users.models import User
 from cognee.modules.users.permissions.methods import give_permission_on_dataset
 
 from lattice.config import Settings
+from lattice.note_review import ReviewChunk
+from lattice.page_notes import PageNote
 from lattice.registry import Evidence, TierResult
 from lattice.retrieval import GROUNDING_POLICY, install_retrievers
 
@@ -52,6 +59,7 @@ class Engine:
         self._principals: dict[str, User] = {}
         self._datasets: dict[tuple[str, UUID], Dataset] = {}
         self._enrolled: set[tuple[UUID, str]] = set()
+        self._ingest_lock = asyncio.Lock()
 
     async def start(self) -> None:
         """Create Cognee's relational schema if this is a fresh root. Idempotent."""
@@ -103,11 +111,38 @@ class Engine:
 
     async def replace(self, dataset: Dataset, user: User, path: Path) -> None:
         """Drop any earlier data with this file's name, then add and cognify."""
+        async with self._ingest_lock:
+            await self._remove_named(dataset, user, path.name)
+            await cognee.add(str(path), dataset_id=dataset.id, user=user)
+            await cognee.cognify(datasets=[dataset.id], user=user)
+
+    async def _remove_named(self, dataset: Dataset, user: User, filename: str) -> None:
         for data in await get_dataset_data(dataset.id):
-            if data.name in (path.name, path.stem):
+            if data.name in (filename, Path(filename).stem):
                 await cognee.datasets.delete_data(dataset.id, data.id, user=user, mode="hard")
-        await cognee.add(str(path), dataset_id=dataset.id, user=user)
-        await cognee.cognify(datasets=[dataset.id], user=user)
+
+    async def cognify_note(self, note: PageNote) -> None:
+        user = await self.principal(note.owner)
+        _, dataset = await self.enrol(note.anchor.course, user)
+        filename = f"page-note-{note.id}.md"
+        async with self._ingest_lock:
+            await self._remove_named(dataset, user, filename)
+            if not note.body_md.strip():
+                return
+            with tempfile.TemporaryDirectory(prefix="latnote") as directory:
+                path = Path(directory) / filename
+                path.write_text(note.body_md, encoding="utf-8")
+                await cognee.add(
+                    str(path),
+                    dataset_id=dataset.id,
+                    user=user,
+                    node_set=[
+                        f"material-{note.anchor.material_id}",
+                        f"page-{note.anchor.page_number}",
+                        f"note-{note.id}",
+                    ],
+                )
+                await cognee.cognify(datasets=[dataset.id], user=user)
 
     # Retrieval
 
@@ -142,6 +177,60 @@ class Engine:
             # Data added but cognify not finished, or it failed. Nothing to answer from yet.
             return []
         return [_tier_result(r, datasets) for r in raw]
+
+    async def retrieve_official(self, course: str, owner: str, question: str) -> list[ReviewChunk]:
+        user = await self.principal(owner)
+        dataset, _ = await self.enrol(course, user)
+        if not await has_dataset_data(dataset.id):
+            return []
+        try:
+            raw = await cognee.search(
+                question,
+                query_type=SearchType.CHUNKS,
+                user=user,
+                dataset_ids=[dataset.id],
+                session_id=f"review-{uuid4().hex}",
+                top_k=3,
+                verbose=True,
+                include_references=True,
+            )
+        except NoDataError:
+            return []
+        chunks = {}
+        for result in raw:
+            if _dataset_uuid(result.get("dataset_id")) != dataset.id:
+                raise IsolationError("Review retrieval returned an unexpected dataset")
+            for item in result.get("objects_result") or []:
+                payload = item.get("payload") if isinstance(item, dict) else item.payload
+                identity = item.get("id") if isinstance(item, dict) else item.id
+                if (
+                    payload.get("dataset_id") is not None
+                    and _dataset_uuid(payload["dataset_id"]) != dataset.id
+                ):
+                    raise IsolationError("Review Chunk belongs to an unexpected dataset")
+                chunk_id = _dataset_uuid(identity)
+                if not chunk_id or not payload.get("document_name") or not payload.get("text"):
+                    continue
+                chunks[chunk_id] = ReviewChunk(
+                    chunk_id=chunk_id,
+                    dataset_id=dataset.id,
+                    material_name=payload["document_name"],
+                    chunk_index=payload.get("chunk_index"),
+                    text=payload["text"],
+                )
+        return list(chunks.values())[:3]
+
+    async def generate(self, schema, system_prompt: str, data: dict):
+        async def complete():
+            return await LLMGateway.acreate_structured_output(
+                text_input=json.dumps(data, ensure_ascii=False),
+                system_prompt=system_prompt,
+                response_model=schema,
+                max_completion_tokens=2_000,
+            )
+
+        task = asyncio.create_task(complete(), context=Context())
+        return await asyncio.wait_for(task, timeout=30)
 
 
 def _dataset_uuid(value: Any) -> UUID | None:
