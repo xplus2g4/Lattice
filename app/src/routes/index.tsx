@@ -6,9 +6,12 @@ import {
   ApiError,
   QUERY_TYPES,
   ask,
+  createCourse,
   getSession,
+  joinCourse,
   listMaterials,
   listNotes,
+  rateTurn,
   saveNote,
   uploadMaterial,
 } from '#/lib/api'
@@ -17,6 +20,7 @@ import type {
   IngestStatus,
   Material,
   Note,
+  NoteStatus,
   QueryType,
   Session,
   TierResult,
@@ -57,12 +61,18 @@ function useStored(key: string, fallback: string) {
   return [value, set] as const
 }
 
-function pollWhilePending<T extends { status: IngestStatus }>(
+const pending: ReadonlyArray<string> = [
+  'queued',
+  'converting',
+  'cognifying',
+  'dirty',
+  'indexing',
+]
+
+function pollWhilePending<T extends { status: string }>(
   items: Array<T> | undefined,
 ) {
-  return items?.some((i) => i.status === 'queued' || i.status === 'cognifying')
-    ? 2000
-    : false
+  return items?.some((i) => pending.includes(i.status)) ? 2000 : false
 }
 
 const inputClass = 'rounded border border-gray-300 px-2 py-1 text-sm'
@@ -102,13 +112,7 @@ function Home() {
           Course code must match {COURSE_RE.source}
         </p>
       )}
-      {ready && (
-        <>
-          <Materials course={course} user={user} />
-          <Notes course={course} user={user} />
-          <Ask course={course} user={user} />
-        </>
-      )}
+      {ready && <Enrolled course={course} user={user} />}
     </main>
   )
 }
@@ -127,14 +131,59 @@ function ErrorLine({ error }: { error: unknown }) {
   )
 }
 
-const statusColor: Record<IngestStatus, string> = {
+const statusColor: Record<IngestStatus | NoteStatus, string> = {
   queued: 'bg-gray-200 text-gray-800',
+  dirty: 'bg-gray-200 text-gray-800',
+  converting: 'bg-yellow-200 text-yellow-900',
   cognifying: 'bg-yellow-200 text-yellow-900',
+  indexing: 'bg-yellow-200 text-yellow-900',
   ready: 'bg-green-200 text-green-900',
   failed: 'bg-red-200 text-red-900',
 }
 
-function StatusBadge({ status }: { status: IngestStatus }) {
+/** Everything below needs the caller enrolled: the course owns its Materials and Datasets. */
+function Enrolled({ course, user }: Scope) {
+  const queryClient = useQueryClient()
+  const enrolment = useQuery({
+    queryKey: ['enrolment', course, user],
+    queryFn: () => joinCourse(user, course),
+    retry: false,
+  })
+  const create = useMutation({
+    mutationFn: () => createCourse(user, course, course.toUpperCase()),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ['enrolment', course, user] }),
+  })
+  const missing =
+    enrolment.error instanceof ApiError && enrolment.error.status === 404
+
+  if (missing) {
+    return (
+      <section className="space-y-2">
+        <p className="text-sm">No course {course} yet.</p>
+        <button
+          className={buttonClass}
+          type="button"
+          disabled={create.isPending}
+          onClick={() => create.mutate()}
+        >
+          Create it
+        </button>
+        <ErrorLine error={create.error} />
+      </section>
+    )
+  }
+  if (!enrolment.isSuccess) return <ErrorLine error={enrolment.error} />
+  return (
+    <>
+      <Materials course={course} user={user} />
+      <Notes course={course} user={user} />
+      <Ask course={course} user={user} />
+    </>
+  )
+}
+
+function StatusBadge({ status }: { status: IngestStatus | NoteStatus }) {
   return (
     <span className={`rounded px-2 py-0.5 text-xs ${statusColor[status]}`}>
       {status}
@@ -187,10 +236,7 @@ function Materials({ course, user }: Scope) {
       <ErrorLine error={materials.error} />
       <ul className="divide-y divide-gray-200">
         {materials.data?.map((m) => (
-          <li
-            key={m.filename}
-            className="flex flex-wrap items-center gap-2 py-1"
-          >
+          <li key={m.id} className="flex flex-wrap items-center gap-2 py-1">
             <span className="text-sm">{m.filename}</span>
             <StatusBadge status={m.status} />
             {m.status === 'failed' && m.error && (
@@ -214,11 +260,14 @@ function Notes({ course, user }: Scope) {
     queryFn: () => listNotes(user, course),
     refetchInterval: (q) => pollWhilePending<Note>(q.state.data),
   })
-  const [noteId, setNoteId] = useState('n1')
+  const [noteId, setNoteId] = useState<string | undefined>(undefined)
   const [body, setBody] = useState('')
   const save = useMutation({
-    mutationFn: () => saveNote(user, course, noteId, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
+    mutationFn: () => saveNote(user, course, body, noteId),
+    onSuccess: (note) => {
+      setNoteId(note.id)
+      return queryClient.invalidateQueries({ queryKey: key })
+    },
   })
 
   return (
@@ -231,13 +280,6 @@ function Notes({ course, user }: Scope) {
           save.mutate()
         }}
       >
-        <input
-          className={inputClass}
-          value={noteId}
-          pattern="[A-Za-z0-9_\-]{1,64}"
-          placeholder="note id"
-          onChange={(e) => setNoteId(e.target.value)}
-        />
         <textarea
           className={`${inputClass} block w-full`}
           rows={4}
@@ -245,20 +287,41 @@ function Notes({ course, user }: Scope) {
           placeholder="Markdown body"
           onChange={(e) => setBody(e.target.value)}
         />
-        <button
-          className={buttonClass}
-          type="submit"
-          disabled={!noteId || !body.trim() || save.isPending}
-        >
-          {save.isPending ? 'Saving…' : 'Save'}
-        </button>
+        <div className="flex gap-2">
+          <button
+            className={buttonClass}
+            type="submit"
+            disabled={!body.trim() || save.isPending}
+          >
+            {save.isPending ? 'Saving…' : 'Save'}
+          </button>
+          <button
+            className="rounded border border-gray-300 px-3 py-1 text-sm"
+            type="button"
+            onClick={() => {
+              setNoteId(undefined)
+              setBody('')
+            }}
+          >
+            New note
+          </button>
+        </div>
       </form>
       <ErrorLine error={save.error} />
       <ErrorLine error={notes.error} />
       <ul className="divide-y divide-gray-200">
         {notes.data?.map((n) => (
           <li key={n.id} className="flex flex-wrap items-center gap-2 py-1">
-            <span className="font-mono text-sm">{n.id}</span>
+            <button
+              className="font-mono text-sm underline"
+              type="button"
+              onClick={() => {
+                setNoteId(n.id)
+                setBody(n.body_md)
+              }}
+            >
+              {n.id.slice(0, 8)}
+            </button>
             <StatusBadge status={n.status} />
             <span className="text-sm text-gray-600">
               {n.body_md.slice(0, 80)}
@@ -285,7 +348,7 @@ function Ask({ course, user }: Scope) {
   const sessionKey = ['session', course, user, sessionId]
   const session = useQuery({
     queryKey: sessionKey,
-    queryFn: () => getSession(user, course, sessionId),
+    queryFn: () => getSession(user, sessionId),
     enabled: sessionId !== '',
     retry: false,
   })
@@ -301,29 +364,31 @@ function Ask({ course, user }: Scope) {
   const [queryType, setQueryType] = useState<QueryType>('GRAPH_COMPLETION')
   const submit = useMutation({
     mutationFn: (req: { question: string; query_type: QueryType }) =>
-      ask(user, course, { ...req, session_id: sessionId || null }),
+      ask(user, course, { ...req, session: sessionId || null }),
     onSuccess: (res, req) => {
-      const userTurn: Turn = {
+      const now = new Date().toISOString()
+      const asked: Turn = {
+        id: `${res.turn.id}-question`,
+        session_id: res.session,
         role: 'user',
-        content: req.question,
-        query_type: req.query_type,
-        results: [],
+        content_json: { text: req.question, query_type: req.query_type },
+        cited_chunk_ids: [],
         used_notes: false,
         latency_ms: null,
-        created_at: new Date().toISOString(),
+        created_at: now,
       }
       queryClient.setQueryData<Session>(
-        ['session', course, user, res.session_id],
+        ['session', course, user, res.session],
         (prev) => ({
-          id: res.session_id,
-          course,
-          owner: user,
-          created_at: userTurn.created_at,
+          id: res.session,
+          course_id: course,
+          created_at: now,
           ...prev,
-          turns: [...(prev?.turns ?? []), userTurn, res.turn],
+          last_turn_at: now,
+          turns: [...(prev?.turns ?? []), asked, res.turn],
         }),
       )
-      setSessionId(res.session_id)
+      setSessionId(res.session)
       setQuestion('')
     },
   })
@@ -382,9 +447,9 @@ function Ask({ course, user }: Scope) {
         <p className="font-mono text-xs text-gray-500">session {sessionId}</p>
       )}
       <ol className="space-y-3">
-        {turns.map((t, i) => (
-          <li key={t.id ?? i}>
-            <TurnView turn={t} />
+        {turns.map((t) => (
+          <li key={t.id}>
+            <TurnView turn={t} user={user} />
           </li>
         ))}
       </ol>
@@ -392,28 +457,39 @@ function Ask({ course, user }: Scope) {
   )
 }
 
-function TurnView({ turn }: { turn: Turn }) {
+function TurnView({ turn, user }: { turn: Turn; user: string }) {
+  const rate = useMutation({
+    mutationFn: (rating: 1 | -1) => rateTurn(user, turn.id, rating),
+  })
   if (turn.role === 'user') {
     return (
       <p className="rounded bg-gray-100 px-3 py-2 text-sm">
         <span className="font-semibold">You: </span>
-        {turn.content}
+        {turn.content_json.text}
       </p>
     )
   }
+  const results = turn.content_json.results ?? []
   return (
     <div className="space-y-2 rounded border border-gray-200 px-3 py-2">
-      {turn.results.map((r) => (
+      {results.map((r) => (
         <TierView key={r.tier} result={r} />
       ))}
-      {turn.results.length === 0 && (
+      {results.length === 0 && (
         <p className="text-sm italic text-gray-500">
           Nothing cognified in this course yet.
         </p>
       )}
-      <p className="text-xs text-gray-500">
+      <p className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
         used_notes: {String(turn.used_notes)} · {turn.latency_ms ?? '?'} ms ·{' '}
-        {turn.query_type ?? '?'}
+        {turn.content_json.query_type ?? '?'}
+        <button type="button" onClick={() => rate.mutate(1)}>
+          helpful
+        </button>
+        <button type="button" onClick={() => rate.mutate(-1)}>
+          not helpful
+        </button>
+        {rate.isSuccess && <span>rated</span>}
       </p>
     </div>
   )

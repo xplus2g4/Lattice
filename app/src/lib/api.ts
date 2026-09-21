@@ -1,6 +1,9 @@
 const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
-export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
+export type IngestStatus =
+  'queued' | 'converting' | 'cognifying' | 'ready' | 'failed'
+
+export type NoteStatus = 'dirty' | 'indexing' | 'ready' | 'failed'
 
 export type QueryType =
   'GRAPH_COMPLETION' | 'RAG_COMPLETION' | 'HYBRID_COMPLETION' | 'CHUNKS'
@@ -12,22 +15,47 @@ export const QUERY_TYPES: ReadonlyArray<QueryType> = [
   'CHUNKS',
 ]
 
+export interface Course {
+  id: string
+  code: string
+  name: string
+  term: string | null
+  owner_user_id: string
+  global_dataset_name: string
+  created_at: string
+}
+
 export interface Material {
-  course: string
+  id: string
+  course_id: string
+  title: string
   filename: string
+  week: number | null
+  lecture_no: number | null
+  kind: string | null
+  page_count: number | null
+  sha256: string
   status: IngestStatus
   error: string | null
+  created_by: string
   created_at: string
   updated_at: string
 }
 
+export interface Upload {
+  material: Material
+  deduplicated: boolean
+}
+
 export interface Note {
-  course: string
-  owner: string
   id: string
+  course_id: string
+  material_id: string | null
+  page: number | null
   body_md: string
-  status: IngestStatus
+  status: NoteStatus
   error: string | null
+  created_at: string
   updated_at: string
 }
 
@@ -49,12 +77,19 @@ export interface TierResult {
   evidence: Array<Evidence>
 }
 
-export interface Turn {
-  id?: string
-  role: 'user' | 'assistant'
-  content: string
+/** What a Turn says: the text, and for an answer the Tier results behind it. */
+export interface TurnContent {
+  text: string
   query_type: string | null
-  results: Array<TierResult>
+  results?: Array<TierResult>
+}
+
+export interface Turn {
+  id: string
+  session_id: string
+  role: 'user' | 'assistant'
+  content_json: TurnContent
+  cited_chunk_ids: Array<string>
   used_notes: boolean
   latency_ms: number | null
   created_at: string
@@ -62,20 +97,20 @@ export interface Turn {
 
 export interface Session {
   id: string
-  course: string
-  owner: string
+  course_id: string
   turns: Array<Turn>
   created_at: string
+  last_turn_at: string
 }
 
 export interface AskRequest {
   question: string
   query_type: QueryType
-  session_id?: string | null
+  session?: string | null
 }
 
 export interface AskResponse {
-  session_id: string
+  session: string
   turn: Turn
 }
 
@@ -139,43 +174,66 @@ function json(method: string, payload: unknown): RequestInit {
   }
 }
 
+function query(args: Record<string, string>) {
+  return `?${new URLSearchParams(args).toString()}`
+}
+
+export function joinCourse(user: string, course: string) {
+  return request<unknown>(user, '/enrolments.join', json('POST', { course }))
+}
+
+export function createCourse(user: string, code: string, name: string) {
+  return request<Course>(user, '/courses.create', json('POST', { code, name }))
+}
+
 export function listMaterials(user: string, course: string) {
-  return request<Array<Material>>(user, `/courses/${course}/materials`)
+  return request<Array<Material>>(user, `/materials.list${query({ course })}`)
 }
 
 export function uploadMaterial(user: string, course: string, file: File) {
   const form = new FormData()
+  form.append('course', course)
   form.append('file', file)
-  return request<Material>(user, `/courses/${course}/materials`, {
+  return request<Upload>(user, '/materials.upload', {
     method: 'POST',
     body: form,
   })
 }
 
 export function listNotes(user: string, course: string) {
-  return request<Array<Note>>(user, `/courses/${course}/notes`)
+  return request<Array<Note>>(user, `/notes.list${query({ course })}`)
 }
 
 export function saveNote(
   user: string,
   course: string,
-  id: string,
   body_md: string,
+  note?: string,
 ) {
   return request<Note>(
     user,
-    `/courses/${course}/notes/${encodeURIComponent(id)}`,
-    json('PUT', { body_md }),
+    '/notes.save',
+    json('POST', { course, body_md, note }),
   )
 }
 
 export function ask(user: string, course: string, req: AskRequest) {
-  return request<AskResponse>(user, `/courses/${course}/ask`, json('POST', req))
+  return request<AskResponse>(user, '/ask', json('POST', { course, ...req }))
 }
 
-export function getSession(user: string, course: string, id: string) {
-  return request<Session>(
+export function getSession(user: string, session: string) {
+  return request<Session>(user, `/sessions.get${query({ session })}`)
+}
+
+export function rateTurn(
+  user: string,
+  turn: string,
+  rating: 1 | -1,
+  comment?: string,
+) {
+  return request<{ rating: number }>(
     user,
-    `/courses/${course}/sessions/${encodeURIComponent(id)}`,
+    '/feedback.record',
+    json('POST', { turn, rating, comment }),
   )
 }

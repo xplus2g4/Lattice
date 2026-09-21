@@ -24,7 +24,7 @@ from cognee.modules.users.models import User
 from cognee.modules.users.permissions.methods import give_permission_on_dataset
 
 from lattice.config import Settings
-from lattice.registry import Evidence, TierResult
+from lattice.retrieval import Evidence, TierResult
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
