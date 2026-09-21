@@ -40,6 +40,44 @@ class EnrolmentOut(Record):
     created_at: datetime
 
 
+class MaterialOut(Record):
+    id: UUID
+    course_id: UUID
+    title: str
+    filename: str
+    week: int | None
+    lecture_no: int | None
+    kind: str | None
+    page_count: int | None
+    sha256: str
+    status: str
+    error: str | None
+    created_by: UUID
+    created_at: datetime
+    updated_at: datetime
+
+
+class UploadOut(BaseModel):
+    material: MaterialOut
+    # True when the course already held these bytes, so nothing was cognified again.
+    deduplicated: bool
+
+
+class TopicOut(Record):
+    id: UUID
+    material_id: UUID
+    label: str
+    page_start: int
+    page_end: int
+    position: int
+
+
+class ReadingPositionOut(Record):
+    material_id: UUID
+    page: int
+    updated_at: datetime
+
+
 class MeOut(BaseModel):
     user: UserOut
     courses: list[CourseOut]

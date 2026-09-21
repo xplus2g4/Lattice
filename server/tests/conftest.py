@@ -7,16 +7,21 @@ see each other's schema but never each other's rows.
 
 import os
 from collections.abc import AsyncIterator, Iterator
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, UUID, uuid5
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession, create_async_engine
+from sqlalchemy.ext.asyncio import (
+    AsyncConnection,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.sql import text
 
-from lattice.api.deps import get_engine, get_session
+from lattice.api.deps import get_engine, get_ingest, get_session
 from lattice.config import Settings, get_settings
 from lattice.db.migrate import upgrade
 from lattice.main import create_app
@@ -102,13 +107,36 @@ class FakeEngine:
 
     def __init__(self) -> None:
         self.enrolled: list[tuple[str, str]] = []
+        self.cognified: list[str] = []
+        self.fail_with: Exception | None = None
 
     async def principal(self, email: str) -> FakePrincipal:
         return FakePrincipal(email)
 
+    async def instructor(self) -> FakePrincipal:
+        return FakePrincipal("instructor@lattice.example")
+
     async def enrol(self, course: str, user: FakePrincipal) -> tuple[FakeDataset, FakeDataset]:
         self.enrolled.append((course, user.email))
         return FakeDataset(f"{course}-global"), FakeDataset(f"{course}-user-{user.id}")
+
+    async def global_dataset(self, course: str) -> FakeDataset:
+        return FakeDataset(f"{course}-global")
+
+    async def replace(self, dataset: FakeDataset, owner: FakePrincipal, path) -> None:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.cognified.append(str(path))
+
+
+class RecordingIngest:
+    """Captures what the request queued, instead of cognifying in the background."""
+
+    def __init__(self) -> None:
+        self.queued: list[UUID] = []
+
+    async def material(self, material_id: UUID) -> None:
+        self.queued.append(material_id)
 
 
 @pytest.fixture
@@ -117,7 +145,25 @@ def engine() -> FakeEngine:
 
 
 @pytest.fixture
-def app(settings: Settings, session: AsyncSession, engine: FakeEngine) -> Iterator[FastAPI]:
+def ingest() -> RecordingIngest:
+    return RecordingIngest()
+
+
+@pytest.fixture
+def sessionmaker(connection: AsyncConnection) -> async_sessionmaker:
+    """Sessions for code that opens its own, still inside the test's rolled-back transaction."""
+    return async_sessionmaker(
+        connection, expire_on_commit=False, join_transaction_mode="create_savepoint"
+    )
+
+
+@pytest.fixture
+def app(
+    settings: Settings,
+    session: AsyncSession,
+    engine: FakeEngine,
+    ingest: RecordingIngest,
+) -> Iterator[FastAPI]:
     app = create_app(settings)
 
     async def override() -> AsyncIterator[AsyncSession]:
@@ -131,6 +177,7 @@ def app(settings: Settings, session: AsyncSession, engine: FakeEngine) -> Iterat
 
     app.dependency_overrides[get_session] = override
     app.dependency_overrides[get_engine] = lambda: engine
+    app.dependency_overrides[get_ingest] = lambda: ingest
     app.dependency_overrides[get_settings] = lambda: settings
     yield app
     app.dependency_overrides.clear()

@@ -1,100 +1,173 @@
-from pathlib import Path
+"""Material records: upload, deduplication, status, retry, deletion, and access control."""
 
 import pytest
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
-from lattice.config import Settings, get_settings
-from lattice.main import create_app
+pytestmark = pytest.mark.asyncio
 
-USER = {"X-User": "alice@example.com"}
+BOB = {"X-User": "bob@example.com"}
 
 
-@pytest.fixture()
-def client(tmp_path: Path):
-    settings = Settings(
-        dev_header_auth=True,
-        uploads_dir=tmp_path / "uploads",
-        cognee_root=tmp_path / "cognee",
-        cors_origins=[],
+async def join(client: AsyncClient, code: str = "cs3216", **kwargs) -> None:
+    await client.post(
+        "/courses.create", json={"code": code, "name": "Software Engineering"}, **kwargs
     )
-    app = create_app(settings)
-    # Endpoints resolve Settings through the cached get_settings dependency,
-    # not the app constructor, so tests must override it.
-    app.dependency_overrides[get_settings] = lambda: settings
-    return TestClient(app)
+    await client.post("/enrolments.join", json={"course": code}, **kwargs)
 
 
-def seed_file(client: TestClient, course: str, name: str, body: bytes = b"x") -> Path:
-    uploads = client.app.dependency_overrides[get_settings]().uploads_dir
-    path = uploads / course / name
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(body)
-    return path
+def upload_args(content: bytes = b"week one slides", filename: str = "week1.pdf", course="cs3216"):
+    return {"data": {"course": course}, "files": {"file": (filename, content, "application/pdf")}}
 
 
-def test_courses_requires_auth(client: TestClient) -> None:
-    assert client.get("/courses").status_code == 401
+async def upload(client: AsyncClient, headers: dict | None = None, **kwargs) -> dict:
+    response = await client.post("/materials.upload", headers=headers, **upload_args(**kwargs))
+    assert response.status_code == 202, response.text
+    return response.json()
 
 
-def test_courses_empty(client: TestClient) -> None:
-    assert client.get("/courses", headers=USER).json() == []
+async def test_upload_persists_a_queued_material(student: AsyncClient, ingest) -> None:
+    await join(student)
+    body = await upload(student)
+
+    material = body["material"]
+    assert body["deduplicated"] is False
+    assert material["status"] == "queued"
+    assert material["filename"] == "week1.pdf"
+    assert material["sha256"]
+    assert [str(queued) for queued in ingest.queued] == [material["id"]]
 
 
-def test_courses_discovers_upload_dirs(client: TestClient) -> None:
-    seed_file(client, "cs3216", "lecture-1.pdf")
-    seed_file(client, "cs3216", "lecture-2.pdf")
-    seed_file(client, "cs2040s", "tutorial.md")
-    (client.app.dependency_overrides[get_settings]().uploads_dir / "NOT-A-COURSE").mkdir()
+async def test_material_survives_the_request(student: AsyncClient) -> None:
+    await join(student)
+    material = (await upload(student))["material"]
 
-    res = client.get("/courses", headers=USER)
-    assert res.status_code == 200
-    assert res.json() == [
-        {"code": "cs2040s", "material_count": 1, "note_count": 0, "pending_count": 0},
-        {"code": "cs3216", "material_count": 2, "note_count": 0, "pending_count": 0},
-    ]
+    response = await student.get("/materials.get", params={"material": material["id"]})
+    assert response.status_code == 200
+    assert response.json()["id"] == material["id"]
 
 
-def test_materials_lists_disk_files_as_ready(client: TestClient) -> None:
-    seed_file(client, "cs3216", "lecture-1.pdf")
+async def test_same_bytes_join_the_existing_material(student: AsyncClient, ingest) -> None:
+    """#34: the second upload of a file already in the course cognifies nothing."""
+    await join(student)
+    first = (await upload(student))["material"]
 
-    res = client.get("/courses/cs3216/materials", headers=USER)
-    assert res.status_code == 200
-    [material] = res.json()
-    assert material["filename"] == "lecture-1.pdf"
-    assert material["status"] == "ready"
-
-
-def test_materials_skips_notes_dir_and_dotfiles(client: TestClient) -> None:
-    seed_file(client, "cs3216", "notes/u1/n1.md")
-    seed_file(client, "cs3216", ".DS_Store")
-    seed_file(client, "cs3216", "slides.pdf")
-
-    res = client.get("/courses/cs3216/materials", headers=USER)
-    assert [m["filename"] for m in res.json()] == ["slides.pdf"]
+    body = await upload(student, filename="copy-of-week1.pdf")
+    assert body["deduplicated"] is True
+    assert body["material"]["id"] == first["id"]
+    assert len(ingest.queued) == 1
 
 
-def test_get_material_streams_file(client: TestClient) -> None:
-    seed_file(client, "cs3216", "memo.txt", b"hello lattice")
+async def test_same_bytes_in_another_course_are_a_separate_material(student: AsyncClient) -> None:
+    await join(student, "cs3216")
+    await join(student, "cs3217")
+    first = (await upload(student))["material"]
 
-    res = client.get("/courses/cs3216/materials/memo.txt", headers=USER)
-    assert res.status_code == 200
-    assert res.content == b"hello lattice"
-
-
-def test_get_material_missing(client: TestClient) -> None:
-    res = client.get("/courses/cs3216/materials/nope.pdf", headers=USER)
-    assert res.status_code == 404
+    second = (await upload(student, course="cs3217"))["material"]
+    assert second["id"] != first["id"]
+    assert second["sha256"] == first["sha256"]
 
 
-def test_get_material_rejects_traversal(client: TestClient) -> None:
-    seed_file(client, "cs3216", "notes/u1/n1.md")
+async def test_upload_rejects_unsupported_types(student: AsyncClient) -> None:
+    await join(student)
+    response = await student.post(
+        "/materials.upload", **upload_args(filename="lecture.mp4", content=b"...")
+    )
+    assert response.status_code == 415
 
-    res = client.get("/courses/cs3216/materials/notes%2Fu1%2Fn1.md", headers=USER)
-    # 400 if the guard sees the decoded slash; 404 if routing rejects it first.
-    assert res.status_code in (400, 404)
+
+async def test_upload_requires_enrolment(student: AsyncClient) -> None:
+    await join(student)
+
+    response = await student.post("/materials.upload", headers=BOB, **upload_args())
+    assert response.status_code == 403
 
 
-def test_sessions_empty(client: TestClient) -> None:
-    res = client.get("/courses/cs3216/sessions", headers=USER)
-    assert res.status_code == 200
-    assert res.json() == []
+async def test_list_is_scoped_to_the_course(student: AsyncClient) -> None:
+    await join(student, "cs3216")
+    await join(student, "cs3217")
+    await upload(student)
+    await upload(student, content=b"tutorial one", filename="t1.pdf", course="cs3217")
+
+    response = await student.get("/materials.list", params={"course": "cs3216"})
+    assert [m["filename"] for m in response.json()] == ["week1.pdf"]
+
+
+async def test_outsiders_cannot_read_a_material(student: AsyncClient) -> None:
+    await join(student)
+    material = (await upload(student))["material"]
+
+    response = await student.get("/materials.get", params={"material": material["id"]}, headers=BOB)
+    assert response.status_code == 403
+
+
+async def test_metadata_update_is_the_uploaders(student: AsyncClient) -> None:
+    await join(student)
+    material = (await upload(student))["material"]
+
+    response = await student.post(
+        "/materials.update",
+        json={"material": material["id"], "week": 1, "kind": "slides", "title": "Week 1"},
+    )
+    assert response.status_code == 200
+    assert response.json()["week"] == 1
+    assert response.json()["kind"] == "slides"
+    assert response.json()["title"] == "Week 1"
+
+
+async def test_a_classmate_cannot_change_someone_elses_material(student: AsyncClient) -> None:
+    await join(student)
+    material = (await upload(student))["material"]
+    await student.post("/enrolments.join", json={"course": "cs3216"}, headers=BOB)
+
+    response = await student.post(
+        "/materials.update", json={"material": material["id"], "week": 2}, headers=BOB
+    )
+    assert response.status_code == 403
+
+
+async def test_retry_only_applies_to_a_failed_ingest(student: AsyncClient, session, ingest) -> None:
+    """#35: the status is durable, and a stuck-looking queued material is not requeued."""
+    from lattice.db.repo import materials
+
+    await join(student)
+    material = (await upload(student))["material"]
+
+    queued = await student.post("/materials.retry", json={"material": material["id"]})
+    assert queued.status_code == 409
+
+    row = await materials.get(session, material["id"])
+    await materials.set_status(session, row, "failed", "boom")
+    await session.commit()
+
+    assert (await student.get("/materials.get", params={"material": material["id"]})).json()[
+        "error"
+    ] == "boom"
+    retried = await student.post("/materials.retry", json={"material": material["id"]})
+    assert retried.status_code == 202
+    assert retried.json()["status"] == "queued"
+    assert retried.json()["error"] is None
+    assert len(ingest.queued) == 2
+
+
+async def test_delete_removes_the_material(student: AsyncClient) -> None:
+    await join(student)
+    material = (await upload(student))["material"]
+
+    assert (await student.post("/materials.delete", json={"material": material["id"]})).json() == {
+        "deleted": True
+    }
+    gone = await student.get("/materials.get", params={"material": material["id"]})
+    assert gone.status_code == 404
+
+
+async def test_the_course_owner_may_remove_a_classmates_upload(student: AsyncClient) -> None:
+    await join(student)
+    await student.post("/enrolments.join", json={"course": "cs3216"}, headers=BOB)
+    material = (await upload(student, headers=BOB))["material"]
+
+    deleted = await student.post("/materials.delete", json={"material": material["id"]})
+    assert deleted.status_code == 200
+
+
+async def test_materials_need_an_identity(client: AsyncClient) -> None:
+    assert (await client.get("/materials.list", params={"course": "cs3216"})).status_code == 401
