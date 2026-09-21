@@ -98,3 +98,7 @@ A product feature milestone: Phase 1 is knowledge retrieval, Phase 2 is relation
 
 **Stage**:
 An engine implementation milestone: Stage 1 is Cognee-backed, Stage 2 is pgvector plus an own concept graph. Distinct from Phase.
+
+**Approved / Rejected**:
+The two outcomes of an evaluation, whether of a candidate engine or of an alternative in an ADR.
+_Avoid_: go/no-go, go, no-go, greenlit

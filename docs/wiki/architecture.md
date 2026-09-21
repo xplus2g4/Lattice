@@ -1,6 +1,6 @@
 # Architecture
 
-Course knowledge store, Stage 1 (Cognee-backed). Status: draft, pending the go/no-go of 10 Sep 2026.
+Course knowledge store, Stage 1 (Cognee-backed). This page describes the target Stage 1 system; `server/` is catching up to it.
 
 This is the one-page view: what the system does, its shape, and the decisions that hold it up. Detail lives in the topic pages:
 
