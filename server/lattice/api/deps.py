@@ -10,7 +10,6 @@ from lattice.db import Database
 from lattice.db.models import User
 from lattice.db.repo import users
 from lattice.engine import Engine
-from lattice.ingest import Ingest
 
 COURSE_CODE = re.compile(r"^[a-z][a-z0-9]{1,15}$")
 
@@ -21,10 +20,6 @@ def get_engine(request: Request) -> Engine:
     return request.app.state.engine
 
 
-def get_ingest(request: Request) -> Ingest:
-    return request.app.state.ingest
-
-
 async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
     database: Database = request.app.state.database
     async for session in database.session():
@@ -32,7 +27,6 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 
 EngineDep = Annotated[Engine, Depends(get_engine)]
-IngestDep = Annotated[Ingest, Depends(get_ingest)]
 SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 

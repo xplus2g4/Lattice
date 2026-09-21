@@ -9,6 +9,7 @@ uv sync                                   # installs Python 3.14 and dependencie
 cp .env.example .env                      # then set LLM_API_KEY (DeepSeek)
 uv run alembic upgrade head               # application tables in Postgres
 uv run uvicorn lattice.main:app --reload  # http://localhost:8000, docs at /docs
+uv run python -m lattice.worker           # the queue consumer; nothing cognifies without it
 uv run pytest                             # needs Postgres; see below
 uv run ruff check . && uv run ruff format .
 ```
@@ -25,9 +26,16 @@ POST with a JSON body for writes (`/me.get`, `/courses.search`, `/courses.create
 kept in memory any more: the `/courses/{course}/...` routes and `registry.py` are gone.
 
 Materials are content-addressed: `/materials.upload` hashes the bytes and a file already in the
-course comes back as the existing Material with `deduplicated: true`, cognifying nothing. Ingest
-runs in the background and writes `status` (`queued`, `cognifying`, `ready`, `failed`) plus `error`
-onto the Material; `/materials.retry` requeues a failed one.
+course comes back as the existing Material with `deduplicated: true`, cognifying nothing. Uploading
+queues a job in the same transaction as the Material and returns; the Worker runs the ingest and
+writes `status` (`queued`, `cognifying`, `ready`, `failed`) plus `error` onto the Material;
+`/materials.retry` requeues a failed one.
+
+The queue is the `jobs` table, claimed with `SELECT … FOR UPDATE SKIP LOCKED` ([ADR
+0003](../docs/adr/0003-postgres-table-job-queue.md)), so several workers can run and a worker that
+dies has its lock released after `WORKER_LOCK_TTL_SECONDS` and its job retried. A job's
+`dedupe_key` is one per Material or Note, so autosaving the same Note ten times cognifies once.
+Nothing writes to the queue over HTTP; `/jobs.list` reads it, for admins only.
 
 A Note is private to the student who wrote it: `/notes.save` is an upsert on (student, material,
 page), so autosaving a page rewrites one row rather than piling them up, and a Note with no

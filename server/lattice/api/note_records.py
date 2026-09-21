@@ -2,14 +2,14 @@
 
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lattice.api.deps import COURSE_CODE, CurrentUser, IngestDep, SessionDep
+from lattice.api.deps import COURSE_CODE, CurrentUser, SessionDep
 from lattice.api.schemas import NoteOut
 from lattice.db.models import Material, Note, User
-from lattice.db.repo import courses, materials, notes
+from lattice.db.repo import courses, jobs, materials, notes
 
 router = APIRouter(tags=["notes"])
 
@@ -52,13 +52,7 @@ async def _material(session: AsyncSession, user: User, material_id: UUID | None)
 
 
 @router.post("/notes.save", status_code=202)
-async def save_note(
-    body: SaveNote,
-    user: CurrentUser,
-    session: SessionDep,
-    ingest: IngestDep,
-    background: BackgroundTasks,
-) -> NoteOut:
+async def save_note(body: SaveNote, user: CurrentUser, session: SessionDep) -> NoteOut:
     """Upserts on (student, material, page) when anchored, so autosave never piles up rows."""
     course = await courses.by_code(session, body.course)
     if course is None:
@@ -76,7 +70,13 @@ async def save_note(
         note=None if body.note is None else await _own_note(session, user, body.note),
     )
     if not user.notes_opt_out:
-        background.add_task(ingest.note, note.id)
+        # One job per Note: autosaving the same page again revives it instead of adding one.
+        await jobs.enqueue(
+            session,
+            kind="index_note",
+            payload={"note_id": str(note.id)},
+            dedupe_key=f"index_note:{note.id}",
+        )
     return NoteOut.model_validate(note)
 
 

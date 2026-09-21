@@ -21,7 +21,7 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.sql import text
 
-from lattice.api.deps import get_engine, get_ingest, get_session
+from lattice.api.deps import get_engine, get_session
 from lattice.config import Settings, get_settings
 from lattice.db.migrate import upgrade
 from lattice.main import create_app
@@ -146,28 +146,9 @@ class FakeEngine:
         return [result for result in self.results if result.tier in tiers]
 
 
-class RecordingIngest:
-    """Captures what the request queued, instead of cognifying in the background."""
-
-    def __init__(self) -> None:
-        self.queued: list[UUID] = []
-        self.notes: list[UUID] = []
-
-    async def material(self, material_id: UUID) -> None:
-        self.queued.append(material_id)
-
-    async def note(self, note_id: UUID) -> None:
-        self.notes.append(note_id)
-
-
 @pytest.fixture
 def engine() -> FakeEngine:
     return FakeEngine()
-
-
-@pytest.fixture
-def ingest() -> RecordingIngest:
-    return RecordingIngest()
 
 
 @pytest.fixture
@@ -179,12 +160,7 @@ def sessionmaker(connection: AsyncConnection) -> async_sessionmaker:
 
 
 @pytest.fixture
-def app(
-    settings: Settings,
-    session: AsyncSession,
-    engine: FakeEngine,
-    ingest: RecordingIngest,
-) -> Iterator[FastAPI]:
+def app(settings: Settings, session: AsyncSession, engine: FakeEngine) -> Iterator[FastAPI]:
     app = create_app(settings)
 
     async def override() -> AsyncIterator[AsyncSession]:
@@ -198,7 +174,6 @@ def app(
 
     app.dependency_overrides[get_session] = override
     app.dependency_overrides[get_engine] = lambda: engine
-    app.dependency_overrides[get_ingest] = lambda: ingest
     app.dependency_overrides[get_settings] = lambda: settings
     yield app
     app.dependency_overrides.clear()

@@ -6,14 +6,14 @@ from pathlib import PurePosixPath
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lattice.api.deps import COURSE_CODE, CurrentUser, IngestDep, SessionDep, SettingsDep
+from lattice.api.deps import COURSE_CODE, CurrentUser, SessionDep, SettingsDep
 from lattice.api.schemas import MaterialOut, ReadingPositionOut, TopicOut, UploadOut
 from lattice.db.models import Course, Material, User
-from lattice.db.repo import courses, materials
+from lattice.db.repo import courses, jobs, materials
 
 router = APIRouter(tags=["materials"])
 
@@ -73,13 +73,21 @@ async def _writable(session: AsyncSession, user: User, material_id: UUID) -> Mat
     return material
 
 
+async def _queue_ingest(session: AsyncSession, material: Material) -> None:
+    """Queued in the request's transaction, so the Material and its job commit together."""
+    await jobs.enqueue(
+        session,
+        kind="ingest_material",
+        payload={"material_id": str(material.id)},
+        dedupe_key=f"ingest_material:{material.id}",
+    )
+
+
 @router.post("/materials.upload", status_code=202)
 async def upload_material(
     user: CurrentUser,
     session: SessionDep,
     settings: SettingsDep,
-    ingest: IngestDep,
-    background: BackgroundTasks,
     course: Annotated[str, Form(pattern=COURSE_CODE.pattern)],
     file: Annotated[UploadFile, File()],
 ) -> UploadOut:
@@ -112,7 +120,7 @@ async def upload_material(
         storage_uri=str(target),
         sha256=sha256,
     )
-    background.add_task(ingest.material, material.id)
+    await _queue_ingest(session, material)
     return UploadOut(material=MaterialOut.model_validate(material), deduplicated=False)
 
 
@@ -146,19 +154,13 @@ async def update_material(
 
 
 @router.post("/materials.retry", status_code=202)
-async def retry_material(
-    body: MaterialRef,
-    user: CurrentUser,
-    session: SessionDep,
-    ingest: IngestDep,
-    background: BackgroundTasks,
-) -> MaterialOut:
+async def retry_material(body: MaterialRef, user: CurrentUser, session: SessionDep) -> MaterialOut:
     """Only a failed ingest is retried; a running one would be cognified twice (#35)."""
     row = await _writable(session, user, body.material)
     if row.status != "failed":
         raise HTTPException(409, f"material is {row.status}, not failed")
     await materials.set_status(session, row, "queued")
-    background.add_task(ingest.material, row.id)
+    await _queue_ingest(session, row)
     return MaterialOut.model_validate(row)
 
 

@@ -2,7 +2,9 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
 
+from lattice.db.models import Job
 from tests.test_materials import BOB, join, upload
 
 pytestmark = pytest.mark.asyncio
@@ -11,6 +13,10 @@ pytestmark = pytest.mark.asyncio
 async def material_id(client: AsyncClient) -> str:
     await join(client)
     return (await upload(client))["material"]["id"]
+
+
+async def queued_indexings(session) -> list[Job]:
+    return list(await session.scalars(select(Job).where(Job.kind == "index_note")))
 
 
 async def save(client: AsyncClient, headers: dict | None = None, **body) -> dict:
@@ -96,19 +102,32 @@ async def test_the_same_page_holds_one_note_per_student(student: AsyncClient) ->
     assert theirs["id"] != mine["id"]
 
 
-async def test_saving_queues_indexing_into_the_private_tier(student: AsyncClient, ingest) -> None:
+async def test_saving_queues_private_indexing(student: AsyncClient, session) -> None:
     await join(student)
     note = await save(student, body_md="hash tables")
 
-    assert [str(queued) for queued in ingest.notes] == [note["id"]]
+    jobs = await queued_indexings(session)
+    assert [job.payload_json["note_id"] for job in jobs] == [note["id"]]
 
 
-async def test_opting_out_keeps_the_note_out_of_the_engine(student: AsyncClient, ingest) -> None:
+async def test_autosaving_the_same_note_queues_one_job(student: AsyncClient, session) -> None:
+    """#38: five keystrokes' worth of autosave must not mean five cognify runs."""
+    material = await material_id(student)
+
+    for body in ("h", "ha", "has", "hash"):
+        await save(student, body_md=body, material=material, page=3)
+
+    jobs = await queued_indexings(session)
+    assert len(jobs) == 1
+    assert jobs[0].status == "pending"
+
+
+async def test_opting_out_keeps_the_note_out_of_the_engine(student: AsyncClient, session) -> None:
     await join(student)
     await student.post("/me.update", json={"notes_opt_out": True})
 
     await save(student, body_md="private, and staying that way")
-    assert ingest.notes == []
+    assert await queued_indexings(session) == []
 
 
 async def test_notes_need_enrolment(student: AsyncClient) -> None:

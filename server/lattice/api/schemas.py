@@ -157,6 +157,20 @@ class TopicStat(BaseModel):
     misses: int
 
 
+class JobOut(Record):
+    id: UUID
+    kind: str
+    payload_json: dict[str, Any]
+    status: str
+    attempts: int
+    run_after: datetime
+    dedupe_key: str | None
+    locked_by: str | None
+    last_error: str | None
+    created_at: datetime
+    updated_at: datetime
+
+
 class MeOut(BaseModel):
     user: UserOut
     courses: list[CourseOut]

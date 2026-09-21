@@ -2,6 +2,9 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy import select
+
+from lattice.db.models import Job
 
 pytestmark = pytest.mark.asyncio
 
@@ -19,13 +22,17 @@ def upload_args(content: bytes = b"week one slides", filename: str = "week1.pdf"
     return {"data": {"course": course}, "files": {"file": (filename, content, "application/pdf")}}
 
 
+async def queued_ingests(session) -> list[Job]:
+    return list(await session.scalars(select(Job).where(Job.kind == "ingest_material")))
+
+
 async def upload(client: AsyncClient, headers: dict | None = None, **kwargs) -> dict:
     response = await client.post("/materials.upload", headers=headers, **upload_args(**kwargs))
     assert response.status_code == 202, response.text
     return response.json()
 
 
-async def test_upload_persists_a_queued_material(student: AsyncClient, ingest) -> None:
+async def test_upload_persists_a_queued_material(student: AsyncClient, session) -> None:
     await join(student)
     body = await upload(student)
 
@@ -34,7 +41,8 @@ async def test_upload_persists_a_queued_material(student: AsyncClient, ingest) -
     assert material["status"] == "queued"
     assert material["filename"] == "week1.pdf"
     assert material["sha256"]
-    assert [str(queued) for queued in ingest.queued] == [material["id"]]
+    jobs = await queued_ingests(session)
+    assert [job.payload_json["material_id"] for job in jobs] == [material["id"]]
 
 
 async def test_material_survives_the_request(student: AsyncClient) -> None:
@@ -46,7 +54,7 @@ async def test_material_survives_the_request(student: AsyncClient) -> None:
     assert response.json()["id"] == material["id"]
 
 
-async def test_same_bytes_join_the_existing_material(student: AsyncClient, ingest) -> None:
+async def test_same_bytes_join_the_existing_material(student: AsyncClient, session) -> None:
     """#34: the second upload of a file already in the course cognifies nothing."""
     await join(student)
     first = (await upload(student))["material"]
@@ -54,7 +62,7 @@ async def test_same_bytes_join_the_existing_material(student: AsyncClient, inges
     body = await upload(student, filename="copy-of-week1.pdf")
     assert body["deduplicated"] is True
     assert body["material"]["id"] == first["id"]
-    assert len(ingest.queued) == 1
+    assert len(await queued_ingests(session)) == 1
 
 
 async def test_same_bytes_in_another_course_are_a_separate_material(student: AsyncClient) -> None:
@@ -125,7 +133,7 @@ async def test_a_classmate_cannot_change_someone_elses_material(student: AsyncCl
     assert response.status_code == 403
 
 
-async def test_retry_only_applies_to_a_failed_ingest(student: AsyncClient, session, ingest) -> None:
+async def test_retry_only_applies_to_a_failed_ingest(student: AsyncClient, session) -> None:
     """#35: the status is durable, and a stuck-looking queued material is not requeued."""
     from lattice.db.repo import materials
 
@@ -146,7 +154,9 @@ async def test_retry_only_applies_to_a_failed_ingest(student: AsyncClient, sessi
     assert retried.status_code == 202
     assert retried.json()["status"] == "queued"
     assert retried.json()["error"] is None
-    assert len(ingest.queued) == 2
+    # Retrying revives the material's one job rather than queueing a second cognify.
+    jobs = await queued_ingests(session)
+    assert [job.status for job in jobs] == ["pending"]
 
 
 async def test_delete_removes_the_material(student: AsyncClient) -> None:
