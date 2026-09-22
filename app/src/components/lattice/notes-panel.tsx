@@ -43,6 +43,7 @@ export function NotesPanel({ course, user }: Enrolment) {
       saveNote(user, course, note.id, note.body),
     onSuccess: () => {
       setEditing(null)
+      void queryClient.invalidateQueries({ queryKey: ['page-note', user] })
       return queryClient.invalidateQueries({ queryKey: key })
     },
   })

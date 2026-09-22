@@ -10,7 +10,11 @@ import type {
   AskRequest as RpcAskRequest,
   CourseOut,
   MaterialOut,
+  MeOut,
   NoteOut,
+  ReadingPositionOut,
+  SaveNote,
+  SetReadingPosition,
   SessionOut,
   TurnOut,
   UploadOut,
@@ -69,6 +73,14 @@ export interface Note {
   status: IngestStatus
   error: string | null
   updated_at: string
+}
+export type PageNote = Pick<
+  NoteOut,
+  'id' | 'body_md' | 'revision' | 'cognified_revision' | 'status' | 'error'
+>
+export interface ReaderMaterial {
+  id: string
+  filename: string
 }
 /** The (course, user) pair every call is made within: the caller's enrolment. */
 export interface Enrolment {
@@ -320,7 +332,17 @@ export async function downloadMaterial(
   course: string,
   filename: string,
 ): Promise<Blob> {
-  if (usesMockBackend()) return backend.downloadMaterial(user, course, filename)
+  const material = await getReaderMaterial(user, course, filename)
+  return downloadReaderMaterial(user, course, material)
+}
+
+export async function getReaderMaterial(
+  user: string,
+  course: string,
+  filename: string,
+): Promise<ReaderMaterial> {
+  if (usesMockBackend())
+    return backend.getReaderMaterial(user, course, filename)
   const rows = await request<Array<MaterialOut>>(
     user,
     query('/materials.list', { course }),
@@ -330,12 +352,81 @@ export async function downloadMaterial(
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .at(0)
   if (!row) throw new ApiError(404, 'no such material')
+  return { id: row.id, filename: row.filename }
+}
+
+export async function downloadReaderMaterial(
+  user: string,
+  course: string,
+  material: ReaderMaterial,
+): Promise<Blob> {
+  if (usesMockBackend())
+    return backend.downloadMaterial(user, course, material.filename)
   return (
     await fetchResponse(
       user,
-      query('/materials.download', { material: row.id }),
+      query('/materials.download', { material: material.id }),
     )
   ).blob()
+}
+
+export async function getPageNote(
+  user: string,
+  material: string,
+  page: number,
+) {
+  if (usesMockBackend()) return backend.getPageNote(user, material, page)
+  return request<PageNote | null>(
+    user,
+    query('/notes.get', { material, page: String(page) }),
+  )
+}
+
+export async function savePageNote(
+  user: string,
+  course: string,
+  material: string,
+  page: number,
+  body_md: string,
+  expected_revision: number,
+): Promise<PageNote> {
+  if (usesMockBackend())
+    return backend.savePageNote(
+      user,
+      course,
+      material,
+      page,
+      body_md,
+      expected_revision,
+    )
+  const body: SaveNote = { course, material, page, body_md, expected_revision }
+  return request<NoteOut>(user, '/notes.save', json(body))
+}
+
+export async function getReadingPosition(user: string, material: string) {
+  if (usesMockBackend()) return backend.getReadingPosition(user, material)
+  const position = await request<ReadingPositionOut | null>(
+    user,
+    query('/readingPosition.get', { material }),
+  )
+  return position?.page ?? 1
+}
+
+export async function saveReadingPosition(
+  user: string,
+  material: string,
+  page: number,
+) {
+  if (usesMockBackend())
+    return backend.saveReadingPosition(user, material, page)
+  const body: SetReadingPosition = { material, page }
+  return request<ReadingPositionOut>(user, '/readingPosition.set', json(body))
+}
+
+export async function notesCognifyEnabled(user: string) {
+  if (usesMockBackend()) return true
+  const me = await request<MeOut>(user, '/me.get')
+  return !me.user.notes_opt_out
 }
 export async function listMaterials(
   user: string,

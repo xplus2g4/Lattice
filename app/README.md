@@ -4,6 +4,19 @@ The browser-facing component of the course knowledge store: TanStack Start (Reac
 
 The app runs on demo data by default through `src/lib/mock-backend.ts`. Set `VITE_USE_MOCK_BACKEND=false` and `VITE_API_URL` to use the persistent RPC API instead. The shared facade normalizes server records for both the reader workspace and existing study routes.
 
+The Material reader shows one PDF Page at a time and restores each student's saved
+reading position. Text and Markdown Materials have one Page. Each Page has a private
+Note editor that autosaves after a short pause, on blur, and on navigation. Saving text
+and Cognify have separate status indicators. Failed saves retain a draft in this tab's
+session storage; revision conflicts require an explicit choice before replacing saved
+text. With demo data, API records still reset on reload; use the real API to verify
+persistence across browser sessions.
+
+Reader behavior lives in `components/lattice/material-viewer.tsx` and
+`page-note-editor.tsx`; `lib/page-note-draft.ts` owns serialized autosave and draft
+recovery independently of their layout. These use the existing Note and reading-position
+RPC contracts; no MCP connection is required.
+
 First time on a machine: `scripts/dev-setup.sh` from the repo root sets up both `app/` and `server/`. By hand:
 
 ```bash
