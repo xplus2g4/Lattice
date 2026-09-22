@@ -2,11 +2,12 @@
 Topic segmentation results (#41) and each student's reading position (#29)."""
 
 import hashlib
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -125,6 +126,17 @@ async def list_materials(course: str, user: CurrentUser, session: SessionDep) ->
 @router.get("/materials.get")
 async def get_material(material: UUID, user: CurrentUser, session: SessionDep) -> MaterialOut:
     return MaterialOut.model_validate(await _readable(session, user, material))
+
+
+@router.get("/materials.download", response_class=FileResponse)
+async def download_material(
+    material: UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> FileResponse:
+    row = await _readable(session, user, material)
+    path = Path(row.storage_uri).resolve()
+    if path.parent != (settings.uploads_dir / row.course.code).resolve() or not path.is_file():
+        raise HTTPException(404, "material bytes are unavailable")
+    return FileResponse(path, filename=row.filename)
 
 
 @router.post("/materials.update")

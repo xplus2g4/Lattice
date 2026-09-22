@@ -24,6 +24,7 @@ class Settings(BaseSettings):
 
     # Honour the `X-User` header as the caller's identity. Dev only; there is no OAuth yet.
     dev_header_auth: bool = False
+    mcp_enabled: bool = False
 
     # Principal that owns every course's global dataset and runs material ingest.
     instructor_email: str = "instructor@lattice.example"

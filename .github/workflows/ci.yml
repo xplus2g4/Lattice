@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# A second push to the same branch makes the first run irrelevant.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: lattice
+          POSTGRES_PASSWORD: lattice
+          POSTGRES_DB: lattice_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lattice -d lattice_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+      - run: uv sync --locked
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+      # contracts/openapi.json is generated from the response models, so a model change
+      # that skipped the export stops here rather than reaching the web app at runtime.
+      - name: Contract is up to date
+        run: uv run python scripts/export_openapi.py --check
+
+  app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      # The other half of the gate: regenerate the client from the committed contract and
+      # fail if it differs from what is committed.
+      - name: Generated client is up to date
+        run: npm run check-api
+      - run: npm run typecheck
+      # Unit tests run against MSW handlers built from the same contract, so they need
+      # neither the API nor an LLM key; nothing here spends money or wall time.
+      - run: npm test
+      - run: npm run lint
+      - run: npm run check
+
+  # ADR 0002's gate. Separate from `server` because it spends real LLM calls and needs a
+  # secret, which pull requests from forks do not get: it warns and passes there rather
+  # than blocking an outside contributor on a key they cannot have.
+  canary:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: lattice
+          POSTGRES_PASSWORD: lattice
+          POSTGRES_DB: lattice_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lattice -d lattice_test"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    defaults:
+      run:
+        working-directory: server
+    env:
+      LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+      LLM_PROVIDER: custom
+      LLM_MODEL: openai/deepseek-v4-flash
+      LLM_ENDPOINT: https://api.deepseek.com/v1
+      EMBEDDING_PROVIDER: fastembed
+      EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
+      EMBEDDING_DIMENSIONS: "384"
+      AUTO_FEEDBACK: "false"
+      ENABLE_BACKEND_ACCESS_CONTROL: "true"
+      HF_HOME: ${{ github.workspace }}/.hf-cache
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: server/uv.lock
+      # Embeddings run locally through fastembed; without this every run re-downloads the
+      # model, which costs more wall time than the cognify the test is here for.
+      - uses: actions/cache@v4
+        with:
+          path: ${{ github.workspace }}/.hf-cache
+          key: fastembed-bge-small-en-v1.5
+      - run: uv sync --locked
+      - name: Private notes never leak
+        run: |
+          if [ -z "$LLM_API_KEY" ]; then
+            echo "::warning title=Canary skipped::LLM_API_KEY is not set, so the isolation canary did not run."
+            exit 0
+          fi
+          uv run pytest -m canary -v

@@ -11,28 +11,26 @@ import {
 } from '#/components/lattice/material-viewer'
 import { useLibrary } from '#/lib/library'
 
-export const Route = createFileRoute('/courses/$courseId_/materials/$filename')(
-  {
-    component: MaterialViewerRoute,
-  },
-)
+export const Route = createFileRoute('/courses/$course_/materials/$filename')({
+  component: MaterialViewerRoute,
+})
 
 function MaterialViewerRoute() {
-  const { courseId, filename } = Route.useParams()
+  const { course, filename } = Route.useParams()
   const { markOpened } = useLibrary()
 
   useEffect(() => {
-    markOpened(courseId, filename)
-  }, [courseId, filename, markOpened])
+    markOpened(course, filename)
+  }, [course, filename, markOpened])
 
-  const { url } = useMaterialFile(courseId, filename)
+  const { url } = useMaterialFile(course, filename)
 
   return (
     <div className="flex h-screen flex-col bg-background">
       <header className="flex items-center gap-3 border-b border-border px-4 py-3">
         <Link
-          to="/courses/$courseId"
-          params={{ courseId }}
+          to="/courses/$course"
+          params={{ course }}
           search={{ material: undefined }}
           className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
@@ -40,7 +38,7 @@ function MaterialViewerRoute() {
           Workspace
         </Link>
         <Badge variant="secondary" className="font-mono uppercase">
-          {courseId}
+          {course}
         </Badge>
         <p className="min-w-0 flex-1 truncate text-sm font-medium">
           {filename}
@@ -52,7 +50,7 @@ function MaterialViewerRoute() {
         </Button>
       </header>
       <div className="min-h-0 flex-1">
-        <MaterialViewer course={courseId} filename={filename} />
+        <MaterialViewer course={course} filename={filename} />
       </div>
     </div>
   )

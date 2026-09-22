@@ -1,0 +1,8 @@
+# LF in the working tree on every platform. Prettier checks for LF and the generated
+# contract and client are written with LF, so a CRLF checkout fails `npm run check` and
+# makes the spec-drift diff report changes that are not there.
+* text=auto eol=lf
+
+# Generated, and reviewed as a whole rather than line by line.
+contracts/openapi.json linguist-generated=true
+app/src/lib/generated/** linguist-generated=true

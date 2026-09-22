@@ -1,4 +1,10 @@
-"""Test harness: a real Postgres, migrations once, every test rolled back.
+"""Shared pytest configuration.
+
+The `canary` marker guards tests that spend real LLM calls. They are skipped unless an LLM
+key is configured, so `uv run pytest` stays free and offline for a contributor without one,
+and CI can gate them on a secret instead of running them on every push.
+
+Test harness: a real Postgres, migrations once, every test rolled back.
 
 Point `TEST_DATABASE_URL` at any Postgres; the database named in it is created if missing.
 Tests run inside a transaction on a single connection that is rolled back afterwards, so they
@@ -6,7 +12,10 @@ see each other's schema but never each other's rows.
 """
 
 import os
+import shutil
+import tempfile
 from collections.abc import AsyncIterator, Iterator
+from pathlib import Path
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 import pytest
@@ -21,13 +30,67 @@ from sqlalchemy.ext.asyncio import (
 )
 from sqlalchemy.sql import text
 
-from lattice.api.deps import get_engine, get_ingest, get_session
 from lattice.config import Settings, get_settings
 from lattice.db.migrate import upgrade
-from lattice.main import create_app
 from lattice.retrieval import TierResult
 
+os.environ.setdefault("COGNEE_LOG_FILE", "false")
+os.environ.setdefault("TELEMETRY_DISABLED", "1")
+SERVER_ROOT = Path(__file__).resolve().parents[1]
+PLACEHOLDER = "sk-..."
 DEFAULT_TEST_DATABASE_URL = "postgresql+asyncpg://lattice:lattice@localhost:5432/lattice_test"
+
+
+@pytest.fixture
+def workspace(monkeypatch) -> Iterator[Path]:
+    """A deliberately short temporary root, not pytest's `tmp_path`.
+
+    Cognee nests about 190 characters below the root on its own
+    (`system/databases/<uuid>/<uuid>.lance.db/<Table>.lance/_transactions/<uuid>.txn`) and
+    `tmp_path` spends about 90 more on `pytest-of-<user>/pytest-N/<test name>`. Together
+    they cross Windows' 260-character MAX_PATH, and LanceDB fails the cognify with
+    "failed to persist temp file" rather than anything that points at path length.
+    """
+    from cognee.infrastructure.databases.cache.config import get_cache_config
+
+    root = Path(tempfile.mkdtemp(prefix="lat"))
+    monkeypatch.setenv("CACHE_BACKEND", "sqlite")
+    monkeypatch.setenv("CACHE_DB_URL", f"sqlite+aiosqlite:///{root.as_posix()}/s.db")
+    get_cache_config.cache_clear()
+    try:
+        yield root
+    finally:
+        get_cache_config.cache_clear()
+        shutil.rmtree(root, ignore_errors=True)
+
+
+def llm_key_configured() -> bool:
+    """Cognee takes `LLM_API_KEY` from the environment or `server/.env`; check both."""
+    if os.environ.get("LLM_API_KEY", "").strip() not in ("", PLACEHOLDER):
+        return True
+    env_file = SERVER_ROOT / ".env"
+    if not env_file.exists():
+        return False
+    for line in env_file.read_text(encoding="utf-8").splitlines():
+        name, _, value = line.partition("=")
+        if name.strip() == "LLM_API_KEY":
+            return value.strip().strip("\"'") not in ("", PLACEHOLDER)
+    return False
+
+
+def pytest_configure(config: pytest.Config) -> None:
+    config.addinivalue_line(
+        "markers", "canary: spends real LLM calls; needs LLM_API_KEY (see tests/test_canary.py)"
+    )
+
+
+def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    if llm_key_configured():
+        return
+    skip = pytest.mark.skip(reason="no LLM_API_KEY: the canary needs a real cognify")
+    for item in items:
+        if "canary" in item.keywords:
+            item.add_marker(skip)
 
 
 @pytest.fixture(scope="session")
@@ -84,8 +147,11 @@ async def session(connection: AsyncConnection) -> AsyncIterator[AsyncSession]:
 @pytest.fixture
 def settings(tmp_path, migrated_database: str) -> Settings:
     return Settings(
+        _env_file=None,
         database_url=migrated_database,
         dev_header_auth=True,
+        mcp_enabled=False,
+        database_auto_migrate=False,
         cognee_root=tmp_path / "cognee",
         uploads_dir=tmp_path / "uploads",
     )
@@ -109,9 +175,13 @@ class FakeEngine:
     def __init__(self) -> None:
         self.enrolled: list[tuple[str, str]] = []
         self.cognified: list[str] = []
+        self.cleared: list[tuple[UUID, str]] = []
         self.searched: list[dict[UUID, str]] = []
         self.results: list[TierResult] = []
         self.fail_with: Exception | None = None
+
+    async def start(self) -> None:
+        pass
 
     async def principal(self, email: str) -> FakePrincipal:
         return FakePrincipal(email)
@@ -130,6 +200,11 @@ class FakeEngine:
         if self.fail_with is not None:
             raise self.fail_with
         self.cognified.append(str(path))
+
+    async def clear(self, dataset: FakeDataset, owner: FakePrincipal, filename: str) -> None:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.cleared.append((dataset.id, filename))
 
     async def search(
         self,
@@ -159,6 +234,12 @@ class RecordingIngest:
     async def note(self, note_id: UUID) -> None:
         self.notes.append(note_id)
 
+    async def recover_notes(self) -> None:
+        pass
+
+    async def cognify_pending(self) -> bool:
+        return False
+
 
 @pytest.fixture
 def engine() -> FakeEngine:
@@ -184,8 +265,15 @@ def app(
     session: AsyncSession,
     engine: FakeEngine,
     ingest: RecordingIngest,
+    sessionmaker: async_sessionmaker,
 ) -> Iterator[FastAPI]:
+    from lattice.api.deps import get_engine, get_ingest, get_session
+    from lattice.main import create_app
+
     app = create_app(settings)
+    app.state.engine = engine
+    app.state.ingest = ingest
+    app.state.database.sessionmaker = sessionmaker
 
     async def override() -> AsyncIterator[AsyncSession]:
         """Same commit-on-success contract as the real dependency, inside the test's savepoint."""

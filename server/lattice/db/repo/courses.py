@@ -10,6 +10,21 @@ async def by_code(session: AsyncSession, code: str) -> Course | None:
     return await session.scalar(select(Course).where(Course.code == code))
 
 
+class CourseAccessError(PermissionError):
+    def __init__(self, status_code: int, detail: str):
+        super().__init__(detail)
+        self.status_code = status_code
+
+
+async def require_enrolment(session: AsyncSession, user: User, code: str) -> Course:
+    course = await by_code(session, code)
+    if course is None:
+        raise CourseAccessError(404, "no such course")
+    if await enrolment(session, user.id, course.id) is None:
+        raise CourseAccessError(403, "not enrolled in this course")
+    return course
+
+
 async def create(
     session: AsyncSession, *, code: str, name: str, term: str | None, owner: User
 ) -> Course:

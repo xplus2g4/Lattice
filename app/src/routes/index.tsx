@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { ArrowRight01Icon, PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useState } from 'react'
@@ -10,7 +10,7 @@ import { Card, CardContent } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { Skeleton } from '#/components/ui/skeleton'
 import { CourseCard } from '#/components/lattice/course-card'
-import { ApiError, listCourses } from '#/lib/api'
+import { ApiError, joinCourse, listCourses } from '#/lib/api'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
@@ -138,8 +138,8 @@ function ContinueCard({
         </div>
         <Button asChild size="lg" className="shrink-0">
           <Link
-            to="/courses/$courseId/materials/$filename"
-            params={{ courseId: course, filename }}
+            to="/courses/$course/materials/$filename"
+            params={{ course: course, filename }}
           >
             Open material
             <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" />
@@ -156,19 +156,25 @@ function AddCourse() {
   const [value, setValue] = useState('')
   const code = value.trim().toLowerCase()
   const invalid = value.trim() !== '' && !COURSE_RE.test(code)
+  const [user] = useUser()
+  const join = useMutation({
+    mutationFn: () => joinCourse(user, code),
+    onSuccess: () => {
+      addCourse(code)
+      void navigate({
+        to: '/courses/$course',
+        params: { course: code },
+        search: { material: undefined },
+      })
+    },
+  })
 
   return (
     <form
       className="flex flex-wrap items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault()
-        if (!COURSE_RE.test(code)) return
-        addCourse(code)
-        void navigate({
-          to: '/courses/$courseId',
-          params: { courseId: code },
-          search: { material: undefined },
-        })
+        if (COURSE_RE.test(code) && !join.isPending) join.mutate()
       }}
     >
       <Input
@@ -176,9 +182,17 @@ function AddCourse() {
         value={value}
         placeholder="New course code — e.g. cs3216"
         aria-invalid={invalid}
+        disabled={join.isPending}
         onChange={(e) => setValue(e.target.value)}
       />
-      <Button type="submit" size="sm" disabled={!COURSE_RE.test(code)}>
+      {join.error && (
+        <p className="w-full text-xs text-destructive">{join.error.message}</p>
+      )}
+      <Button
+        type="submit"
+        size="sm"
+        disabled={!COURSE_RE.test(code) || join.isPending}
+      >
         <HugeiconsIcon icon={PlusSignIcon} data-icon="inline-start" />
         Create course
       </Button>

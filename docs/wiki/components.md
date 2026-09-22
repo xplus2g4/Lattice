@@ -16,7 +16,7 @@ flowchart LR
     pg[("Postgres\napp tables + pgvector")]
     subgraph cognee["Cognee (in-process library)"]
       cg["add / cognify / search"]
-      kuzu[("Kuzu graph\n(embedded)")]
+      graph[("Ladybug graph\n(embedded)")]
     end
     queue[("Job queue\n(Postgres table)")]
   end
@@ -37,7 +37,7 @@ flowchart LR
   worker -- "materials.status" --> pg
   api --> pg
   cg --> pg
-  cg --> kuzu
+  cg --> graph
   cg --> llm
   cg --> emb
   api -- "compose answer" --> llm
@@ -51,17 +51,17 @@ The API is the only component that knows about users. Cognee sits behind the API
 
 | Component | Runs as | Owns | Talks to | Does not |
 |---|---|---|---|---|
-| **Web app** (TanStack Start, in [`app/`](../../app/)) | `web` container | UI, session cookie, streaming render, analytics events, landing page | API, OAuth provider, analytics | Call Cognee or the LLM directly |
+| **Web app** (TanStack Start, in [`app/`](../../app/)) | `web` container | UI, session cookie, streaming render, analytics events, landing page | API, OAuth provider, analytics | Call Cognee or the LLM directly; declare API types by hand (they are generated from `contracts/openapi.json`) |
 | **API** (FastAPI, in [`server/`](../../server/)) | `api` container | Auth verification, RBAC, course/enrolment/material/session records, the `/ask` pipeline, answer validation, rate limits, response cache | Postgres, Cognee (in-process), LLM API, GCS, job queue | Run cognify inline (always via Worker) |
 | **Worker** | `worker` container, same image as API (`server/`) | Executes ingest jobs: fetch file, optional pre-convert, `cognee.add`, `cognee.cognify`; updates material status and token cost | GCS, Cognee, Postgres | Serve HTTP |
-| **Cognee** | Python library imported by API and Worker, pinned version | Chunking, entity/relation extraction, embeddings, vector and graph storage, dataset-scoped permissions, `search()` | Postgres (relational + pgvector), Kuzu, LLM API, embeddings API | Know about app users beyond its own principal ids |
-| **Postgres** | `postgres` container with `pgvector` | App tables ([data-model.md](./data-model.md)), Cognee relational tables, Cognee vector collections, job queue | — | Store the graph (Kuzu does; Postgres-as-graph in Cognee is a paid feature) |
-| **Kuzu** | Embedded file DB on a named volume | The knowledge graph per dataset | Cognee only | — |
+| **Cognee** | Python library imported by API and Worker, pinned version | Chunking, entity/relation extraction, embeddings, vector and graph storage, dataset-scoped permissions, `search()` | Postgres (relational + pgvector), Ladybug, LLM API, embeddings API | Know about app users beyond its own principal ids |
+| **Postgres** | `postgres` container with `pgvector` | App tables ([data-model.md](./data-model.md)), Cognee relational tables, Cognee vector collections, job queue | — | Store the graph (Ladybug does; Postgres-as-graph in Cognee is a paid feature) |
+| **Ladybug** | Embedded file DB on a named volume | The knowledge graph per dataset | Cognee only | — |
 | **GCS bucket** | External | Raw uploaded files, nightly `pg_dump` | API (signed URLs), Worker | — |
 | **LLM API** | External | Extraction during cognify; answer composition; small-model helpers (query rewrite, "why related") | Cognee, API | — |
 | **Caddy** | `caddy` container | TLS termination, reverse proxy to `web` and `api` | — | — |
 
 ## Fallbacks that change this table
 
-- Neo4j replaces Kuzu via a compose profile if the pinned Kuzu breaks. Whether to switch preemptively is an open decision, see [backlog.md](./backlog.md).
+- Neo4j replaces Ladybug via a compose profile if the pinned Ladybug breaks. Whether to switch preemptively is an open decision, see [backlog.md](./backlog.md).
 - Docling or markitdown pre-conversion is inserted in the Worker if Cognee's native PDF/PPTX extraction is poor on real slides.

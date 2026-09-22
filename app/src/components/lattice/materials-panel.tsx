@@ -90,8 +90,8 @@ export function MaterialsPanel({ course, user }: Enrolment) {
             <li key={m.filename}>
               {m.filename.toLowerCase().endsWith('.pdf') ? (
                 <Link
-                  to="/courses/$courseId"
-                  params={{ courseId: course }}
+                  to="/courses/$course"
+                  params={{ course: course }}
                   search={{ material: m.filename }}
                   className={className}
                 >
@@ -99,8 +99,8 @@ export function MaterialsPanel({ course, user }: Enrolment) {
                 </Link>
               ) : (
                 <Link
-                  to="/courses/$courseId/materials/$filename"
-                  params={{ courseId: course, filename: m.filename }}
+                  to="/courses/$course/materials/$filename"
+                  params={{ course: course, filename: m.filename }}
                   className={className}
                 >
                   {row}
