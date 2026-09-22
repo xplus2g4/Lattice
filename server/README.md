@@ -36,6 +36,40 @@ keeps a cognified course. It reads `.env` for everything except `DATABASE_URL` (
 service) and `DATABASE_AUTO_MIGRATE` (on, so `up` is enough). The Worker has no entrypoint yet;
 when it does, it is another service from the same image.
 
+## Seeding a course
+
+`scripts/seed-wizard.sh` is the guided path: it asks for the course, imports the slide files,
+puts a DeepSeek key in `.env`, waits until the API answers, then shows the cost of cognifying
+what it found and seeds it once you agree.
+
+```sh
+scripts/seed-wizard.sh
+```
+
+Underneath it, `scripts/seed_course.py` fills a running API with a course and its lecture
+Materials, over the same RPC endpoints an instructor uses, with dev-header identity. Slide bytes
+are not in the repository: unzip a course's files into `data/seed/<CODE>/` (ignored) or point
+`--source` at the zip. Filenames of the form `L02a - Instruction Level Parallelism - Part I.pdf`
+supply the Material title, `lecture_no` and `page_count`.
+
+```sh
+unzip -j CS4223.zip -x '__MACOSX/*' -d data/seed/CS4223
+uv run python scripts/seed_course.py --dry-run             # inventory and cost, upload nothing
+uv run python scripts/seed_course.py                       # cs4223, then waits for ingest
+uv run python scripts/seed_course.py --only L00,L01        # two decks
+uv run python scripts/seed_course.py --source ~/CS4223.zip --course cs3210 --name "…"
+```
+
+Re-running is safe and cheap: an existing code comes back as the 409 carrying the course, and
+uploads are content-addressed, so unchanged bytes rejoin the existing Material and cognify nothing.
+Cognifying a new deck does spend real LLM calls, so both entry points state an estimate first and
+ask before uploading (`--yes` skips the prompt, `--only` seeds a subset, `--no-wait` returns once
+everything is queued). The estimate scales the extracted text by crude prompt and output
+multipliers at DeepSeek's peak rates: an order of magnitude, not a quote. The eight CS4223 decks
+(371 pages, 21 MB) estimated US$0.06 and took 12 minutes of wall clock to reach `ready`.
+The exit status is non-zero if any ingest ends `failed` or is still running when
+`--ingest-timeout` expires.
+
 Application records (users, courses, materials, notes, sessions and quizzes) live in
 Lattice's own Postgres, reached through `DATABASE_URL`; Cognee keeps its own embedded stores and is
 not part of that database. Migrations are Alembic: `uv run alembic upgrade head`, or set
