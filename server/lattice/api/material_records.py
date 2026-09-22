@@ -9,6 +9,7 @@ from uuid import UUID
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.api.deps import COURSE_CODE, CurrentUser, IngestDep, SessionDep, SettingsDep
@@ -86,6 +87,12 @@ async def upload_material(
 ) -> UploadOut:
     """Content-addressed: the same bytes uploaded twice join the first Material (#34)."""
     row = await _enrolled_course(session, user, course)
+    # Hold a key-share lock through the write so removal cannot race the stored bytes.
+    row = await session.scalar(
+        select(Course).where(Course.id == row.id).with_for_update(read=True, key_share=True)
+    )
+    if row is None:
+        raise HTTPException(404, "no such course")
     filename = PurePosixPath(file.filename or "").name
     if not filename or PurePosixPath(filename).suffix.lower() not in ALLOWED_SUFFIXES:
         raise HTTPException(415, f"accepted: {', '.join(sorted(ALLOWED_SUFFIXES))}")

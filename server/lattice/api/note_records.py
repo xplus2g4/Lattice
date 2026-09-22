@@ -1,9 +1,10 @@
 """Note records: quick notes (#37), page-anchored autosave (#38), private indexing (#39)."""
 
+from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.api.deps import COURSE_CODE, CurrentUser, IngestDep, SessionDep
@@ -12,11 +13,13 @@ from lattice.db.models import Material, Note, User
 from lattice.db.repo import courses, materials, notes
 
 router = APIRouter(tags=["notes"])
+NoteTitle = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
 
 class SaveNote(BaseModel):
     course: str = Field(pattern=COURSE_CODE.pattern)
     body_md: str = Field(max_length=50_000)
+    title: NoteTitle | None = None
     expected_revision: int | None = Field(default=None, ge=0)
     note: UUID | None = None
     material: UUID | None = None
@@ -31,6 +34,10 @@ class SaveNote(BaseModel):
 
 class NoteRef(BaseModel):
     note: UUID
+
+
+class RenameNote(NoteRef):
+    title: NoteTitle
 
 
 async def _own_note(session: AsyncSession, user: User, note_id: UUID) -> Note:
@@ -73,6 +80,7 @@ async def save_note(
             user=user,
             course=course,
             body_md=body.body_md,
+            title=body.title,
             material=await _material(session, user, body.material),
             page=body.page,
             note=None if body.note is None else await _own_note(session, user, body.note),
@@ -84,6 +92,15 @@ async def save_note(
         raise HTTPException(422, str(exc)) from None
     if not user.notes_opt_out:
         background.add_task(ingest.note, note.id)
+    return NoteOut.model_validate(note)
+
+
+@router.post("/notes.rename")
+async def rename_note(body: RenameNote, user: CurrentUser, session: SessionDep) -> NoteOut:
+    """Changing a title never rewrites the body or schedules Cognify."""
+    note = await _own_note(session, user, body.note)
+    note.title = body.title
+    await session.flush()
     return NoteOut.model_validate(note)
 
 

@@ -13,6 +13,7 @@ import type {
   IngestStatus,
   Material,
   Note,
+  PageNote,
   Session,
   SessionSummary,
   TierResult,
@@ -33,6 +34,98 @@ interface StoredCourse {
 const COGNIFY_MS = 2500
 
 const store = new Map<string, StoredCourse>()
+const materialIds = new WeakMap<StoredMaterial, string>()
+const pageNotes = new Map<string, PageNote>()
+const readingPositions = new Map<string, number>()
+
+export async function getReaderMaterial(
+  user: string,
+  code: string,
+  filename: string,
+) {
+  seed(user)
+  const entry = course(code).materials.get(filename)
+  if (!entry) throw new ApiError(404, 'no such material')
+  let id = materialIds.get(entry)
+  if (!id) {
+    id = crypto.randomUUID()
+    materialIds.set(entry, id)
+  }
+  return { id, filename }
+}
+
+function pageKey(user: string, material: string, page: number) {
+  return JSON.stringify([user, material, page])
+}
+
+export async function getPageNote(
+  user: string,
+  material: string,
+  page: number,
+) {
+  await sleep()
+  return pageNotes.get(pageKey(user, material, page)) ?? null
+}
+
+export async function savePageNote(
+  user: string,
+  code: string,
+  material: string,
+  page: number,
+  body_md: string,
+  expected_revision: number,
+): Promise<PageNote> {
+  await sleep(300)
+  const key = pageKey(user, material, page)
+  const previous = pageNotes.get(key)
+  if (previous?.body_md === body_md) return previous
+  if ((previous?.revision ?? 0) !== expected_revision)
+    throw new ApiError(
+      409,
+      'Note changed; read its current revision before editing',
+    )
+  const note: PageNote = {
+    id: previous?.id ?? crypto.randomUUID(),
+    body_md,
+    revision: expected_revision + 1,
+    cognified_revision: expected_revision,
+    status: 'dirty',
+    error: null,
+  }
+  pageNotes.set(key, note)
+  course(code).notes.set(note.id, {
+    ...note,
+    title: course(code).notes.get(note.id)?.title ?? 'Untitled Note',
+    course: code,
+    owner: user,
+    status: 'queued',
+    updated_at: now(),
+  })
+  setTimeout(() => {
+    if (pageNotes.get(key) !== note) return
+    pageNotes.set(key, {
+      ...note,
+      status: 'ready',
+      cognified_revision: note.revision,
+    })
+    const listed = course(code).notes.get(note.id)
+    if (listed) course(code).notes.set(note.id, { ...listed, status: 'ready' })
+  }, COGNIFY_MS)
+  return note
+}
+
+export async function getReadingPosition(user: string, material: string) {
+  await sleep()
+  return readingPositions.get(JSON.stringify([user, material])) ?? 1
+}
+
+export async function saveReadingPosition(
+  user: string,
+  material: string,
+  page: number,
+) {
+  readingPositions.set(JSON.stringify([user, material]), page)
+}
 
 function now(): string {
   return new Date().toISOString()
@@ -87,7 +180,7 @@ function pdf(title: string): Blob {
   return new Blob([body], { type: 'application/pdf' })
 }
 
-function material(
+function makeMaterial(
   code: string,
   filename: string,
   status: IngestStatus,
@@ -111,7 +204,7 @@ function seedMaterial(
   minutesAgo = 60,
 ): void {
   course(code).materials.set(filename, {
-    material: material(code, filename, status, minutesAgo),
+    material: makeMaterial(code, filename, status, minutesAgo),
     bytes,
   })
 }
@@ -127,6 +220,7 @@ function seedNote(
     course: code,
     owner: user,
     id,
+    title: id,
     body_md,
     status: 'ready',
     error: null,
@@ -237,6 +331,7 @@ function summary(code: string, entry: StoredCourse): CourseSummary {
   const materials = [...entry.materials.values()].map((m) => m.material)
   return {
     code,
+    can_delete: true,
     material_count: materials.length,
     note_count: entry.notes.size,
     pending_count: materials.filter(
@@ -262,6 +357,15 @@ export async function listCourses(user: string): Promise<Array<CourseSummary>> {
     .sort((a, b) => a.code.localeCompare(b.code))
 }
 
+export async function deleteCourse(user: string, code: string): Promise<void> {
+  seed(user)
+  const ids = new Set(course(code).notes.keys())
+  for (const [key, note] of pageNotes) {
+    if (ids.has(note.id)) pageNotes.delete(key)
+  }
+  store.delete(code)
+}
+
 export async function listMaterials(
   user: string,
   code: string,
@@ -281,7 +385,7 @@ export async function uploadMaterial(
   seed(user)
   await sleep(400)
   const entry: StoredMaterial = {
-    material: material(code, file.name, 'queued', 0),
+    material: makeMaterial(code, file.name, 'queued', 0),
     bytes: file,
   }
   course(code).materials.set(file.name, entry)
@@ -307,9 +411,9 @@ export async function listNotes(
 ): Promise<Array<Note>> {
   seed(user)
   await sleep()
-  return [...course(code).notes.values()].sort((a, b) =>
-    a.updated_at.localeCompare(b.updated_at),
-  )
+  return [...course(code).notes.values()]
+    .filter((n) => n.owner === user)
+    .sort((a, b) => a.updated_at.localeCompare(b.updated_at))
 }
 
 export async function saveNote(
@@ -317,6 +421,7 @@ export async function saveNote(
   code: string,
   id: string,
   body_md: string,
+  title?: string,
 ): Promise<Note> {
   seed(user)
   await sleep(300)
@@ -324,13 +429,41 @@ export async function saveNote(
     course: code,
     owner: user,
     id,
+    title: title ?? course(code).notes.get(id)?.title ?? 'Untitled Note',
     body_md,
     status: 'ready',
     error: null,
     updated_at: now(),
   }
   course(code).notes.set(id, note)
+  for (const [key, anchored] of pageNotes) {
+    if (anchored.id === id) {
+      const revision =
+        anchored.revision + (anchored.body_md === body_md ? 0 : 1)
+      pageNotes.set(key, {
+        ...anchored,
+        body_md,
+        revision,
+        cognified_revision: revision,
+        status: 'ready',
+      })
+    }
+  }
   return note
+}
+
+export async function renameNote(
+  user: string,
+  code: string,
+  id: string,
+  title: string,
+): Promise<Note> {
+  seed(user)
+  const note = course(code).notes.get(id)
+  if (!note || note.owner !== user) throw new ApiError(404, 'no such note')
+  const renamed = { ...note, title, updated_at: now() }
+  course(code).notes.set(id, renamed)
+  return renamed
 }
 
 export async function listSessions(

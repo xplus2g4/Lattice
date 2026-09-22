@@ -10,6 +10,7 @@ import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 import { TooltipProvider } from '../components/ui/tooltip'
 
 import appCss from '../styles.css?url'
+import { AppShell } from '#/components/lattice/app-shell'
 
 import type { QueryClient } from '@tanstack/react-query'
 
@@ -39,6 +40,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
     ],
   }),
   shellComponent: RootDocument,
+  component: AppShell,
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {

@@ -13,17 +13,10 @@ import {
 } from '#/components/ui/dialog'
 import { Input } from '#/components/ui/input'
 import { Textarea } from '#/components/ui/textarea'
-import {
-  listNotes,
-  pollWhilePending,
-  saveNote,
-  usesMockBackend,
-} from '#/lib/api'
+import { listNotes, pollWhilePending, saveNote, renameNote } from '#/lib/api'
 import { StatusBadge } from './status-badge'
 
 import type { Enrolment } from '#/lib/api'
-
-const NOTE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/
 
 export function NotesPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
@@ -35,14 +28,27 @@ export function NotesPanel({ course, user }: Enrolment) {
   })
   const [editing, setEditing] = useState<{
     id: string
+    title: string
     body: string
+    originalBody: string
+    revision?: number
     isNew: boolean
   } | null>(null)
   const save = useMutation({
-    mutationFn: (note: { id: string; body: string }) =>
-      saveNote(user, course, note.id, note.body),
+    mutationFn: (note: NonNullable<typeof editing>) =>
+      !note.isNew && note.body === note.originalBody
+        ? renameNote(user, course, note.id, note.title.trim())
+        : saveNote(
+            user,
+            course,
+            note.id,
+            note.body,
+            note.title.trim(),
+            note.revision,
+          ),
     onSuccess: () => {
       setEditing(null)
+      void queryClient.invalidateQueries({ queryKey: ['page-note', user] })
       return queryClient.invalidateQueries({ queryKey: key })
     },
   })
@@ -59,7 +65,9 @@ export function NotesPanel({ course, user }: Enrolment) {
           onClick={() =>
             setEditing({
               id: `note-${Date.now().toString(36)}`,
+              title: 'Untitled Note',
               body: '',
+              originalBody: '',
               isNew: true,
             })
           }
@@ -79,13 +87,20 @@ export function NotesPanel({ course, user }: Enrolment) {
             <button
               type="button"
               onClick={() =>
-                setEditing({ id: n.id, body: n.body_md, isNew: false })
+                setEditing({
+                  id: n.id,
+                  title: n.title,
+                  body: n.body_md,
+                  originalBody: n.body_md,
+                  revision: n.revision,
+                  isNew: false,
+                })
               }
               className="block w-full rounded-lg px-2 py-1.5 text-left transition-colors hover:bg-accent"
             >
               <span className="flex items-center gap-2">
-                <span className="min-w-0 flex-1 truncate font-mono text-sm">
-                  {n.id}
+                <span className="min-w-0 flex-1 truncate text-sm">
+                  {n.title}
                 </span>
                 <StatusBadge status={n.status} />
               </span>
@@ -122,21 +137,21 @@ export function NotesPanel({ course, user }: Enrolment) {
               className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (NOTE_ID_RE.test(editing.id) && editing.body.trim()) {
-                  save.mutate({ id: editing.id, body: editing.body })
+                if (editing.title.trim() && editing.body.trim()) {
+                  save.mutate(editing)
                 }
               }}
             >
-              {usesMockBackend() && (
+              <label className="block space-y-1 text-sm">
+                <span>Note title</span>
                 <Input
-                  className="font-mono"
-                  value={editing.id}
-                  disabled={!editing.isNew}
+                  maxLength={200}
+                  value={editing.title}
                   onChange={(e) =>
-                    setEditing({ ...editing, id: e.target.value })
+                    setEditing({ ...editing, title: e.target.value })
                   }
                 />
-              )}
+              </label>
               <Textarea
                 className="min-h-40"
                 placeholder="Markdown body"
@@ -152,7 +167,7 @@ export function NotesPanel({ course, user }: Enrolment) {
                 <Button
                   type="submit"
                   disabled={
-                    !NOTE_ID_RE.test(editing.id) ||
+                    !editing.title.trim() ||
                     !editing.body.trim() ||
                     save.isPending
                   }

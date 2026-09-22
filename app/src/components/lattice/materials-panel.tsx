@@ -23,6 +23,8 @@ export function MaterialsPanel({ course, user }: Enrolment) {
     mutationFn: (f: File) => uploadMaterial(user, course, f),
     onSuccess: (_, f) => {
       void queryClient.invalidateQueries({ queryKey: key })
+      void queryClient.invalidateQueries({ queryKey: ['courses', user] })
+      void queryClient.invalidateQueries({ queryKey: ['notes', course, user] })
       // An upload replaces the bytes under an existing filename; drop the cached blob.
       void queryClient.invalidateQueries({
         queryKey: ['material-file', course, f.name, user],

@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, Text, text
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, Integer, String, Text, text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lattice.db.base import Base, created_at, updated_at, uuid_pk
@@ -35,6 +35,9 @@ class Note(Base):
     course_id: Mapped[UUID] = mapped_column(ForeignKey("courses.id", ondelete="CASCADE"))
     material_id: Mapped[UUID | None] = mapped_column(ForeignKey("materials.id", ondelete="CASCADE"))
     page: Mapped[int | None] = mapped_column(Integer)
+    title: Mapped[str] = mapped_column(
+        String(200), default="Untitled Note", server_default="Untitled Note"
+    )
     body_md: Mapped[str] = mapped_column(Text)
     revision: Mapped[int] = mapped_column(Integer, default=1, server_default="1")
     cognified_revision: Mapped[int] = mapped_column(Integer, default=0, server_default="0")

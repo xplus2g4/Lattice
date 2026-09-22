@@ -16,6 +16,7 @@ import { Route as CoursesCourseRouteImport } from './routes/courses/$course'
 import { Route as CoursesCourseIndexRouteImport } from './routes/courses/$course/index'
 import { Route as CoursesCourseMaterialsRouteImport } from './routes/courses/$course/materials'
 import { Route as CoursesCourseNotesRouteImport } from './routes/courses/$course/notes'
+import { Route as CoursesCourseQuizzesRouteImport } from './routes/courses/$course/quizzes'
 import { Route as CoursesCourseAskIndexRouteImport } from './routes/courses/$course/ask.index'
 import { Route as CoursesCourseAskSessionIdRouteImport } from './routes/courses/$course/ask.$sessionId'
 import { Route as CoursesCourseMaterialsFilenameRouteImport } from './routes/courses.$course_.materials.$filename'
@@ -55,6 +56,11 @@ const CoursesCourseNotesRoute = CoursesCourseNotesRouteImport.update({
   path: '/notes',
   getParentRoute: () => CoursesCourseRoute,
 } as any)
+const CoursesCourseQuizzesRoute = CoursesCourseQuizzesRouteImport.update({
+  id: '/quizzes',
+  path: '/quizzes',
+  getParentRoute: () => CoursesCourseRoute,
+} as any)
 const CoursesCourseAskIndexRoute = CoursesCourseAskIndexRouteImport.update({
   id: '/ask/',
   path: '/ask/',
@@ -80,6 +86,7 @@ export interface FileRoutesByFullPath {
   '/courses/$course': typeof CoursesCourseRouteWithChildren
   '/courses/$course/materials': typeof CoursesCourseMaterialsRoute
   '/courses/$course/notes': typeof CoursesCourseNotesRoute
+  '/courses/$course/quizzes': typeof CoursesCourseQuizzesRoute
   '/courses/$course/': typeof CoursesCourseIndexRoute
   '/courses/$course/ask/$sessionId': typeof CoursesCourseAskSessionIdRoute
   '/courses/$course/materials/$filename': typeof CoursesCourseMaterialsFilenameRoute
@@ -91,6 +98,7 @@ export interface FileRoutesByTo {
   '/foundation': typeof FoundationRoute
   '/courses/$course/materials': typeof CoursesCourseMaterialsRoute
   '/courses/$course/notes': typeof CoursesCourseNotesRoute
+  '/courses/$course/quizzes': typeof CoursesCourseQuizzesRoute
   '/courses/$course': typeof CoursesCourseIndexRoute
   '/courses/$course/ask/$sessionId': typeof CoursesCourseAskSessionIdRoute
   '/courses/$course/materials/$filename': typeof CoursesCourseMaterialsFilenameRoute
@@ -104,6 +112,7 @@ export interface FileRoutesById {
   '/courses/$course': typeof CoursesCourseRouteWithChildren
   '/courses/$course/materials': typeof CoursesCourseMaterialsRoute
   '/courses/$course/notes': typeof CoursesCourseNotesRoute
+  '/courses/$course/quizzes': typeof CoursesCourseQuizzesRoute
   '/courses/$course/': typeof CoursesCourseIndexRoute
   '/courses/$course/ask/$sessionId': typeof CoursesCourseAskSessionIdRoute
   '/courses/$course_/materials/$filename': typeof CoursesCourseMaterialsFilenameRoute
@@ -118,6 +127,7 @@ export interface FileRouteTypes {
     | '/courses/$course'
     | '/courses/$course/materials'
     | '/courses/$course/notes'
+    | '/courses/$course/quizzes'
     | '/courses/$course/'
     | '/courses/$course/ask/$sessionId'
     | '/courses/$course/materials/$filename'
@@ -129,6 +139,7 @@ export interface FileRouteTypes {
     | '/foundation'
     | '/courses/$course/materials'
     | '/courses/$course/notes'
+    | '/courses/$course/quizzes'
     | '/courses/$course'
     | '/courses/$course/ask/$sessionId'
     | '/courses/$course/materials/$filename'
@@ -141,6 +152,7 @@ export interface FileRouteTypes {
     | '/courses/$course'
     | '/courses/$course/materials'
     | '/courses/$course/notes'
+    | '/courses/$course/quizzes'
     | '/courses/$course/'
     | '/courses/$course/ask/$sessionId'
     | '/courses/$course_/materials/$filename'
@@ -206,6 +218,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoursesCourseNotesRouteImport
       parentRoute: typeof CoursesCourseRoute
     }
+    '/courses/$course/quizzes': {
+      id: '/courses/$course/quizzes'
+      path: '/quizzes'
+      fullPath: '/courses/$course/quizzes'
+      preLoaderRoute: typeof CoursesCourseQuizzesRouteImport
+      parentRoute: typeof CoursesCourseRoute
+    }
     '/courses/$course/ask/': {
       id: '/courses/$course/ask/'
       path: '/ask'
@@ -233,6 +252,7 @@ declare module '@tanstack/react-router' {
 interface CoursesCourseRouteChildren {
   CoursesCourseMaterialsRoute: typeof CoursesCourseMaterialsRoute
   CoursesCourseNotesRoute: typeof CoursesCourseNotesRoute
+  CoursesCourseQuizzesRoute: typeof CoursesCourseQuizzesRoute
   CoursesCourseIndexRoute: typeof CoursesCourseIndexRoute
   CoursesCourseAskSessionIdRoute: typeof CoursesCourseAskSessionIdRoute
   CoursesCourseAskIndexRoute: typeof CoursesCourseAskIndexRoute
@@ -241,6 +261,7 @@ interface CoursesCourseRouteChildren {
 const CoursesCourseRouteChildren: CoursesCourseRouteChildren = {
   CoursesCourseMaterialsRoute: CoursesCourseMaterialsRoute,
   CoursesCourseNotesRoute: CoursesCourseNotesRoute,
+  CoursesCourseQuizzesRoute: CoursesCourseQuizzesRoute,
   CoursesCourseIndexRoute: CoursesCourseIndexRoute,
   CoursesCourseAskSessionIdRoute: CoursesCourseAskSessionIdRoute,
   CoursesCourseAskIndexRoute: CoursesCourseAskIndexRoute,

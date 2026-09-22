@@ -1,9 +1,19 @@
+import shutil
+
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lattice.api.deps import COURSE_CODE, CurrentUser, EngineDep, SessionDep
-from lattice.api.schemas import CourseOut, CourseSearchHit, CourseSearchOut, EnrolmentOut, UserOut
+from lattice.api.deps import COURSE_CODE, CurrentUser, EngineDep, IngestDep, SessionDep, SettingsDep
+from lattice.api.schemas import (
+    CourseListOut,
+    CourseOut,
+    CourseSearchHit,
+    CourseSearchOut,
+    EnrolmentOut,
+    UserOut,
+)
 from lattice.db.models import Course, User
 from lattice.db.repo import courses, users
 
@@ -60,8 +70,55 @@ async def get_course(course: str, _: CurrentUser, session: SessionDep) -> Course
 
 
 @router.get("/courses.list")
-async def list_courses(user: CurrentUser, session: SessionDep) -> list[CourseOut]:
-    return [CourseOut.model_validate(c) for c in await courses.enrolled_courses(session, user)]
+async def list_courses(user: CurrentUser, session: SessionDep) -> list[CourseListOut]:
+    return [
+        CourseListOut(
+            **CourseOut.model_validate(c).model_dump(),
+            can_delete=c.owner_user_id == user.id or user.role == "admin",
+        )
+        for c in await courses.enrolled_courses(session, user)
+    ]
+
+
+@router.post("/courses.delete")
+async def delete_course(
+    body: CourseRef,
+    user: CurrentUser,
+    session: SessionDep,
+    engine: EngineDep,
+    ingest: IngestDep,
+    settings: SettingsDep,
+) -> dict[str, bool]:
+    course = await _course(session, body.course)
+    if course.owner_user_id != user.id and user.role != "admin":
+        raise HTTPException(403, "only the course owner may remove it")
+    async with ingest.paused():
+        # Exclude concurrent additions while their FK still points at this course.
+        course = await session.scalar(
+            select(Course).where(Course.id == course.id).with_for_update()
+        )
+        if course is None:
+            raise HTTPException(404, "no such course")
+        root = settings.uploads_dir.resolve()
+        target = (root / course.code).resolve()
+        if target.parent != root or target.name != course.code:
+            raise HTTPException(409, "course storage path is invalid")
+        # Former enrollees retain their principal even after leaving the course.
+        owners = list(
+            await session.scalars(select(User.email).where(User.cognee_principal_id.is_not(None)))
+        )
+        try:
+            await engine.delete_course(course.code, owners)
+            if target.exists():
+                shutil.rmtree(target)
+        except Exception as exc:  # noqa: BLE001 - keep the course available for a cleanup retry
+            raise HTTPException(
+                502, "Could not finish removing course data. Please retry."
+            ) from exc
+        await session.execute(delete(Course).where(Course.id == course.id))
+        # Release the ingest pause only after queued jobs can see the records are gone.
+        await session.commit()
+    return {"deleted": True}
 
 
 @router.post("/courses.create", status_code=201)

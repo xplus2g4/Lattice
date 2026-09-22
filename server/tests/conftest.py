@@ -15,6 +15,7 @@ import os
 import shutil
 import tempfile
 from collections.abc import AsyncIterator, Iterator
+from contextlib import asynccontextmanager
 from pathlib import Path
 from uuid import NAMESPACE_URL, UUID, uuid5
 
@@ -179,6 +180,12 @@ class FakeEngine:
         self.searched: list[dict[UUID, str]] = []
         self.results: list[TierResult] = []
         self.fail_with: Exception | None = None
+        self.deleted_courses: list[str] = []
+
+    async def delete_course(self, course: str, owners: list[str]) -> None:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.deleted_courses.append(course)
 
     async def start(self) -> None:
         pass
@@ -227,6 +234,10 @@ class RecordingIngest:
     def __init__(self) -> None:
         self.queued: list[UUID] = []
         self.notes: list[UUID] = []
+
+    @asynccontextmanager
+    async def paused(self):
+        yield
 
     async def material(self, material_id: UUID) -> None:
         self.queued.append(material_id)

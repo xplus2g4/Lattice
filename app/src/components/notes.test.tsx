@@ -2,7 +2,7 @@ import { screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { Notes } from '#/components/notes'
+import { NotesPanel as Notes } from '#/components/lattice/notes-panel'
 import { note } from '#/test/fixtures'
 import { resetStore } from '#/test/handlers'
 import { renderWithQuery } from '#/test/render'
@@ -17,10 +17,10 @@ describe('the notes list', () => {
   it('says so when the student has written nothing yet', async () => {
     show()
 
-    expect(await screen.findByText('No notes yet.')).toBeInTheDocument()
+    expect(await screen.findByText(/No notes yet/)).toBeInTheDocument()
   })
 
-  it('shows a saved note with its indexing status', async () => {
+  it('shows a saved note with its Cognify status', async () => {
     resetStore({
       notes: [
         note({
@@ -52,7 +52,7 @@ describe('the notes list', () => {
     expect(screen.queryByText('bobs')).not.toBeInTheDocument()
   })
 
-  it('explains why a note failed to index', async () => {
+  it('explains why a note failed to Cognify', async () => {
     resetStore({
       notes: [note({ status: 'failed', error: 'cost ceiling exceeded' })],
     })
@@ -64,16 +64,17 @@ describe('the notes list', () => {
 })
 
 describe('writing a note', () => {
-  it('adds it to the list, queued for indexing', async () => {
+  it('adds it to the list, queued for Cognify', async () => {
     const user = userEvent.setup()
     show()
-    await screen.findByText('No notes yet.')
+    await screen.findByText(/No notes yet/)
+    await user.click(screen.getByRole('button', { name: 'New note' }))
 
     await user.type(
       screen.getByPlaceholderText('Markdown body'),
       'hash tables are week 3',
     )
-    await user.click(screen.getByRole('button', { name: 'Save' }))
+    await user.click(screen.getByRole('button', { name: 'Save note' }))
 
     expect(
       await within(screen.getByRole('list')).findByText(
@@ -86,10 +87,11 @@ describe('writing a note', () => {
   it('refuses to save an empty note', async () => {
     const user = userEvent.setup()
     show()
-    await screen.findByText('No notes yet.')
+    await screen.findByText(/No notes yet/)
+    await user.click(screen.getByRole('button', { name: 'New note' }))
 
     await user.type(screen.getByPlaceholderText('Markdown body'), '   ')
 
-    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Save note' })).toBeDisabled()
   })
 })

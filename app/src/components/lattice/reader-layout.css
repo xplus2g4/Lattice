@@ -1,0 +1,105 @@
+/* The reader responds to its available width, including the course sidebar. */
+.reader-layout {
+  container: reader / inline-size;
+  height: 100%;
+  min-height: 0;
+}
+
+.reader-layout-inner {
+  display: flex;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  background: var(--muted);
+}
+
+.reader-toolbar {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.reader-notice {
+  flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.reader-view-switch {
+  display: flex;
+  flex-shrink: 0;
+  gap: 0.25rem;
+  padding: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  background: var(--card);
+}
+
+.reader-panes {
+  display: grid;
+  min-height: 0;
+  flex: 1;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.reader-material-pane,
+.reader-note-pane {
+  min-width: 0;
+  min-height: 0;
+}
+
+.reader-material-pane {
+  display: flex;
+  flex-direction: column;
+}
+
+.reader-note-pane {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 1rem;
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.reader-layout-inner[data-view='material'] .reader-note-pane,
+.reader-layout-inner[data-view='note'] .reader-material-pane {
+  display: none;
+}
+
+.reader-note-pane > section {
+  min-height: 100%;
+  border: 1px solid var(--border);
+  border-radius: 0.875rem;
+  background: var(--card);
+}
+
+.page-note-input {
+  min-height: 16rem;
+  max-height: none;
+  resize: vertical;
+  font-size: 1rem;
+  line-height: 1.75;
+}
+
+@container reader (min-width: 48rem) {
+  .reader-view-switch {
+    display: none;
+  }
+
+  .reader-panes {
+    grid-template-columns: minmax(0, 1fr) minmax(19rem, 32%);
+  }
+
+  .reader-layout-inner[data-view] .reader-material-pane {
+    display: flex;
+  }
+
+  .reader-layout-inner[data-view] .reader-note-pane {
+    display: block;
+    border-left: 1px solid var(--border);
+  }
+}

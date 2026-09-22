@@ -31,6 +31,7 @@ export function note(over: Partial<Note> = {}): Note {
     course: 'cs101',
     owner: 'alice@example.com',
     id: 'n1',
+    title: over.id ?? 'Untitled Note',
     body_md: 'hash tables are week 3',
     status: 'ready',
     error: null,

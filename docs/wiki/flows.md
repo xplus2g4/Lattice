@@ -1,6 +1,6 @@
 # Key flows
 
-The five flows that move data through the system: enrol, ingest a material, save a note, ask, and ask with related concepts.
+The flows that move data through the system: enrol, remove a course, ingest a Material, save a Note, ask, and ask with related concepts.
 
 ## Enrol
 
@@ -10,6 +10,14 @@ The five flows that move data through the system: enrol, ingest a material, save
 4. Create the `{course}-user-{id}` dataset; grant owner read-write; grant read on `{course}-global`.
 
 Nothing is cognified here. Enrolment is cheap and synchronous.
+
+## Remove a course
+
+The home course card offers **Remove course** to the owner or an admin. Its confirmation says “All your notes and materials will be gone!” and explains that removal affects everyone enrolled. `/courses.delete` checks ownership, pauses ingest until active work finishes, removes the course's global and private Datasets (including former enrollees), removes its stored Materials and Notes, and cascades deletion through its application records. Failed cleanup returns an error and leaves the course available for retry. After success the browser clears the course bookmark, saved Session selection, and matching reading shortcut.
+
+This differs from `/enrolments.leave`, which retains Notes and the private Dataset. Legacy browser-only course entries are registered and joined when the student explicitly uploads a Material; only a missing-course response triggers that recovery.
+
+After confirmation, the dialog closes immediately and the course card shows “Removing…” while the request completes. Other courses remain usable. Progress and failures live in the app's shared mutation cache, so navigating within the app does not interrupt removal; failures appear on the card with **Retry removal**. A full browser reload does not preserve this in-memory progress indicator.
 
 ## Ingest a course material (instructor)
 
@@ -54,6 +62,18 @@ POST /ask {course, session_id, question}
 ```
 
 Cross-dataset `search()` does honour permissions, so `ASK_TWO_CALL_MODE` stays off ([findings](../research/cognee-1.5.4-first-cut-findings.md); backlog issues 1 and 2 are closed). It remains the fallback: setting `ASK_TWO_CALL_MODE=1` makes step 5 two calls, global then private, merged in the API. The contract of `/ask` is unchanged either way.
+
+## Quiz frontend (current)
+
+The persistent sidebar has five tabs: **Homepage**, **Materials**, **Notes**, **Ask**, and **Practice**. It stays visible on the homepage, course pages, reader, and Practice, with a compact rail on smaller screens. Homepage always opens the overview of all courses. The course selector remembers the user's active course and keeps the current tab when switching courses. Materials, Notes, and Ask reuse the same product panels as the reader; the older duplicate screens have been removed, with existing URLs retained. Ask Session links still open their saved conversation.
+
+**Practice** opens `/courses/$course/quizzes`; there is no separate top-right Grill me shortcut. The setup shows ready Materials and their Topics. Starting a new Quiz is explicitly unavailable until question generation exists; the frontend does not create sample questions or invent grades. Automatic Pop quiz prompts are also pending generation and trigger support.
+
+The study layout follows the supplied Quiz designs: a course rail, lavender practice area, and an Ask panel (a sheet on smaller screens). Scope controls offer the current Page, a Page range, Topics, or the whole Material. The reader's selected Material is carried into setup. Grill me shows all questions on an answer sheet; Pop quiz shows one question at a time. Drafts are kept as the student types, but saving answers to the API remains explicit because each write currently creates an attempt. The Ask panel retains its existing course-wide retrieval behavior; it does not claim to restrict answers to the selected Material or provide hints only. Topic result cards use recorded correctness: all correct is Strong, mixed results Developing, all incorrect Revisit, and ungraded or incomplete results remain labeled as such.
+
+Existing Quiz records can be opened from the in-progress list or a `?quiz=<id>` link. The frontend checks the Quiz belongs to the URL's course. Multiple-choice and short answers are saved through `/quizAnswers.record` without correctness or feedback supplied by the browser. Saved progress survives reload; unsaved drafts stay in sessionStorage, keyed by user, course, Quiz and question. Failed saves retain drafts and offer a reload of saved answers. The records API has no idempotency key, so a request whose response is lost should be reconciled before saving another attempt.
+
+Finishing requires every answer to be saved, then calls `/quizzes.submit` without a fabricated score. A confirmed early end calls `/quizzes.abandon`; both remain in Quiz history. Review displays the recorded score and latest answer feedback, a per-Topic summary that separates ungraded and unanswered questions, and links to associated Materials. Topic counts on this screen describe this Quiz's latest attempts, rather than the cumulative `/quizStats.byTopic` counts. Grading and a structured Citation contract remain backend integration work.
 
 ## Ask with related concepts (Phase 2)
 

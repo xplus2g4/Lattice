@@ -4,6 +4,7 @@ from cognee.modules.retrieval.completion_retriever import CompletionRetriever
 from cognee.modules.retrieval.graph_completion_retriever import GraphCompletionRetriever
 from cognee.modules.retrieval.hybrid_retriever import DEFAULT_HYBRID_LANE_TOP_K, HybridRetriever
 from cognee.modules.retrieval.register_retriever import use_retriever
+from cognee.modules.retrieval.utils.evidence import chunk_context_evidence
 from cognee.modules.search.types import SearchType
 
 GROUNDING_POLICY = """Answer the student's question briefly using only the supplied course context.
@@ -65,6 +66,14 @@ class _GraphRetriever(_UntrustedContext, GraphCompletionRetriever):
 
 
 class _HybridRetriever(_UntrustedContext, HybridRetriever):
+    def get_context_evidence(self, retrieved_objects, dataset_id=None):
+        # Cognee 1.5.4 appends hybrid references to the answer text but inherits
+        # BaseRetriever's empty structured-evidence hook. Use the same Chunk lane
+        # that its context formatter and text references consume.
+        if not isinstance(retrieved_objects, dict):
+            return []
+        return chunk_context_evidence(retrieved_objects.get("chunks", []), dataset_id)
+
     def __init__(self, **kwargs):
         config = kwargs.get("retriever_specific_config") or {}
         top_k = kwargs.get("top_k", 15)

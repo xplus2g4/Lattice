@@ -1,7 +1,7 @@
 /** The API surface the app codes against.
  *
- * Mock data remains the default for the product shell. Set
- * VITE_USE_MOCK_BACKEND=false to use the persistent RPC API.
+ * The persistent RPC API is the default. Set VITE_USE_MOCK_BACKEND=true
+ * explicitly to preview the product with temporary demo data.
  */
 import * as backend from './mock-backend'
 import { ApiError } from './api-error'
@@ -9,12 +9,21 @@ import type {
   AskOut as RpcAskOut,
   AskRequest as RpcAskRequest,
   CourseOut,
+  CourseListOut,
   MaterialOut,
+  MeOut,
   NoteOut,
+  ReadingPositionOut,
+  SaveNote,
+  SetReadingPosition,
   SessionOut,
   TurnOut,
   UploadOut,
   ValidationError,
+  QuizOut,
+  QuizAnswerOut,
+  RecordAnswer,
+  TopicOut,
 } from './generated'
 
 export { ApiError } from './api-error'
@@ -24,7 +33,7 @@ export { ApiError } from './api-error'
 // this module also owns the X-User transport and how a FastAPI error becomes an Error.
 const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 export const usesMockBackend = () =>
-  import.meta.env.VITE_USE_MOCK_BACKEND !== 'false'
+  import.meta.env.VITE_USE_MOCK_BACKEND === 'true'
 export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
 // FastAPI inlines these unions into each field rather than naming them, so name them here.
 export type QueryType = NonNullable<RpcAskRequest['query_type']>
@@ -43,6 +52,7 @@ export const QUERY_TYPES = Object.keys(
 
 export interface CourseSummary {
   code: string
+  can_delete: boolean
   material_count: number
   note_count: number
   pending_count: number
@@ -65,10 +75,20 @@ export interface Note {
   course: string
   owner: string
   id: string
+  title: string
+  revision?: number
   body_md: string
   status: IngestStatus
   error: string | null
   updated_at: string
+}
+export type PageNote = Pick<
+  NoteOut,
+  'id' | 'body_md' | 'revision' | 'cognified_revision' | 'status' | 'error'
+>
+export interface ReaderMaterial {
+  id: string
+  filename: string
 }
 /** The (course, user) pair every call is made within: the caller's enrolment. */
 export interface Enrolment {
@@ -91,7 +111,7 @@ export interface TierResult {
 export function describeCitation(c: Citation): string {
   switch (c.kind) {
     case 'chunk':
-      return `${c.filename ?? '?'}${c.chunk_index !== null ? ` #${c.chunk_index}` : ''}`
+      return `${c.filename ?? 'Material'}${c.chunk_index !== null ? ` · passage ${c.chunk_index + 1}` : ''}`
     case 'relation':
       return `${c.relation ?? '?'} · relation`
     default:
@@ -199,6 +219,8 @@ function noteView(user: string, course: string, row: NoteOut): Note {
     course,
     owner: user,
     id: row.id,
+    title: row.title,
+    revision: row.revision,
     body_md: row.body_md,
     status: ingestStatus(row.status),
     error: row.error,
@@ -260,7 +282,7 @@ function turnView(row: TurnOut): Turn {
 
 export async function listCourses(user: string): Promise<Array<CourseSummary>> {
   if (usesMockBackend()) return backend.listCourses(user)
-  const rows = await request<Array<CourseOut>>(user, '/courses.list')
+  const rows = await request<Array<CourseListOut>>(user, '/courses.list')
   return Promise.all(
     rows.map(async (row) => {
       const [materials, notes] = await Promise.all([
@@ -269,6 +291,7 @@ export async function listCourses(user: string): Promise<Array<CourseSummary>> {
       ])
       return {
         code: row.code,
+        can_delete: row.can_delete,
         material_count: materials.length,
         note_count: notes.length,
         pending_count: [...materials, ...notes].filter(
@@ -297,6 +320,23 @@ export async function joinCourse(user: string, course: string): Promise<void> {
     await request(user, '/enrolments.join', json({ course }))
   }
 }
+export async function deleteCourse(
+  user: string,
+  course: string,
+): Promise<void> {
+  if (usesMockBackend()) return backend.deleteCourse(user, course)
+  try {
+    await request(user, '/courses.delete', json({ course }))
+  } catch (error) {
+    // An old local-only course can be removed without creating an API record.
+    if (
+      !(error instanceof ApiError) ||
+      error.status !== 404 ||
+      error.message !== 'no such course'
+    )
+      throw error
+  }
+}
 export async function listSessions(
   user: string,
   course: string,
@@ -320,7 +360,17 @@ export async function downloadMaterial(
   course: string,
   filename: string,
 ): Promise<Blob> {
-  if (usesMockBackend()) return backend.downloadMaterial(user, course, filename)
+  const material = await getReaderMaterial(user, course, filename)
+  return downloadReaderMaterial(user, course, material)
+}
+
+export async function getReaderMaterial(
+  user: string,
+  course: string,
+  filename: string,
+): Promise<ReaderMaterial> {
+  if (usesMockBackend())
+    return backend.getReaderMaterial(user, course, filename)
   const rows = await request<Array<MaterialOut>>(
     user,
     query('/materials.list', { course }),
@@ -330,12 +380,81 @@ export async function downloadMaterial(
     .sort((a, b) => b.created_at.localeCompare(a.created_at))
     .at(0)
   if (!row) throw new ApiError(404, 'no such material')
+  return { id: row.id, filename: row.filename }
+}
+
+export async function downloadReaderMaterial(
+  user: string,
+  course: string,
+  material: ReaderMaterial,
+): Promise<Blob> {
+  if (usesMockBackend())
+    return backend.downloadMaterial(user, course, material.filename)
   return (
     await fetchResponse(
       user,
-      query('/materials.download', { material: row.id }),
+      query('/materials.download', { material: material.id }),
     )
   ).blob()
+}
+
+export async function getPageNote(
+  user: string,
+  material: string,
+  page: number,
+) {
+  if (usesMockBackend()) return backend.getPageNote(user, material, page)
+  return request<PageNote | null>(
+    user,
+    query('/notes.get', { material, page: String(page) }),
+  )
+}
+
+export async function savePageNote(
+  user: string,
+  course: string,
+  material: string,
+  page: number,
+  body_md: string,
+  expected_revision: number,
+): Promise<PageNote> {
+  if (usesMockBackend())
+    return backend.savePageNote(
+      user,
+      course,
+      material,
+      page,
+      body_md,
+      expected_revision,
+    )
+  const body: SaveNote = { course, material, page, body_md, expected_revision }
+  return request<NoteOut>(user, '/notes.save', json(body))
+}
+
+export async function getReadingPosition(user: string, material: string) {
+  if (usesMockBackend()) return backend.getReadingPosition(user, material)
+  const position = await request<ReadingPositionOut | null>(
+    user,
+    query('/readingPosition.get', { material }),
+  )
+  return position?.page ?? 1
+}
+
+export async function saveReadingPosition(
+  user: string,
+  material: string,
+  page: number,
+) {
+  if (usesMockBackend())
+    return backend.saveReadingPosition(user, material, page)
+  const body: SetReadingPosition = { material, page }
+  return request<ReadingPositionOut>(user, '/readingPosition.set', json(body))
+}
+
+export async function notesCognifyEnabled(user: string) {
+  if (usesMockBackend()) return true
+  const me = await request<MeOut>(user, '/me.get')
+  return !me.user.notes_opt_out
 }
 export async function listMaterials(
   user: string,
@@ -357,10 +476,24 @@ export async function uploadMaterial(
   const form = new FormData()
   form.append('course', course)
   form.append('file', file)
-  const saved = await request<UploadOut>(user, '/materials.upload', {
-    method: 'POST',
-    body: form,
-  })
+  const upload = () =>
+    request<UploadOut>(user, '/materials.upload', {
+      method: 'POST',
+      body: form,
+    })
+  let saved: UploadOut
+  try {
+    saved = await upload()
+  } catch (error) {
+    if (
+      !(error instanceof ApiError) ||
+      error.status !== 404 ||
+      error.message !== 'no such course'
+    )
+      throw error
+    await joinCourse(user, course)
+    saved = await upload()
+  }
   return materialView(course, saved.material)
 }
 export async function listNotes(
@@ -379,8 +512,11 @@ export async function saveNote(
   course: string,
   id: string,
   body_md: string,
+  title?: string,
+  expected_revision?: number,
 ): Promise<Note> {
-  if (usesMockBackend()) return backend.saveNote(user, course, id, body_md)
+  if (usesMockBackend())
+    return backend.saveNote(user, course, id, body_md, title)
   const note =
     /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
       ? id
@@ -391,8 +527,27 @@ export async function saveNote(
     await request<NoteOut>(
       user,
       '/notes.save',
-      json({ course, note, body_md }),
+      json({
+        course,
+        note,
+        body_md,
+        title,
+        expected_revision,
+      } satisfies SaveNote),
     ),
+  )
+}
+export async function renameNote(
+  user: string,
+  course: string,
+  id: string,
+  title: string,
+): Promise<Note> {
+  if (usesMockBackend()) return backend.renameNote(user, course, id, title)
+  return noteView(
+    user,
+    course,
+    await request<NoteOut>(user, '/notes.rename', json({ note: id, title })),
   )
 }
 export async function ask(
@@ -428,6 +583,50 @@ export async function getSession(
     created_at: row.created_at,
     turns: row.turns.map(turnView),
   }
+}
+
+// Quiz generation and grading have no API yet. These calls only operate on
+// existing records; the client must never invent questions or correctness.
+export async function listQuizzes(user: string, course: string) {
+  if (usesMockBackend()) return []
+  return request<Array<QuizOut>>(user, query('/quizzes.list', { course }))
+}
+
+export async function getQuiz(user: string, course: string, quiz: string) {
+  const [row, enrolledCourse] = await Promise.all([
+    request<QuizOut>(user, query('/quizzes.get', { quiz })),
+    request<CourseOut>(user, query('/courses.get', { course })),
+  ])
+  if (row.course_id !== enrolledCourse.id)
+    throw new ApiError(404, 'no such quiz in this course')
+  return row
+}
+
+export async function quizMaterials(user: string, course: string) {
+  if (usesMockBackend()) return []
+  return request<Array<MaterialOut>>(user, query('/materials.list', { course }))
+}
+
+export async function listTopics(user: string, material: string) {
+  if (usesMockBackend()) return []
+  return request<Array<TopicOut>>(user, query('/topics.list', { material }))
+}
+
+export function recordQuizAnswer(
+  user: string,
+  question: string,
+  answer: string,
+) {
+  const body: RecordAnswer = { question, answer_text: answer }
+  return request<QuizAnswerOut>(user, '/quizAnswers.record', json(body))
+}
+
+export function closeQuiz(
+  user: string,
+  quiz: string,
+  status: 'submit' | 'abandon',
+) {
+  return request<QuizOut>(user, `/quizzes.${status}`, json({ quiz }))
 }
 
 /** react-query refetchInterval helper: poll while anything is still ingesting. */

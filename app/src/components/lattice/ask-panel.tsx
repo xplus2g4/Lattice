@@ -1,12 +1,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { ChatQuestionIcon, HistoryIcon } from '@hugeicons/core-free-icons'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { Textarea } from '#/components/ui/textarea'
+import { DemoModeNotice } from '#/components/lattice/demo-mode-notice'
 import {
   ApiError,
   ask,
@@ -14,17 +15,34 @@ import {
   getSession,
   listMaterials,
   listSessions,
+  usesMockBackend,
 } from '#/lib/api'
 import { useStored } from '#/lib/user'
 
 import type { Enrolment, Session, TierResult, Turn } from '#/lib/api'
 
-export function AskPanel({ course, user }: Enrolment) {
+export function AskPanel({
+  course,
+  user,
+  sessionId: requestedSession,
+  onSessionChange,
+}: Enrolment & {
+  sessionId?: string
+  onSessionChange?: (id: string | null) => void
+}) {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('ask')
-  const [sessionId, setSessionId] = useStored(
-    `lattice.session.${course}.${user}`,
+  const [storedSession, setStoredSession] = useStored(
+    `lattice.session.${usesMockBackend() ? 'demo' : 'api'}.${course}.${user}`,
     '',
+  )
+  const sessionId = requestedSession ?? storedSession
+  const setSessionId = useCallback(
+    (id: string | null) => {
+      setStoredSession(id)
+      onSessionChange?.(id)
+    },
+    [setStoredSession, onSessionChange],
   )
 
   const sessionKey = ['session', course, user, sessionId]
@@ -102,6 +120,7 @@ export function AskPanel({ course, user }: Enrolment) {
       onValueChange={setTab}
       className="flex min-h-0 flex-1 flex-col gap-0"
     >
+      <DemoModeNotice />
       <div className="flex items-center justify-between border-b border-border px-5">
         <TabsList variant="line" className="gap-5 p-0">
           <TabsTrigger value="ask" className="rounded-none px-1 pb-3">
@@ -138,7 +157,7 @@ export function AskPanel({ course, user }: Enrolment) {
               </p>
               <p className="max-w-md text-sm leading-6 text-muted-foreground">
                 Answers cite the materials and your notes they came from. Upload
-                materials in the left rail to feed this course.
+                Materials from the Materials tab to feed this course.
               </p>
             </div>
           )}

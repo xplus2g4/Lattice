@@ -1,36 +1,41 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-
-import { Ask } from '#/components/ask'
-import { useUser } from '#/lib/storage'
+import { useCallback } from 'react'
+import { AskPanel } from '#/components/lattice/ask-panel'
+import { useUser } from '#/lib/user'
 
 export const Route = createFileRoute('/courses/$course/ask/$sessionId')({
-  component: Conversation,
+  component: AskPage,
 })
-
-function Conversation() {
+function AskPage() {
   const { course, sessionId } = Route.useParams()
   const [user] = useUser()
   const navigate = useNavigate()
-  const leave = () =>
-    void navigate({
-      to: '/courses/$course/ask',
-      params: { course },
-      replace: true,
-    })
-
-  return (
-    <Ask
-      course={course}
-      user={user}
-      sessionId={sessionId}
-      onSessionStarted={(next) =>
+  const select = useCallback(
+    (next: string | null) => {
+      if (next)
         void navigate({
           to: '/courses/$course/ask/$sessionId',
           params: { course, sessionId: next },
           replace: true,
         })
-      }
-      onLeaveSession={leave}
-    />
+      else
+        void navigate({
+          to: '/courses/$course/ask',
+          params: { course },
+          replace: true,
+        })
+    },
+    [course, navigate],
+  )
+  return (
+    <main className="flex h-full min-h-0 flex-col">
+      <AskPanel
+        key={`${course}:${user}`}
+        course={course}
+        user={user}
+        sessionId={sessionId}
+        onSessionChange={select}
+      />
+    </main>
   )
 }

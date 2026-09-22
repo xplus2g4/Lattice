@@ -32,6 +32,7 @@ async def save(
     user: User,
     course: Course,
     body_md: str,
+    title: str | None = None,
     material: Material | None = None,
     page: int | None = None,
     note: Note | None = None,
@@ -63,6 +64,9 @@ async def save(
         if page is not None and note.page != page:
             raise ValueError("note belongs to another page")
         if note.body_md == body_md and note.status != "failed":
+            if title is not None:
+                note.title = title
+                await session.flush()
             return note
     current_revision = 0 if note is None else note.revision
     if expected_revision is not None and expected_revision != current_revision:
@@ -79,6 +83,8 @@ async def save(
     elif note.body_md != body_md:
         note.revision += 1
     note.body_md = body_md
+    if title is not None:
+        note.title = title
     note.status = "dirty"
     note.error = None
     note.ingest_attempts = 0

@@ -13,6 +13,7 @@ import { CourseCard } from '#/components/lattice/course-card'
 import { ApiError, joinCourse, listCourses } from '#/lib/api'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
+import { useCourseRemovalState } from '#/lib/course-removal'
 
 import type { CourseSummary } from '#/lib/api'
 
@@ -37,6 +38,7 @@ function Home() {
       .filter((code) => !known.has(code))
       .map((code) => ({
         code,
+        can_delete: true,
         material_count: 0,
         note_count: 0,
         pending_count: 0,
@@ -44,7 +46,7 @@ function Home() {
   ]
 
   return (
-    <main className="min-h-screen bg-background px-5 py-10 text-foreground sm:px-10 sm:py-14">
+    <main className="min-h-full bg-background px-5 py-10 text-foreground sm:px-10 sm:py-14">
       <div className="mx-auto max-w-5xl space-y-10">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div>
@@ -75,7 +77,7 @@ function Home() {
           />
         )}
 
-        <section>
+        <section id="courses">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h2 className="text-lattice-heading font-semibold tracking-tight">
               Your courses
@@ -100,7 +102,7 @@ function Home() {
           ) : (
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {merged.map((course) => (
-                <CourseCard key={course.code} course={course} />
+                <CourseCard key={course.code} course={course} user={user} />
               ))}
             </div>
           )}
@@ -117,6 +119,9 @@ function ContinueCard({
   course: string
   filename: string
 }) {
+  const [user] = useUser()
+  const removal = useCourseRemovalState(user, course)
+  if (removal.isPending) return null
   return (
     <Card>
       <CardContent className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
@@ -210,8 +215,8 @@ function EmptyCourses() {
     <Card className="mt-4 items-center gap-3 border-dashed px-6 py-14 text-center shadow-none">
       <h3 className="font-semibold tracking-tight">No courses yet</h3>
       <p className="max-w-md text-sm leading-6 text-muted-foreground">
-        Create a course above, then upload its materials in the workspace to
-        start asking questions.
+        Create a course above, then upload its Materials in the course to start
+        asking questions.
       </p>
     </Card>
   )

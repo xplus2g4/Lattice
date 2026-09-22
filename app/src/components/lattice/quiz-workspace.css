@@ -1,0 +1,57 @@
+/* Quiz screens follow the supplied study designs without changing the reader theme. */
+.quiz-workspace {
+  --background: #f6f8ff;
+  --foreground: #202c40;
+  --card: #fff;
+  --card-foreground: #202c40;
+  --primary: #7045cd;
+  --primary-foreground: #fff;
+  --secondary: #f1eaff;
+  --secondary-foreground: #7045cd;
+  --muted: #f3f5fa;
+  --muted-foreground: #607391;
+  --accent: #f1eaff;
+  --accent-foreground: #7045cd;
+  --border: #dce3f2;
+  --input: #dce3f2;
+  --ring: #8257e6;
+}
+.quiz-heading {
+  font-family: Georgia, 'Times New Roman', serif;
+  font-weight: 600;
+  letter-spacing: -0.025em;
+}
+.quiz-workspace [data-slot='button'] {
+  border-radius: 0.65rem;
+  min-height: 2.5rem;
+}
+.quiz-workspace textarea {
+  background: var(--background);
+  border-radius: 0.65rem;
+}
+.quiz-question {
+  scroll-margin-top: 1rem;
+}
+.quiz-question h3 {
+  font-family: Georgia, 'Times New Roman', serif;
+}
+.quiz-workspace input {
+  accent-color: var(--primary);
+}
+.dark .quiz-workspace {
+  --background: #171c29;
+  --foreground: #edf0f8;
+  --card: #202738;
+  --card-foreground: #edf0f8;
+  --primary: #b79bf5;
+  --primary-foreground: #24153e;
+  --secondary: #34284c;
+  --secondary-foreground: #cfbafa;
+  --muted: #282f40;
+  --muted-foreground: #a9b6cd;
+  --accent: #34284c;
+  --accent-foreground: #cfbafa;
+  --border: #374258;
+  --input: #374258;
+  --ring: #b79bf5;
+}

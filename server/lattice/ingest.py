@@ -6,6 +6,7 @@ with a job the Worker claims; the body below moves across unchanged.
 """
 
 import asyncio
+from contextlib import asynccontextmanager
 from datetime import timedelta
 from pathlib import Path
 from uuid import UUID
@@ -28,8 +29,19 @@ class Ingest:
         self.engine = engine
         self.settings = settings
         self._note_lock = asyncio.Lock()
+        self._material_lock = asyncio.Lock()
+
+    @asynccontextmanager
+    async def paused(self):
+        """Wait for active ingest and exclude new work until course removal commits."""
+        async with self._material_lock, self._note_lock:
+            yield
 
     async def material(self, material_id: UUID) -> None:
+        async with self._material_lock:
+            await self._material(material_id)
+
+    async def _material(self, material_id: UUID) -> None:
         async with self.sessionmaker() as session:
             material = await materials.get(session, material_id)
             if material is None:

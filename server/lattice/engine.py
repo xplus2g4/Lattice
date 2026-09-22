@@ -110,6 +110,21 @@ class Engine:
 
     # Ingest
 
+    async def delete_course(self, course: str, owners: list[str]) -> None:
+        """Remove only this course's global and private Datasets, including former members."""
+        async with self._ingest_lock:
+            instructor = await self.instructor()
+            targets = [(f"{course}-global", instructor)]
+            for email in owners:
+                principal = await self.principal(email)
+                targets.append((f"{course}-user-{principal.id}", principal))
+            for name, owner in targets:
+                dataset = await get_authorized_dataset_by_name(name, owner, "delete")
+                if dataset is not None:
+                    await cognee.datasets.empty_dataset(dataset.id, user=owner)
+                self._datasets.pop((name, owner.id), None)
+            self._enrolled = {(user, code) for user, code in self._enrolled if code != course}
+
     async def replace(self, dataset: Dataset, user: User, path: Path) -> None:
         """Drop any earlier data with this file's name, then add and cognify."""
         async with self._ingest_lock:

@@ -83,6 +83,64 @@
         "title": "Body_upload_material_materials_upload_post",
         "type": "object"
       },
+      "CourseListOut": {
+        "properties": {
+          "can_delete": {
+            "title": "Can Delete",
+            "type": "boolean"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "global_dataset_name": {
+            "title": "Global Dataset Name",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "owner_user_id": {
+            "format": "uuid",
+            "title": "Owner User Id",
+            "type": "string"
+          },
+          "term": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Term"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "term",
+          "owner_user_id",
+          "global_dataset_name",
+          "created_at",
+          "can_delete"
+        ],
+        "title": "CourseListOut",
+        "type": "object"
+      },
       "CourseOut": {
         "properties": {
           "code": {
@@ -603,6 +661,10 @@
             "title": "Status",
             "type": "string"
           },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
@@ -611,6 +673,7 @@
         },
         "required": [
           "id",
+          "title",
           "revision",
           "cognified_revision",
           "course_id",
@@ -1002,6 +1065,27 @@
         "title": "RecordAnswer",
         "type": "object"
       },
+      "RenameNote": {
+        "properties": {
+          "note": {
+            "format": "uuid",
+            "title": "Note",
+            "type": "string"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "note",
+          "title"
+        ],
+        "title": "RenameNote",
+        "type": "object"
+      },
       "ReplaceTopics": {
         "properties": {
           "material": {
@@ -1083,6 +1167,19 @@
               }
             ],
             "title": "Page"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
           }
         },
         "required": [
@@ -1715,6 +1812,69 @@
         ]
       }
     },
+    "/courses.delete": {
+      "post": {
+        "operationId": "delete_course_courses_delete_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseRef"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Delete Course Courses Delete Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Course",
+        "tags": [
+          "courses"
+        ]
+      }
+    },
     "/courses.get": {
       "get": {
         "operationId": "get_course_courses_get_get",
@@ -1800,7 +1960,7 @@
               "application/json": {
                 "schema": {
                   "items": {
-                    "$ref": "#/components/schemas/CourseOut"
+                    "$ref": "#/components/schemas/CourseListOut"
                   },
                   "title": "Response List Courses Courses List Get",
                   "type": "array"
@@ -2987,6 +3147,66 @@
           }
         },
         "summary": "List Notes",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/notes.rename": {
+      "post": {
+        "description": "Changing a title never rewrites the body or schedules Cognify.",
+        "operationId": "rename_note_notes_rename_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RenameNote"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Rename Note",
         "tags": [
           "notes"
         ]

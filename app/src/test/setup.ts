@@ -31,6 +31,7 @@ afterEach(() => {
   resetStore()
   cleanup()
   localStorage.clear()
+  sessionStorage.clear()
 })
 
 afterAll(() => server.close())

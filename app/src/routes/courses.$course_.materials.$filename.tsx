@@ -26,24 +26,31 @@ function MaterialViewerRoute() {
   const { url } = useMaterialFile(course, filename)
 
   return (
-    <div className="flex h-screen flex-col bg-background">
-      <header className="flex items-center gap-3 border-b border-border px-4 py-3">
+    <div className="flex h-full flex-col bg-background">
+      <header className="flex shrink-0 flex-wrap items-center gap-3 border-b border-border px-4 py-3">
         <Link
-          to="/courses/$course"
-          params={{ course }}
-          search={{ material: undefined }}
-          className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+          to="/"
+          className="inline-flex min-h-11 items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
         >
           <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-          Workspace
+          Homepage
         </Link>
         <Badge variant="secondary" className="font-mono uppercase">
           {course}
         </Badge>
-        <p className="min-w-0 flex-1 truncate text-sm font-medium">
+        <p
+          className="min-w-0 flex-1 basis-32 truncate text-sm font-medium"
+          title={filename}
+        >
           {filename}
         </p>
-        <Button asChild variant="outline" size="sm" disabled={!url}>
+        <Button
+          asChild
+          variant="outline"
+          size="sm"
+          className="min-h-11 rounded-lg"
+          disabled={!url}
+        >
           <a href={url ?? '#'} download={filename}>
             Download
           </a>
