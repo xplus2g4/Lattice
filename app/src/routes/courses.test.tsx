@@ -27,7 +27,7 @@ describe('a course URL', () => {
 
     expect(await screen.findByText('week1.pdf')).toBeInTheDocument()
     expect(
-      screen.queryByPlaceholderText(/Ask a question/),
+      screen.queryByPlaceholderText(/Ask about CS101/),
     ).not.toBeInTheDocument()
   })
 
@@ -56,7 +56,9 @@ describe('a course URL', () => {
   it('names the course it is scoped to', async () => {
     renderRoute('/courses/cs101/materials')
 
-    expect(await screen.findByText('cs101')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('combobox', { name: 'Active course' }),
+    ).toHaveValue('cs101')
   })
 
   it('refuses a course code the API would reject', async () => {
@@ -73,7 +75,7 @@ describe('a course URL', () => {
 
     await user.click(screen.getByRole('link', { name: 'Notes' }))
 
-    expect(await screen.findByText('No notes yet.')).toBeInTheDocument()
+    expect(await screen.findByText(/No notes yet/)).toBeInTheDocument()
     expect(screen.queryByText('week1.pdf')).not.toBeInTheDocument()
   })
 })
@@ -102,13 +104,13 @@ describe('a conversation', () => {
   it('gets its own URL as soon as it starts', async () => {
     const user = userEvent.setup()
     const { router } = renderRoute('/courses/cs101/ask')
-    await screen.findByPlaceholderText(/Ask a question/)
+    await screen.findByPlaceholderText(/Ask about CS101/)
 
     await user.type(
-      screen.getByPlaceholderText(/Ask a question/),
+      screen.getByPlaceholderText(/Ask about CS101/),
       'what is a hash table?',
     )
-    await user.click(screen.getByRole('button', { name: 'Ask' }))
+    await user.click(screen.getByRole('button', { name: 'Ask Lattice' }))
 
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/courses/cs101/ask/sess-1'),

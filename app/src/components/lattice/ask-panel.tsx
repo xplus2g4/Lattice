@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { ChatQuestionIcon, HistoryIcon } from '@hugeicons/core-free-icons'
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -21,12 +21,28 @@ import { useStored } from '#/lib/user'
 
 import type { Enrolment, Session, TierResult, Turn } from '#/lib/api'
 
-export function AskPanel({ course, user }: Enrolment) {
+export function AskPanel({
+  course,
+  user,
+  sessionId: requestedSession,
+  onSessionChange,
+}: Enrolment & {
+  sessionId?: string
+  onSessionChange?: (id: string | null) => void
+}) {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('ask')
-  const [sessionId, setSessionId] = useStored(
+  const [storedSession, setStoredSession] = useStored(
     `lattice.session.${usesMockBackend() ? 'demo' : 'api'}.${course}.${user}`,
     '',
+  )
+  const sessionId = requestedSession ?? storedSession
+  const setSessionId = useCallback(
+    (id: string | null) => {
+      setStoredSession(id)
+      onSessionChange?.(id)
+    },
+    [setStoredSession, onSessionChange],
   )
 
   const sessionKey = ['session', course, user, sessionId]
@@ -141,7 +157,7 @@ export function AskPanel({ course, user }: Enrolment) {
               </p>
               <p className="max-w-md text-sm leading-6 text-muted-foreground">
                 Answers cite the materials and your notes they came from. Upload
-                materials in the left rail to feed this course.
+                Materials from the Materials tab to feed this course.
               </p>
             </div>
           )}

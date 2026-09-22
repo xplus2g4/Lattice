@@ -33,11 +33,9 @@ it('disables only the removing course and lets another workspace open', async ()
       screen.getByRole('button', { name: 'Remove course permanently' }),
     )
     expect(await target.findByRole('status')).toHaveTextContent('Removing…')
-    expect(
-      target.getByRole('button', { name: 'Open workspace' }),
-    ).toBeDisabled()
+    expect(target.getByRole('button', { name: 'Open course' })).toBeDisabled()
     const other = within(screen.getByRole('group', { name: 'CS3216 course' }))
-    await user.click(other.getByRole('link', { name: 'Open workspace' }))
+    await user.click(other.getByRole('link', { name: 'Open course' }))
     await waitFor(() =>
       expect(router.state.location.pathname).toBe('/courses/cs3216'),
     )

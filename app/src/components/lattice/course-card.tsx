@@ -46,7 +46,7 @@ export function CourseCard({
         <div className="mt-5">
           {removal.isPending ? (
             <Button size="sm" className="w-full" disabled>
-              Open workspace
+              Open course
             </Button>
           ) : (
             <Button asChild size="sm" className="w-full">
@@ -55,7 +55,7 @@ export function CourseCard({
                 params={{ course: course.code }}
                 search={{ material: undefined }}
               >
-                Open workspace
+                Open course
                 <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" />
               </Link>
             </Button>

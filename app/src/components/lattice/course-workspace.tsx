@@ -1,9 +1,8 @@
 import { Link } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { ArrowLeft01Icon, Cancel01Icon } from '@hugeicons/core-free-icons'
+import { Cancel01Icon } from '@hugeicons/core-free-icons'
 import { useEffect, useState } from 'react'
 
-import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { AskPanel } from '#/components/lattice/ask-panel'
 import { MaterialViewer } from '#/components/lattice/material-viewer'
@@ -31,7 +30,7 @@ export function CourseWorkspace({
   }, [course, material, markOpened])
 
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-background md:flex-row">
+    <div className="flex h-full flex-col overflow-hidden bg-background md:flex-row">
       <aside
         className={
           material
@@ -39,24 +38,6 @@ export function CourseWorkspace({
             : 'flex max-h-[45%] w-full shrink-0 flex-col border-b border-border bg-sidebar md:max-h-none md:w-80 md:border-b-0 md:border-r'
         }
       >
-        <div className="space-y-4 border-b border-border p-4">
-          <Link
-            to="/"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            Home
-          </Link>
-          <p className="text-lg font-semibold tracking-tight">Lattice Study</p>
-          <div className="space-y-1 rounded-xl border border-border bg-secondary/50 p-3">
-            <p className="text-xs font-semibold text-muted-foreground">
-              ACTIVE COURSE
-            </p>
-            <Badge variant="secondary" className="font-mono uppercase">
-              {course}
-            </Badge>
-          </div>
-        </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
           <MaterialsPanel course={course} user={user} />
           <NotesPanel course={course} user={user} />
@@ -75,7 +56,7 @@ export function CourseWorkspace({
             </div>
             <div
               role="group"
-              aria-label="Workspace view"
+              aria-label="Reader view"
               className="flex rounded-xl bg-muted p-1"
             >
               <button

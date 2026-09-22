@@ -46,7 +46,7 @@ function Home() {
   ]
 
   return (
-    <main className="min-h-screen bg-background px-5 py-10 text-foreground sm:px-10 sm:py-14">
+    <main className="min-h-full bg-background px-5 py-10 text-foreground sm:px-10 sm:py-14">
       <div className="mx-auto max-w-5xl space-y-10">
         <header className="flex flex-wrap items-end justify-between gap-6">
           <div>
@@ -77,7 +77,7 @@ function Home() {
           />
         )}
 
-        <section>
+        <section id="courses">
           <div className="flex flex-wrap items-center justify-between gap-4">
             <h2 className="text-lattice-heading font-semibold tracking-tight">
               Your courses
@@ -215,8 +215,8 @@ function EmptyCourses() {
     <Card className="mt-4 items-center gap-3 border-dashed px-6 py-14 text-center shadow-none">
       <h3 className="font-semibold tracking-tight">No courses yet</h3>
       <p className="max-w-md text-sm leading-6 text-muted-foreground">
-        Create a course above, then upload its materials in the workspace to
-        start asking questions.
+        Create a course above, then upload its Materials in the course to start
+        asking questions.
       </p>
     </Card>
   )

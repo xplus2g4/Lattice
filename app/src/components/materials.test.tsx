@@ -3,14 +3,13 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
-import { Materials } from '#/components/materials'
 import { material } from '#/test/fixtures'
 import { resetStore } from '#/test/handlers'
 import { server } from '#/test/server'
-import { renderWithQuery } from '#/test/render'
+import { renderRoute } from '#/test/render'
 
 function show() {
-  return renderWithQuery(<Materials course="cs101" user="alice@example.com" />)
+  return renderRoute('/courses/cs101/materials')
 }
 
 describe('the materials list', () => {
@@ -33,9 +32,8 @@ describe('the materials list', () => {
       }),
     )
     const user = userEvent.setup()
-    const { container } = renderWithQuery(
-      <Materials course="cs2100" user="alice@example.com" />,
-    )
+    const { container } = renderRoute('/courses/cs2100/materials')
+    await screen.findByRole('button', { name: 'Upload' })
     await user.upload(
       container.querySelector('input[type="file"]') as HTMLInputElement,
       new File(['CS2100 Material'], 'week1.md', { type: 'text/markdown' }),
@@ -47,7 +45,7 @@ describe('the materials list', () => {
   it('says so when the course has no materials', async () => {
     show()
 
-    expect(await screen.findByText('No materials yet.')).toBeInTheDocument()
+    expect(await screen.findByText(/No materials yet/)).toBeInTheDocument()
   })
 
   it('shows each material with its ingest status', async () => {
@@ -90,8 +88,9 @@ describe('the materials list', () => {
   it('adds the uploaded material to the list, still queued', async () => {
     const user = userEvent.setup()
     const { container } = show()
-    await screen.findByText('No materials yet.')
+    await screen.findByText(/No materials yet/)
 
+    await screen.findByRole('button', { name: 'Upload' })
     await user.upload(
       container.querySelector('input[type="file"]') as HTMLInputElement,
       new File(['# week 3'], 'week3.md', { type: 'text/markdown' }),
@@ -99,7 +98,7 @@ describe('the materials list', () => {
     await user.click(screen.getByRole('button', { name: 'Upload' }))
 
     expect(await screen.findByText('queued')).toBeInTheDocument()
-    expect(screen.queryByText('No materials yet.')).not.toBeInTheDocument()
+    expect(screen.queryByText(/No materials yet/)).not.toBeInTheDocument()
   })
 
   it('reports an upload the API rejected', async () => {
@@ -113,10 +112,11 @@ describe('the materials list', () => {
     )
     const user = userEvent.setup()
     const { container } = show()
-    await screen.findByText('No materials yet.')
+    await screen.findByText(/No materials yet/)
 
     // The filename has to match the input's `accept` list, or userEvent drops it the way
     // a browser would and nothing is ever submitted.
+    await screen.findByRole('button', { name: 'Upload' })
     await user.upload(
       container.querySelector('input[type="file"]') as HTMLInputElement,
       new File(['x'], 'huge.pdf', { type: 'application/pdf' }),

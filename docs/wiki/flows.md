@@ -63,6 +63,18 @@ POST /ask {course, session_id, question}
 
 Cross-dataset `search()` does honour permissions, so `ASK_TWO_CALL_MODE` stays off ([findings](../research/cognee-1.5.4-first-cut-findings.md); backlog issues 1 and 2 are closed). It remains the fallback: setting `ASK_TWO_CALL_MODE=1` makes step 5 two calls, global then private, merged in the API. The contract of `/ask` is unchanged either way.
 
+## Quiz frontend (current)
+
+The persistent sidebar has five tabs: **Homepage**, **Materials**, **Notes**, **Ask**, and **Practice**. It stays visible on the homepage, course pages, reader, and Practice, with a compact rail on smaller screens. Homepage always opens the overview of all courses. The course selector remembers the user's active course and keeps the current tab when switching courses. Materials, Notes, and Ask reuse the same product panels as the reader; the older duplicate screens have been removed, with existing URLs retained. Ask Session links still open their saved conversation.
+
+**Practice** opens `/courses/$course/quizzes`; there is no separate top-right Grill me shortcut. The setup shows ready Materials and their Topics. Starting a new Quiz is explicitly unavailable until question generation exists; the frontend does not create sample questions or invent grades. Automatic Pop quiz prompts are also pending generation and trigger support.
+
+The study layout follows the supplied Quiz designs: a course rail, lavender practice area, and an Ask panel (a sheet on smaller screens). Scope controls offer the current Page, a Page range, Topics, or the whole Material. The reader's selected Material is carried into setup. Grill me shows all questions on an answer sheet; Pop quiz shows one question at a time. Drafts are kept as the student types, but saving answers to the API remains explicit because each write currently creates an attempt. The Ask panel retains its existing course-wide retrieval behavior; it does not claim to restrict answers to the selected Material or provide hints only. Topic result cards use recorded correctness: all correct is Strong, mixed results Developing, all incorrect Revisit, and ungraded or incomplete results remain labeled as such.
+
+Existing Quiz records can be opened from the in-progress list or a `?quiz=<id>` link. The frontend checks the Quiz belongs to the URL's course. Multiple-choice and short answers are saved through `/quizAnswers.record` without correctness or feedback supplied by the browser. Saved progress survives reload; unsaved drafts stay in sessionStorage, keyed by user, course, Quiz and question. Failed saves retain drafts and offer a reload of saved answers. The records API has no idempotency key, so a request whose response is lost should be reconciled before saving another attempt.
+
+Finishing requires every answer to be saved, then calls `/quizzes.submit` without a fabricated score. A confirmed early end calls `/quizzes.abandon`; both remain in Quiz history. Review displays the recorded score and latest answer feedback, a per-Topic summary that separates ungraded and unanswered questions, and links to associated Materials. Topic counts on this screen describe this Quiz's latest attempts, rather than the cumulative `/quizStats.byTopic` counts. Grading and a structured Citation contract remain backend integration work.
+
 ## Ask with related concepts (Phase 2)
 
 Extends the ask flow between steps 7 and 8:

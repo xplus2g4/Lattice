@@ -20,6 +20,10 @@ import type {
   TurnOut,
   UploadOut,
   ValidationError,
+  QuizOut,
+  QuizAnswerOut,
+  RecordAnswer,
+  TopicOut,
 } from './generated'
 
 export { ApiError } from './api-error'
@@ -579,6 +583,50 @@ export async function getSession(
     created_at: row.created_at,
     turns: row.turns.map(turnView),
   }
+}
+
+// Quiz generation and grading have no API yet. These calls only operate on
+// existing records; the client must never invent questions or correctness.
+export async function listQuizzes(user: string, course: string) {
+  if (usesMockBackend()) return []
+  return request<Array<QuizOut>>(user, query('/quizzes.list', { course }))
+}
+
+export async function getQuiz(user: string, course: string, quiz: string) {
+  const [row, enrolledCourse] = await Promise.all([
+    request<QuizOut>(user, query('/quizzes.get', { quiz })),
+    request<CourseOut>(user, query('/courses.get', { course })),
+  ])
+  if (row.course_id !== enrolledCourse.id)
+    throw new ApiError(404, 'no such quiz in this course')
+  return row
+}
+
+export async function quizMaterials(user: string, course: string) {
+  if (usesMockBackend()) return []
+  return request<Array<MaterialOut>>(user, query('/materials.list', { course }))
+}
+
+export async function listTopics(user: string, material: string) {
+  if (usesMockBackend()) return []
+  return request<Array<TopicOut>>(user, query('/topics.list', { material }))
+}
+
+export function recordQuizAnswer(
+  user: string,
+  question: string,
+  answer: string,
+) {
+  const body: RecordAnswer = { question, answer_text: answer }
+  return request<QuizAnswerOut>(user, '/quizAnswers.record', json(body))
+}
+
+export function closeQuiz(
+  user: string,
+  quiz: string,
+  status: 'submit' | 'abandon',
+) {
+  return request<QuizOut>(user, `/quizzes.${status}`, json({ quiz }))
 }
 
 /** react-query refetchInterval helper: poll while anything is still ingesting. */

@@ -4,7 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it } from 'vitest'
 
-import { Ask } from '#/components/ask'
+import { AskPanel } from '#/components/lattice/ask-panel'
 import { assistantTurn, evidence, session, tierResult } from '#/test/fixtures'
 import { answerNextAskWith, resetStore } from '#/test/handlers'
 import { server } from '#/test/server'
@@ -19,12 +19,11 @@ const USER = 'alice@example.com'
 function Conversation({ openAt }: { openAt: string | null }) {
   const [sessionId, setSessionId] = useState<string | null>(openAt)
   return (
-    <Ask
+    <AskPanel
       course={COURSE}
       user={USER}
-      sessionId={sessionId}
-      onSessionStarted={setSessionId}
-      onLeaveSession={() => setSessionId(null)}
+      sessionId={sessionId ?? ''}
+      onSessionChange={setSessionId}
     />
   )
 }
@@ -35,8 +34,8 @@ function show(openAt: string | null = null) {
 
 async function askAbout(question: string) {
   const user = userEvent.setup()
-  await user.type(screen.getByPlaceholderText(/Ask a question/), question)
-  await user.click(screen.getByRole('button', { name: 'Ask' }))
+  await user.type(screen.getByPlaceholderText(/Ask about CS101/), question)
+  await user.click(screen.getByRole('button', { name: 'Ask Lattice' }))
   return user
 }
 
@@ -78,20 +77,17 @@ describe('asking a question', () => {
     ).toBeInTheDocument()
   })
 
-  it('keeps the echoed question after the session is re-read from the API', async () => {
-    show()
-
+  it('keeps the echoed question after reopening the saved Session', async () => {
+    const view = show()
     await askAbout('what is a hash table?')
     await screen.findByText('what is a hash table?', { exact: false })
-
-    // The optimistic echo is written into the cache under the session id the server
-    // chose; if that key were wrong the refetch would replace it and the question would
-    // vanish a moment later.
     await waitFor(() =>
-      expect(screen.getByText(/session sess-1/)).toBeInTheDocument(),
+      expect(screen.getByRole('button', { name: 'New session' })).toBeEnabled(),
     )
+    view.unmount()
+    show('sess-1')
     expect(
-      screen.getByText('what is a hash table?', { exact: false }),
+      await screen.findByText('what is a hash table?', { exact: false }),
     ).toBeInTheDocument()
   })
 
@@ -101,7 +97,7 @@ describe('asking a question', () => {
     await askAbout('what is a hash table?')
 
     await waitFor(() =>
-      expect(screen.getByPlaceholderText(/Ask a question/)).toHaveValue(''),
+      expect(screen.getByPlaceholderText(/Ask about CS101/)).toHaveValue(''),
     )
   })
 
@@ -132,7 +128,7 @@ describe('an answer with nothing behind it', () => {
     await askAbout('what is a hash table?')
 
     expect(
-      await screen.findByText('Nothing cognified in this course yet.'),
+      await screen.findByText(/Nothing cognified in this course yet/),
     ).toBeInTheDocument()
   })
 
@@ -149,7 +145,7 @@ describe('an answer with nothing behind it', () => {
 })
 
 describe('the evidence behind an answer', () => {
-  it('names the document and chunk a passage came from', async () => {
+  it('names the Material and passage a passage came from', async () => {
     answerNextAskWith(
       assistantTurn({
         results: [
@@ -215,7 +211,9 @@ describe('an existing conversation', () => {
     show('sess-gone')
 
     await waitFor(() =>
-      expect(screen.queryByText(/session sess-gone/)).not.toBeInTheDocument(),
+      expect(
+        screen.getByRole('button', { name: 'New session' }),
+      ).toBeDisabled(),
     )
   })
 
@@ -223,7 +221,9 @@ describe('an existing conversation', () => {
     show('sess-gone')
 
     await waitFor(() =>
-      expect(screen.queryByText(/session sess-gone/)).not.toBeInTheDocument(),
+      expect(
+        screen.getByRole('button', { name: 'New session' }),
+      ).toBeDisabled(),
     )
     expect(screen.queryByText('no such session')).not.toBeInTheDocument()
   })
@@ -232,10 +232,12 @@ describe('an existing conversation', () => {
     const user = userEvent.setup()
     show()
     await askAbout('what is a hash table?')
-    await screen.findByText(/session sess-1/)
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'New session' })).toBeEnabled(),
+    )
 
     await user.click(screen.getByRole('button', { name: 'New session' }))
 
-    expect(screen.queryByText(/session sess-1/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'New session' })).toBeDisabled()
   })
 })
