@@ -8,6 +8,30 @@ from tests.test_materials import BOB, join, upload
 pytestmark = pytest.mark.asyncio
 
 
+async def test_rename_persists_without_changing_body_revision_or_cognify(student, ingest):
+    await join(student)
+    original = await save(student, body_md="Private study text")
+    queued = list(ingest.notes)
+    renamed = await student.post(
+        "/notes.rename", json={"note": original["id"], "title": "Week 3 recap"}
+    )
+    assert renamed.status_code == 200, renamed.text
+    assert renamed.json()["title"] == "Week 3 recap"
+    for key in ("id", "body_md", "revision", "cognified_revision", "status"):
+        assert renamed.json()[key] == original[key]
+    assert ingest.notes == queued
+    reloaded = await student.get("/notes.get", params={"note": original["id"]})
+    assert reloaded.json()["title"] == "Week 3 recap"
+    stolen = await student.post(
+        "/notes.rename", headers=BOB, json={"note": original["id"], "title": "Stolen"}
+    )
+    assert stolen.status_code == 404
+    await save(student, note=original["id"], body_md="Revised body", expected_revision=1)
+    assert (await student.get("/notes.get", params={"note": original["id"]})).json()[
+        "title"
+    ] == "Week 3 recap"
+
+
 async def material_id(client: AsyncClient) -> str:
     await join(client)
     return (await upload(client))["material"]["id"]

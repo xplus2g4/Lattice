@@ -1,9 +1,16 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 
-import { ApiError, QUERY_TYPES, ask, getSession } from '#/lib/api'
-import type { Citation, QueryType, Session, TierResult, Turn } from '#/lib/api'
+import {
+  ApiError,
+  QUERY_TYPES,
+  ask,
+  describeCitation,
+  getSession,
+} from '#/lib/api'
+import type { QueryType, Session, TierResult, Turn } from '#/lib/api'
 import { ErrorLine, buttonClass, inputClass } from '#/components/common'
+import { DemoModeNotice } from '#/components/lattice/demo-mode-notice'
 import type { Scope } from '#/components/common'
 
 export interface AskProps extends Scope {
@@ -77,6 +84,7 @@ export function Ask({
   return (
     <section className="space-y-3">
       <h2 className="text-lg font-semibold">Ask</h2>
+      <DemoModeNotice />
       <form
         className="flex flex-wrap items-center gap-2"
         onSubmit={(e) => {
@@ -190,15 +198,4 @@ function TierView({ result }: { result: TierResult }) {
       )}
     </div>
   )
-}
-
-function describeCitation(e: Citation): string {
-  switch (e.kind) {
-    case 'chunk':
-      return `${e.filename ?? '?'}${e.chunk_index !== null ? ` #${e.chunk_index}` : ''} · chunk`
-    case 'relation':
-      return `${e.relation ?? '?'} · edge`
-    default:
-      return `${e.label ?? '?'} · ${e.kind}`
-  }
 }

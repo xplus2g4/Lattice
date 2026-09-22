@@ -24,6 +24,8 @@ export function Materials({ course, user }: Scope) {
     mutationFn: (f: File) => uploadMaterial(user, course, f),
     onSuccess: () => {
       setFile(null)
+      void queryClient.invalidateQueries({ queryKey: ['courses', user] })
+      void queryClient.invalidateQueries({ queryKey: ['notes', course, user] })
       return queryClient.invalidateQueries({ queryKey: key })
     },
   })

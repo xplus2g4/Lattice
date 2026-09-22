@@ -2,7 +2,72 @@
 
 from httpx import AsyncClient, Response
 
+from tests.test_materials import upload
+
 BOB = {"X-User": "bob@example.com"}
+
+
+async def test_delete_course_removes_materials_notes_and_sessions(student, settings, engine):
+    await create(student)
+    await join(student)
+    material = (await upload(student))["material"]
+    note = (
+        await student.post("/notes.save", json={"course": "cs3216", "body_md": "My Note"})
+    ).json()
+    answer = (await student.post("/ask", json={"course": "cs3216", "question": "Question"})).json()
+    response = await student.post("/courses.delete", json={"course": "cs3216"})
+    assert response.status_code == 200, response.text
+    assert response.json() == {"deleted": True}
+    assert (await student.get("/courses.list")).json() == []
+    assert (
+        await student.get("/materials.get", params={"material": material["id"]})
+    ).status_code == 404
+    assert (await student.get("/notes.get", params={"note": note["id"]})).status_code == 404
+    assert (
+        await student.get("/sessions.get", params={"session": answer["session"]})
+    ).status_code == 404
+    assert not (settings.uploads_dir / "cs3216").exists()
+    assert engine.deleted_courses == ["cs3216"]
+
+
+async def test_an_enrolled_student_cannot_delete_someone_elses_course(student):
+    await create(student)
+    await join(student, headers=BOB)
+    response = await student.post("/courses.delete", headers=BOB, json={"course": "cs3216"})
+    assert response.status_code == 403
+    assert (await student.get("/courses.get", params={"course": "cs3216"})).status_code == 200
+
+
+async def test_failed_engine_cleanup_keeps_course_for_retry(student, settings, engine):
+    await create(student)
+    await join(student)
+    await upload(student)
+    engine.fail_with = RuntimeError("cleanup unavailable")
+    response = await student.post("/courses.delete", json={"course": "cs3216"})
+    assert response.status_code == 502
+    assert (await student.get("/courses.get", params={"course": "cs3216"})).status_code == 200
+    assert (settings.uploads_dir / "cs3216").is_dir()
+
+
+async def test_removing_one_course_preserves_another(student, settings):
+    await create(student)
+    await join(student)
+    await create(student, code="cs2100")
+    await join(student, "cs2100")
+    material = (await upload(student, course="cs2100"))["material"]
+    assert (await student.post("/courses.delete", json={"course": "cs3216"})).status_code == 200
+    assert (
+        await student.get("/materials.get", params={"material": material["id"]})
+    ).status_code == 200
+    assert (settings.uploads_dir / "cs2100").is_dir()
+
+
+async def test_course_list_exposes_deletion_permission(student):
+    await create(student)
+    await join(student)
+    await join(student, headers=BOB)
+    assert (await student.get("/courses.list")).json()[0]["can_delete"] is True
+    assert (await student.get("/courses.list", headers=BOB)).json()[0]["can_delete"] is False
 
 
 async def create(

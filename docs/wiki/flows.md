@@ -1,6 +1,6 @@
 # Key flows
 
-The five flows that move data through the system: enrol, ingest a material, save a note, ask, and ask with related concepts.
+The flows that move data through the system: enrol, remove a course, ingest a Material, save a Note, ask, and ask with related concepts.
 
 ## Enrol
 
@@ -10,6 +10,14 @@ The five flows that move data through the system: enrol, ingest a material, save
 4. Create the `{course}-user-{id}` dataset; grant owner read-write; grant read on `{course}-global`.
 
 Nothing is cognified here. Enrolment is cheap and synchronous.
+
+## Remove a course
+
+The home course card offers **Remove course** to the owner or an admin. Its confirmation says “All your notes and materials will be gone!” and explains that removal affects everyone enrolled. `/courses.delete` checks ownership, pauses ingest until active work finishes, removes the course's global and private Datasets (including former enrollees), removes its stored Materials and Notes, and cascades deletion through its application records. Failed cleanup returns an error and leaves the course available for retry. After success the browser clears the course bookmark, saved Session selection, and matching reading shortcut.
+
+This differs from `/enrolments.leave`, which retains Notes and the private Dataset. Legacy browser-only course entries are registered and joined when the student explicitly uploads a Material; only a missing-course response triggers that recovery.
+
+After confirmation, the dialog closes immediately and the course card shows “Removing…” while the request completes. Other courses remain usable. Progress and failures live in the app's shared mutation cache, so navigating within the app does not interrupt removal; failures appear on the card with **Retry removal**. A full browser reload does not preserve this in-memory progress indicator.
 
 ## Ingest a course material (instructor)
 

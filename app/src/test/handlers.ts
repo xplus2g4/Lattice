@@ -77,6 +77,7 @@ function materialOut(m: Material): MaterialOut {
 function noteOut(n: Note): NoteOut {
   return {
     id: n.id,
+    title: n.title,
     course_id: idFor(n.course),
     material_id: null,
     page: null,
@@ -209,12 +210,14 @@ export const handlers = [
       course: string
       note?: string
       body_md: string
+      title?: string
     }
     const saved: Note = {
       course: body.course,
       owner: request.headers.get('X-User') ?? '',
       id: body.note ?? idFor(`note-${nextNote++}`),
       body_md: body.body_md,
+      title: body.title ?? 'Untitled Note',
       status: 'queued',
       error: null,
       updated_at: new Date().toISOString(),
@@ -231,6 +234,16 @@ export const handlers = [
       saved,
     ]
     return HttpResponse.json(noteOut(saved), { status: 202 })
+  }),
+  http.post('*/notes.rename', async ({ request }) => {
+    const body = (await request.json()) as { note: string; title: string }
+    const note = store.notes.find(
+      (n) => n.id === body.note && n.owner === request.headers.get('X-User'),
+    )
+    if (!note)
+      return HttpResponse.json({ detail: 'no such note' }, { status: 404 })
+    note.title = body.title
+    return HttpResponse.json(noteOut(note))
   }),
   http.post('*/ask', async ({ request }) => {
     const body = (await request.json()) as {

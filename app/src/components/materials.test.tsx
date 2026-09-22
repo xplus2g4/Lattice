@@ -14,6 +14,36 @@ function show() {
 }
 
 describe('the materials list', () => {
+  it('registers a locally saved course before retrying its first upload', async () => {
+    let exists = false
+    server.use(
+      http.post('*/materials.upload', () =>
+        exists
+          ? undefined
+          : HttpResponse.json({ detail: 'no such course' }, { status: 404 }),
+      ),
+      http.post('*/enrolments.join', () =>
+        HttpResponse.json(exists ? {} : { detail: 'no such course' }, {
+          status: exists ? 200 : 404,
+        }),
+      ),
+      http.post('*/courses.create', () => {
+        exists = true
+        return HttpResponse.json({}, { status: 201 })
+      }),
+    )
+    const user = userEvent.setup()
+    const { container } = renderWithQuery(
+      <Materials course="cs2100" user="alice@example.com" />,
+    )
+    await user.upload(
+      container.querySelector('input[type="file"]') as HTMLInputElement,
+      new File(['CS2100 Material'], 'week1.md', { type: 'text/markdown' }),
+    )
+    await user.click(screen.getByRole('button', { name: 'Upload' }))
+    expect(await screen.findByText('queued')).toBeInTheDocument()
+    expect(exists).toBe(true)
+  })
   it('says so when the course has no materials', async () => {
     show()
 

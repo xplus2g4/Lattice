@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession as DbSession
 
 from lattice.api.deps import COURSE_CODE, CurrentUser, EngineDep, SessionDep
 from lattice.api.schemas import AskOut, SessionOut, TurnOut
+from lattice.citations import Citations
 from lattice.db.models import Session, User
 from lattice.db.repo import courses, sessions
 from lattice.study import AskRequest as StudyRequest
@@ -56,7 +57,10 @@ async def ask(body: AskRequest, user: CurrentUser, db: SessionDep, engine: Engin
         raise HTTPException(exc.status_code, str(exc)) from None
     except Exception as exc:  # noqa: BLE001 - operations.md: search raises -> 502, no partial answer
         raise HTTPException(502, f"{type(exc).__name__}: {exc}") from exc
-    return AskOut(session=session.id, turn=TurnOut.model_validate(answer))
+    citations = await Citations.load(db, user, session.course_id)
+    turn = TurnOut.model_validate(answer)
+    turn.content_json = citations.content(turn.content_json)
+    return AskOut(session=session.id, turn=turn)
 
 
 @router.get("/sessions.list")
@@ -65,12 +69,22 @@ async def list_sessions(course: str, user: CurrentUser, db: SessionDep) -> list[
     if row is None:
         raise HTTPException(404, "no such course")
     found = await sessions.for_course(db, user=user, course=row)
-    return [SessionOut.model_validate(session) for session in found]
+    citations = await Citations.load(db, user, row.id)
+    return [_session_view(session, citations) for session in found]
 
 
 @router.get("/sessions.get")
 async def get_session(session: UUID, user: CurrentUser, db: SessionDep) -> SessionOut:
-    return SessionOut.model_validate(await _own_session(db, user, session))
+    row = await _own_session(db, user, session)
+    return _session_view(row, await Citations.load(db, user, row.course_id))
+
+
+def _session_view(session: Session, citations: Citations) -> SessionOut:
+    view = SessionOut.model_validate(session)
+    for turn in view.turns:
+        if turn.role == "assistant":
+            turn.content_json = citations.content(turn.content_json)
+    return view
 
 
 @router.post("/feedback.record")

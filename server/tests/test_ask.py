@@ -4,9 +4,100 @@ import pytest
 from httpx import AsyncClient
 
 from lattice.retrieval import Evidence, TierResult
-from tests.test_materials import BOB, join
+from tests.test_materials import BOB, join, upload
 
 pytestmark = pytest.mark.asyncio
+
+
+async def test_citations_resolve_material_names_and_hide_engine_appendix(student, engine):
+    await join(student)
+    material = (await upload(student))["material"]
+    answer = "Hash tables are in week 3."
+    engine.results = [
+        TierResult(
+            tier="course",
+            dataset_name="cs3216-global",
+            answer=answer
+            + "\n\nEvidence:\n- chunk 1 of document "
+            + material["sha256"]
+            + ' (data_id: internal-data, chunk_id: internal-chunk): "excerpt"',
+            evidence=[
+                Evidence(
+                    kind="segment",
+                    document_name=material["sha256"],
+                    chunk_id="internal-chunk",
+                    chunk_index=0,
+                )
+            ],
+        )
+    ]
+    answered = await ask(student)
+    content = answered["turn"]["content_json"]
+    assert content["results"][0]["answer"] == answer
+    citation = content["results"][0]["evidence"][0]
+    assert citation["document_name"] == "week1.pdf"
+    assert citation["material_id"] == material["id"]
+    reloaded = (await student.get("/sessions.get", params={"session": answered["session"]})).json()
+    assert reloaded["turns"][1]["content_json"] == content
+
+
+async def test_citations_do_not_resolve_other_courses_or_other_students_notes(student, engine):
+    await join(student)
+    await join(student, "cs9999")
+    other = (await upload(student, course="cs9999"))["material"]
+    await join(student, headers=BOB)
+    private = (
+        await student.post(
+            "/notes.save",
+            headers=BOB,
+            json={"course": "cs3216", "body_md": "Private text", "title": "Private title"},
+        )
+    ).json()
+    engine.results = [
+        TierResult(
+            tier="course",
+            dataset_name="cs3216-global",
+            answer="Answer.",
+            evidence=[Evidence(kind="segment", document_name=other["sha256"], chunk_id="x")],
+        ),
+        TierResult(
+            tier="notes",
+            dataset_name="cs3216-private",
+            answer="Note answer.",
+            evidence=[Evidence(kind="segment", document_name=private["id"], chunk_id="y")],
+        ),
+    ]
+    result = await ask(student)
+    assert all(not tier["evidence"] for tier in result["turn"]["content_json"]["results"])
+
+
+async def test_note_citation_uses_owners_title_and_real_page(student, engine):
+    await join(student)
+    material = (await upload(student))["material"]
+    note = (
+        await student.post(
+            "/notes.save",
+            json={
+                "course": "cs3216",
+                "material": material["id"],
+                "page": 2,
+                "title": "My recap",
+                "body_md": "Some notes",
+            },
+        )
+    ).json()
+    engine.results = [
+        TierResult(
+            tier="notes",
+            dataset_name="cs3216-private",
+            answer="Note answer.",
+            evidence=[Evidence(kind="segment", document_name=note["id"], chunk_id="n")],
+        )
+    ]
+    result = await ask(student)
+    evidence = result["turn"]["content_json"]["results"][0]["evidence"][0]
+    assert evidence["document_name"] == "My recap"
+    assert evidence["page"] == 2
 
 
 @pytest.fixture

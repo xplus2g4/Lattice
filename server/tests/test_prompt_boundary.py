@@ -162,6 +162,25 @@ def test_chunks_still_returns_raw_material_text_without_a_completion(search_engi
     assert search_engine.prompts == []
 
 
+def test_hybrid_returns_structured_citations_for_the_chunks_in_its_context(search_engine):
+    results = asyncio.run(search_engine.run("HYBRID_COMPLETION"))
+    citations = results[0].evidence
+    assert len(citations) == 1
+    citation = citations[0]
+    assert citation.kind == "segment"
+    assert citation.document_name == "week3.md"
+    assert citation.chunk_index == 0
+    assert citation.chunk_id is not None
+    assert citation.dataset_id is not None
+    assert citation.data_id is not None
+
+
+def test_hybrid_does_not_invent_citations_when_no_chunks_were_retrieved(search_engine):
+    search_engine.state.empty = True
+    results = asyncio.run(search_engine.run("HYBRID_COMPLETION"))
+    assert results[0].evidence == []
+
+
 def test_hybrid_graph_fallback_keeps_the_boundary(search_engine):
     search_engine.state.chunks_available = False
     asyncio.run(search_engine.run("HYBRID_COMPLETION"))

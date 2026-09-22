@@ -334,6 +334,7 @@ if port_busy 3000; then
 fi
 ENV_FILE="$APP/.env"
 write_env VITE_API_URL "http://localhost:${API_PORT}"
+write_env VITE_USE_MOCK_BACKEND "false"
 ENV_FILE="$SERVER/.env"
 note "server/.env keeps CORS_ORIGINS=[\"http://localhost:3000\"] and DEV_HEADER_AUTH=true (the X-User header is the login)."
 pause

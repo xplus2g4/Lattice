@@ -1,7 +1,7 @@
 /** The API surface the app codes against.
  *
- * Mock data remains the default for the product shell. Set
- * VITE_USE_MOCK_BACKEND=false to use the persistent RPC API.
+ * The persistent RPC API is the default. Set VITE_USE_MOCK_BACKEND=true
+ * explicitly to preview the product with temporary demo data.
  */
 import * as backend from './mock-backend'
 import { ApiError } from './api-error'
@@ -9,6 +9,7 @@ import type {
   AskOut as RpcAskOut,
   AskRequest as RpcAskRequest,
   CourseOut,
+  CourseListOut,
   MaterialOut,
   MeOut,
   NoteOut,
@@ -28,7 +29,7 @@ export { ApiError } from './api-error'
 // this module also owns the X-User transport and how a FastAPI error becomes an Error.
 const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 export const usesMockBackend = () =>
-  import.meta.env.VITE_USE_MOCK_BACKEND !== 'false'
+  import.meta.env.VITE_USE_MOCK_BACKEND === 'true'
 export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
 // FastAPI inlines these unions into each field rather than naming them, so name them here.
 export type QueryType = NonNullable<RpcAskRequest['query_type']>
@@ -47,6 +48,7 @@ export const QUERY_TYPES = Object.keys(
 
 export interface CourseSummary {
   code: string
+  can_delete: boolean
   material_count: number
   note_count: number
   pending_count: number
@@ -69,6 +71,8 @@ export interface Note {
   course: string
   owner: string
   id: string
+  title: string
+  revision?: number
   body_md: string
   status: IngestStatus
   error: string | null
@@ -103,7 +107,7 @@ export interface TierResult {
 export function describeCitation(c: Citation): string {
   switch (c.kind) {
     case 'chunk':
-      return `${c.filename ?? '?'}${c.chunk_index !== null ? ` #${c.chunk_index}` : ''}`
+      return `${c.filename ?? 'Material'}${c.chunk_index !== null ? ` · passage ${c.chunk_index + 1}` : ''}`
     case 'relation':
       return `${c.relation ?? '?'} · relation`
     default:
@@ -211,6 +215,8 @@ function noteView(user: string, course: string, row: NoteOut): Note {
     course,
     owner: user,
     id: row.id,
+    title: row.title,
+    revision: row.revision,
     body_md: row.body_md,
     status: ingestStatus(row.status),
     error: row.error,
@@ -272,7 +278,7 @@ function turnView(row: TurnOut): Turn {
 
 export async function listCourses(user: string): Promise<Array<CourseSummary>> {
   if (usesMockBackend()) return backend.listCourses(user)
-  const rows = await request<Array<CourseOut>>(user, '/courses.list')
+  const rows = await request<Array<CourseListOut>>(user, '/courses.list')
   return Promise.all(
     rows.map(async (row) => {
       const [materials, notes] = await Promise.all([
@@ -281,6 +287,7 @@ export async function listCourses(user: string): Promise<Array<CourseSummary>> {
       ])
       return {
         code: row.code,
+        can_delete: row.can_delete,
         material_count: materials.length,
         note_count: notes.length,
         pending_count: [...materials, ...notes].filter(
@@ -307,6 +314,23 @@ export async function joinCourse(user: string, course: string): Promise<void> {
         throw creationError
     }
     await request(user, '/enrolments.join', json({ course }))
+  }
+}
+export async function deleteCourse(
+  user: string,
+  course: string,
+): Promise<void> {
+  if (usesMockBackend()) return backend.deleteCourse(user, course)
+  try {
+    await request(user, '/courses.delete', json({ course }))
+  } catch (error) {
+    // An old local-only course can be removed without creating an API record.
+    if (
+      !(error instanceof ApiError) ||
+      error.status !== 404 ||
+      error.message !== 'no such course'
+    )
+      throw error
   }
 }
 export async function listSessions(
@@ -448,10 +472,24 @@ export async function uploadMaterial(
   const form = new FormData()
   form.append('course', course)
   form.append('file', file)
-  const saved = await request<UploadOut>(user, '/materials.upload', {
-    method: 'POST',
-    body: form,
-  })
+  const upload = () =>
+    request<UploadOut>(user, '/materials.upload', {
+      method: 'POST',
+      body: form,
+    })
+  let saved: UploadOut
+  try {
+    saved = await upload()
+  } catch (error) {
+    if (
+      !(error instanceof ApiError) ||
+      error.status !== 404 ||
+      error.message !== 'no such course'
+    )
+      throw error
+    await joinCourse(user, course)
+    saved = await upload()
+  }
   return materialView(course, saved.material)
 }
 export async function listNotes(
@@ -470,8 +508,11 @@ export async function saveNote(
   course: string,
   id: string,
   body_md: string,
+  title?: string,
+  expected_revision?: number,
 ): Promise<Note> {
-  if (usesMockBackend()) return backend.saveNote(user, course, id, body_md)
+  if (usesMockBackend())
+    return backend.saveNote(user, course, id, body_md, title)
   const note =
     /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
       ? id
@@ -482,8 +523,27 @@ export async function saveNote(
     await request<NoteOut>(
       user,
       '/notes.save',
-      json({ course, note, body_md }),
+      json({
+        course,
+        note,
+        body_md,
+        title,
+        expected_revision,
+      } satisfies SaveNote),
     ),
+  )
+}
+export async function renameNote(
+  user: string,
+  course: string,
+  id: string,
+  title: string,
+): Promise<Note> {
+  if (usesMockBackend()) return backend.renameNote(user, course, id, title)
+  return noteView(
+    user,
+    course,
+    await request<NoteOut>(user, '/notes.rename', json({ note: id, title })),
   )
 }
 export async function ask(

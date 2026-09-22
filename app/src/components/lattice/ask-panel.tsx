@@ -7,6 +7,7 @@ import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { Textarea } from '#/components/ui/textarea'
+import { DemoModeNotice } from '#/components/lattice/demo-mode-notice'
 import {
   ApiError,
   ask,
@@ -14,6 +15,7 @@ import {
   getSession,
   listMaterials,
   listSessions,
+  usesMockBackend,
 } from '#/lib/api'
 import { useStored } from '#/lib/user'
 
@@ -23,7 +25,7 @@ export function AskPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('ask')
   const [sessionId, setSessionId] = useStored(
-    `lattice.session.${course}.${user}`,
+    `lattice.session.${usesMockBackend() ? 'demo' : 'api'}.${course}.${user}`,
     '',
   )
 
@@ -102,6 +104,7 @@ export function AskPanel({ course, user }: Enrolment) {
       onValueChange={setTab}
       className="flex min-h-0 flex-1 flex-col gap-0"
     >
+      <DemoModeNotice />
       <div className="flex items-center justify-between border-b border-border px-5">
         <TabsList variant="line" className="gap-5 p-0">
           <TabsTrigger value="ask" className="rounded-none px-1 pb-3">

@@ -5,12 +5,25 @@ import { ArrowRight01Icon } from '@hugeicons/core-free-icons'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { Card, CardContent, CardHeader } from '#/components/ui/card'
+import { RemoveCourseButton } from './remove-course-button'
+import { useCourseRemovalState } from '#/lib/course-removal'
 
 import type { CourseSummary } from '#/lib/api'
 
-export function CourseCard({ course }: { course: CourseSummary }) {
+export function CourseCard({
+  course,
+  user,
+}: {
+  course: CourseSummary
+  user: string
+}) {
+  const removal = useCourseRemovalState(user, course.code)
   return (
-    <Card className="gap-4 py-5">
+    <Card
+      className="gap-4 py-5"
+      role="group"
+      aria-label={`${course.code.toUpperCase()} course`}
+    >
       <CardHeader className="flex flex-row items-center justify-between gap-2 px-5">
         <Badge variant="secondary" className="font-mono uppercase">
           {course.code}
@@ -31,16 +44,25 @@ export function CourseCard({ course }: { course: CourseSummary }) {
           {course.note_count} {course.note_count === 1 ? 'note' : 'notes'}
         </p>
         <div className="mt-5">
-          <Button asChild size="sm" className="w-full">
-            <Link
-              to="/courses/$course"
-              params={{ course: course.code }}
-              search={{ material: undefined }}
-            >
+          {removal.isPending ? (
+            <Button size="sm" className="w-full" disabled>
               Open workspace
-              <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" />
-            </Link>
-          </Button>
+            </Button>
+          ) : (
+            <Button asChild size="sm" className="w-full">
+              <Link
+                to="/courses/$course"
+                params={{ course: course.code }}
+                search={{ material: undefined }}
+              >
+                Open workspace
+                <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" />
+              </Link>
+            </Button>
+          )}
+          {course.can_delete && (
+            <RemoveCourseButton course={course.code} user={user} />
+          )}
         </div>
       </CardContent>
     </Card>

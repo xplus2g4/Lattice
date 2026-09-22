@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { listNotes, saveNote, usesMockBackend } from '#/lib/api'
+import { listNotes, renameNote, saveNote, usesMockBackend } from '#/lib/api'
 import type { Note } from '#/lib/api'
 import {
   ErrorLine,
@@ -22,10 +22,23 @@ export function Notes({ course, user }: Scope) {
   })
   const [noteId, setNoteId] = useState(() => (usesMockBackend() ? 'n1' : ''))
   const [body, setBody] = useState('')
+  const [title, setTitle] = useState('Untitled Note')
+  const [selected, setSelected] = useState<Note | null>(null)
   const save = useMutation({
-    mutationFn: () => saveNote(user, course, noteId, body),
+    mutationFn: () =>
+      selected && selected.body_md === body
+        ? renameNote(user, course, noteId, title.trim())
+        : saveNote(
+            user,
+            course,
+            noteId,
+            body,
+            title.trim(),
+            selected?.revision,
+          ),
     onSuccess: (note) => {
       setNoteId(note.id)
+      setSelected(note)
       return queryClient.invalidateQueries({ queryKey: key })
     },
   })
@@ -39,6 +52,8 @@ export function Notes({ course, user }: Scope) {
         onClick={() => {
           setNoteId(usesMockBackend() ? crypto.randomUUID() : '')
           setBody('')
+          setTitle('Untitled Note')
+          setSelected(null)
         }}
       >
         New Note
@@ -50,15 +65,15 @@ export function Notes({ course, user }: Scope) {
           save.mutate()
         }}
       >
-        {usesMockBackend() && (
+        <label className="block space-y-1 text-sm">
+          <span>Note title</span>
           <input
             className={inputClass}
-            value={noteId}
-            pattern="[A-Za-z0-9_\-]{1,64}"
-            placeholder="note id"
-            onChange={(e) => setNoteId(e.target.value)}
+            value={title}
+            maxLength={200}
+            onChange={(e) => setTitle(e.target.value)}
           />
-        )}
+        </label>
         <textarea
           className={`${inputClass} block w-full`}
           rows={4}
@@ -69,7 +84,7 @@ export function Notes({ course, user }: Scope) {
         <button
           className={buttonClass}
           type="submit"
-          disabled={!body.trim() || save.isPending}
+          disabled={!title.trim() || !body.trim() || save.isPending}
         >
           {save.isPending ? 'Saving…' : 'Save'}
         </button>
@@ -81,13 +96,15 @@ export function Notes({ course, user }: Scope) {
           <li key={n.id} className="flex flex-wrap items-center gap-2 py-1">
             <button
               type="button"
-              className="font-mono text-sm"
+              className="text-sm"
               onClick={() => {
                 setNoteId(n.id)
                 setBody(n.body_md)
+                setTitle(n.title)
+                setSelected(n)
               }}
             >
-              {n.id}
+              {n.title}
             </button>
             <StatusBadge status={n.status} />
             <span className="text-sm text-gray-600">

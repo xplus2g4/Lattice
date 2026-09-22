@@ -163,7 +163,7 @@ describe('the evidence behind an answer', () => {
 
     await askAbout('what is a hash table?')
 
-    expect(await screen.findByText('week1.pdf #3 · chunk')).toBeInTheDocument()
+    expect(await screen.findByText('week1.pdf · passage 4')).toBeInTheDocument()
   })
 
   it('names the relationship a graph edge came from', async () => {
@@ -186,7 +186,7 @@ describe('the evidence behind an answer', () => {
     await askAbout('what is a hash table?')
 
     expect(
-      await screen.findByText('prerequisite_of · edge'),
+      await screen.findByText('prerequisite_of · relation'),
     ).toBeInTheDocument()
   })
 })

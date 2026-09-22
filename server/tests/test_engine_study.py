@@ -16,6 +16,26 @@ PRIVATE = UUID("00000000-0000-0000-0000-000000000002")
 CHUNK = UUID("00000000-0000-0000-0000-000000000003")
 
 
+def test_removing_course_clears_only_its_datasets_and_cached_permissions(engine, monkeypatch):
+    empty = AsyncMock()
+    monkeypatch.setattr(module.cognee.datasets, "empty_dataset", empty)
+
+    async def run():
+        principal = await engine.principal("alice@example.com")
+        await engine.enrol("cs2100", principal)
+        await engine.enrol("cs2100x", principal)
+        module.get_authorized_dataset_by_name.reset_mock()
+        await engine.delete_course("cs2100", ["alice@example.com"])
+        names = [call.args[0] for call in module.get_authorized_dataset_by_name.await_args_list]
+        assert names == ["cs2100-global", f"cs2100-user-{principal.id}"]
+        assert empty.await_count == 2
+        assert all(not name.startswith("cs2100-") for name, _ in engine._datasets)
+        assert (principal.id, "cs2100") not in engine._enrolled
+        assert (principal.id, "cs2100x") in engine._enrolled
+
+    asyncio.run(run())
+
+
 @pytest.fixture
 def engine(tmp_path, monkeypatch):
     monkeypatch.setattr(

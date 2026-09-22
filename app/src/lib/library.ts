@@ -1,8 +1,7 @@
-// Client-side library state: course codes the user has added (the server only
-// knows a course once it holds something) and the last material opened, which
-// drives the home screen's continue card.
+// Browser bookmarks, including legacy courses that predate API registration.
 
 import { useCallback, useSyncExternalStore } from 'react'
+import { parseRecentCourses, RECENT_COURSES_KEY } from './course'
 
 const KEY = 'lattice.library'
 
@@ -54,26 +53,47 @@ function write(next: Library) {
 export function useLibrary() {
   const library = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY)
 
-  const addCourse = useCallback(
-    (code: string) => {
-      if (!library.courses.includes(code)) {
-        write({ ...library, courses: [...library.courses, code] })
-      }
-    },
-    [library],
-  )
+  const addCourse = useCallback((code: string) => {
+    const current = getSnapshot()
+    if (!current.courses.includes(code)) {
+      write({ ...current, courses: [...current.courses, code] })
+    }
+  }, [])
 
-  const markOpened = useCallback(
-    (course: string, filename: string) => {
-      write({ ...library, lastOpened: { course, filename } })
-    },
-    [library],
-  )
+  const removeCourse = useCallback((code: string, user: string) => {
+    const current = getSnapshot()
+    write({
+      courses: current.courses.filter((c) => c !== code),
+      lastOpened:
+        current.lastOpened?.course === code ? null : current.lastOpened,
+    })
+    localStorage.setItem(
+      RECENT_COURSES_KEY,
+      JSON.stringify(
+        parseRecentCourses(
+          localStorage.getItem(RECENT_COURSES_KEY) ?? '[]',
+        ).filter((c) => c !== code),
+      ),
+    )
+    for (const mode of ['api', 'demo'])
+      localStorage.removeItem(`lattice.session.${mode}.${code}.${user}`)
+  }, [])
+
+  const markOpened = useCallback((course: string, filename: string) => {
+    const current = getSnapshot()
+    if (
+      current.lastOpened?.course !== course ||
+      current.lastOpened.filename !== filename
+    ) {
+      write({ ...current, lastOpened: { course, filename } })
+    }
+  }, [])
 
   return {
     courses: library.courses,
     lastOpened: library.lastOpened,
     addCourse,
+    removeCourse,
     markOpened,
   }
 }

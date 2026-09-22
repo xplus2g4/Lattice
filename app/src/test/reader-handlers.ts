@@ -16,6 +16,7 @@ export function readerNote(body: string, page = 1, revision = 1): NoteOut {
     material_id: READER_MATERIAL,
     page,
     body_md: body,
+    title: 'Untitled Note',
     revision,
     cognified_revision: revision,
     status: 'ready',

@@ -53,6 +53,44 @@ export type BodyUploadMaterialMaterialsUploadPost = {
 }
 
 /**
+ * CourseListOut
+ */
+export type CourseListOut = {
+  /**
+   * Can Delete
+   */
+  can_delete: boolean
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Global Dataset Name
+   */
+  global_dataset_name: string
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Owner User Id
+   */
+  owner_user_id: string
+  /**
+   * Term
+   */
+  term: string | null
+}
+
+/**
  * CourseOut
  */
 export type CourseOut = {
@@ -357,6 +395,10 @@ export type NoteOut = {
    */
   status: string
   /**
+   * Title
+   */
+  title: string
+  /**
    * Updated At
    */
   updated_at: string
@@ -577,6 +619,20 @@ export type RecordAnswer = {
 }
 
 /**
+ * RenameNote
+ */
+export type RenameNote = {
+  /**
+   * Note
+   */
+  note: string
+  /**
+   * Title
+   */
+  title: string
+}
+
+/**
  * ReplaceTopics
  */
 export type ReplaceTopics = {
@@ -618,6 +674,10 @@ export type SaveNote = {
    * Page
    */
   page?: number | null
+  /**
+   * Title
+   */
+  title?: string | null
 }
 
 /**
@@ -975,6 +1035,43 @@ export type CreateCourseCoursesCreatePostResponses = {
 export type CreateCourseCoursesCreatePostResponse =
   CreateCourseCoursesCreatePostResponses[keyof CreateCourseCoursesCreatePostResponses]
 
+export type DeleteCourseCoursesDeletePostData = {
+  body: CourseRef
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/courses.delete'
+}
+
+export type DeleteCourseCoursesDeletePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type DeleteCourseCoursesDeletePostError =
+  DeleteCourseCoursesDeletePostErrors[keyof DeleteCourseCoursesDeletePostErrors]
+
+export type DeleteCourseCoursesDeletePostResponses = {
+  /**
+   * Response Delete Course Courses Delete Post
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: boolean
+  }
+}
+
+export type DeleteCourseCoursesDeletePostResponse =
+  DeleteCourseCoursesDeletePostResponses[keyof DeleteCourseCoursesDeletePostResponses]
+
 export type GetCourseCoursesGetGetData = {
   body?: never
   headers?: {
@@ -1042,7 +1139,7 @@ export type ListCoursesCoursesListGetResponses = {
    *
    * Successful Response
    */
-  200: Array<CourseOut>
+  200: Array<CourseListOut>
 }
 
 export type ListCoursesCoursesListGetResponse =
@@ -1729,6 +1826,39 @@ export type ListNotesNotesListGetResponses = {
 
 export type ListNotesNotesListGetResponse =
   ListNotesNotesListGetResponses[keyof ListNotesNotesListGetResponses]
+
+export type RenameNoteNotesRenamePostData = {
+  body: RenameNote
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/notes.rename'
+}
+
+export type RenameNoteNotesRenamePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type RenameNoteNotesRenamePostError =
+  RenameNoteNotesRenamePostErrors[keyof RenameNoteNotesRenamePostErrors]
+
+export type RenameNoteNotesRenamePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteOut
+}
+
+export type RenameNoteNotesRenamePostResponse =
+  RenameNoteNotesRenamePostResponses[keyof RenameNoteNotesRenamePostResponses]
 
 export type SaveNoteNotesSavePostData = {
   body: SaveNote

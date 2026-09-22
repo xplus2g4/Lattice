@@ -1,10 +1,56 @@
 import { HttpResponse, http } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, listMaterials, listNotes, saveNote } from '#/lib/api'
-import { note } from '#/test/fixtures'
-import { resetStore } from '#/test/handlers'
+import { ApiError, ask, listMaterials, listNotes, saveNote } from '#/lib/api'
+import { assistantTurn, note, tierResult } from '#/test/fixtures'
+import { answerNextAskWith, resetStore } from '#/test/handlers'
 import { server } from '#/test/server'
+
+describe('Ask backend selection', () => {
+  afterEach(() => vi.stubEnv('VITE_USE_MOCK_BACKEND', 'false'))
+
+  it.each([undefined, 'false'])(
+    'uses the API when demo mode is %s',
+    async (mode) => {
+      vi.stubEnv('VITE_USE_MOCK_BACKEND', mode)
+      answerNextAskWith(
+        assistantTurn({
+          results: [
+            tierResult({ answer: 'This answer came from the course API.' }),
+          ],
+        }),
+      )
+
+      const result = await ask('alice@example.com', 'cs101', {
+        question: 'What do these Materials teach?',
+        query_type: 'HYBRID_COMPLETION',
+      })
+
+      expect(result.turn.results[0].answer).toBe(
+        'This answer came from the course API.',
+      )
+    },
+  )
+
+  it('reports API failures instead of substituting demo answers', async () => {
+    vi.stubEnv('VITE_USE_MOCK_BACKEND', undefined)
+    server.use(
+      http.post('*/ask', () =>
+        HttpResponse.json(
+          { detail: 'Ask is temporarily unavailable' },
+          { status: 503 },
+        ),
+      ),
+    )
+
+    await expect(
+      ask('alice@example.com', 'cs101', {
+        question: 'Explain this Material',
+        query_type: 'HYBRID_COMPLETION',
+      }),
+    ).rejects.toThrow('Ask is temporarily unavailable')
+  })
+})
 
 describe('caller identity', () => {
   it('reads back only the calling user\u2019s notes', async () => {

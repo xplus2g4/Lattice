@@ -8,7 +8,7 @@ import {
 
 import { routeTree } from '#/routeTree.gen'
 
-import type { ReactElement } from 'react'
+import type { ReactElement, ReactNode } from 'react'
 
 // Retries off: a test asserting on an error state should see it on the first response
 // rather than after Query's backoff.
@@ -27,6 +27,11 @@ export function renderWithQuery(ui: ReactElement) {
 /** Mounts the real route tree at `path`, so what is under test is the routing itself:
  * which sections a URL shows, and where a navigation ends up. */
 export function renderRoute(path: string) {
+  // Testing Library already supplies a body. Nesting the app's <html> shell
+  // inside it breaks modal focus handling; keep the real route content here.
+  Object.assign(routeTree.options, {
+    shellComponent: ({ children }: { children: ReactNode }) => <>{children}</>,
+  })
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },
   })

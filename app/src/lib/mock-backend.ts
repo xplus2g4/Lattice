@@ -95,6 +95,7 @@ export async function savePageNote(
   pageNotes.set(key, note)
   course(code).notes.set(note.id, {
     ...note,
+    title: course(code).notes.get(note.id)?.title ?? 'Untitled Note',
     course: code,
     owner: user,
     status: 'queued',
@@ -219,6 +220,7 @@ function seedNote(
     course: code,
     owner: user,
     id,
+    title: id,
     body_md,
     status: 'ready',
     error: null,
@@ -329,6 +331,7 @@ function summary(code: string, entry: StoredCourse): CourseSummary {
   const materials = [...entry.materials.values()].map((m) => m.material)
   return {
     code,
+    can_delete: true,
     material_count: materials.length,
     note_count: entry.notes.size,
     pending_count: materials.filter(
@@ -352,6 +355,15 @@ export async function listCourses(user: string): Promise<Array<CourseSummary>> {
   return [...store.entries()]
     .map(([code, entry]) => summary(code, entry))
     .sort((a, b) => a.code.localeCompare(b.code))
+}
+
+export async function deleteCourse(user: string, code: string): Promise<void> {
+  seed(user)
+  const ids = new Set(course(code).notes.keys())
+  for (const [key, note] of pageNotes) {
+    if (ids.has(note.id)) pageNotes.delete(key)
+  }
+  store.delete(code)
 }
 
 export async function listMaterials(
@@ -409,6 +421,7 @@ export async function saveNote(
   code: string,
   id: string,
   body_md: string,
+  title?: string,
 ): Promise<Note> {
   seed(user)
   await sleep(300)
@@ -416,6 +429,7 @@ export async function saveNote(
     course: code,
     owner: user,
     id,
+    title: title ?? course(code).notes.get(id)?.title ?? 'Untitled Note',
     body_md,
     status: 'ready',
     error: null,
@@ -436,6 +450,20 @@ export async function saveNote(
     }
   }
   return note
+}
+
+export async function renameNote(
+  user: string,
+  code: string,
+  id: string,
+  title: string,
+): Promise<Note> {
+  seed(user)
+  const note = course(code).notes.get(id)
+  if (!note || note.owner !== user) throw new ApiError(404, 'no such note')
+  const renamed = { ...note, title, updated_at: now() }
+  course(code).notes.set(id, renamed)
+  return renamed
 }
 
 export async function listSessions(

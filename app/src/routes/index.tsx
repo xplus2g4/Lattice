@@ -13,6 +13,7 @@ import { CourseCard } from '#/components/lattice/course-card'
 import { ApiError, joinCourse, listCourses } from '#/lib/api'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
+import { useCourseRemovalState } from '#/lib/course-removal'
 
 import type { CourseSummary } from '#/lib/api'
 
@@ -37,6 +38,7 @@ function Home() {
       .filter((code) => !known.has(code))
       .map((code) => ({
         code,
+        can_delete: true,
         material_count: 0,
         note_count: 0,
         pending_count: 0,
@@ -100,7 +102,7 @@ function Home() {
           ) : (
             <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {merged.map((course) => (
-                <CourseCard key={course.code} course={course} />
+                <CourseCard key={course.code} course={course} user={user} />
               ))}
             </div>
           )}
@@ -117,6 +119,9 @@ function ContinueCard({
   course: string
   filename: string
 }) {
+  const [user] = useUser()
+  const removal = useCourseRemovalState(user, course)
+  if (removal.isPending) return null
   return (
     <Card>
       <CardContent className="flex flex-col justify-between gap-5 sm:flex-row sm:items-center">

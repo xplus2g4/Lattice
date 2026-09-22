@@ -1,8 +1,17 @@
-# Web app
+ver# Web app
 
 The browser-facing component of the course knowledge store: TanStack Start (React, file-based routing, SSR) with TanStack Query for talking to the API. Architecture and ownership are in [`docs/wiki/components.md`](../docs/wiki/components.md).
 
-The app runs on demo data by default through `src/lib/mock-backend.ts`. Set `VITE_USE_MOCK_BACKEND=false` and `VITE_API_URL` to use the persistent RPC API instead. The shared facade normalizes server records for both the reader workspace and existing study routes.
+The app uses the persistent RPC API by default at `http://localhost:8000`. Copy
+`.env.example` to `.env` to change `VITE_API_URL`. Start the API and Postgres using
+[`server/README.md`](../server/README.md); real answers need an LLM key and cognified
+Materials in the selected course. The shared facade normalizes API records for both
+the reader workspace and existing study routes.
+
+For an offline UI preview only, explicitly set `VITE_USE_MOCK_BACKEND=true`. This uses
+`src/lib/mock-backend.ts`, produces prewritten example answers, and shows a demo notice
+in Ask. Demo and API Session pointers are stored separately. Restart the dev app after
+changing `.env`; production builds must be rebuilt to pick up these settings.
 
 The Material reader shows one PDF Page at a time and restores each student's saved
 reading position. Text and Markdown Materials have one Page. Each Page has a private

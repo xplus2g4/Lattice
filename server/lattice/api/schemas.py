@@ -41,6 +41,10 @@ class EnrolmentOut(Record):
     created_at: datetime
 
 
+class CourseListOut(CourseOut):
+    can_delete: bool
+
+
 class MaterialOut(Record):
     id: UUID
     course_id: UUID
@@ -81,6 +85,7 @@ class ReadingPositionOut(Record):
 
 class NoteOut(Record):
     id: UUID
+    title: str
     revision: int
     cognified_revision: int
     course_id: UUID

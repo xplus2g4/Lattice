@@ -1,5 +1,6 @@
 """The background ingest: it owns the Material's status, success or failure."""
 
+import asyncio
 from uuid import uuid4
 
 import pytest
@@ -9,6 +10,35 @@ from lattice.db.models import Course, Material, Note, User
 from lattice.ingest import Ingest
 
 pytestmark = pytest.mark.asyncio
+
+
+async def test_removal_pause_waits_for_active_material_and_excludes_queued_work(
+    sessionmaker, engine, settings, monkeypatch
+):
+    ingest = Ingest(sessionmaker, engine, settings)
+    started, finish, paused = asyncio.Event(), asyncio.Event(), asyncio.Event()
+
+    async def active(_):
+        started.set()
+        await finish.wait()
+
+    monkeypatch.setattr(ingest, "_material", active)
+    work = asyncio.create_task(ingest.material(uuid4()))
+    await started.wait()
+
+    async def remove():
+        async with ingest.paused():
+            paused.set()
+            queued = asyncio.create_task(ingest.material(uuid4()))
+            await asyncio.sleep(0)
+            assert not queued.done()
+        await queued
+
+    removal = asyncio.create_task(remove())
+    await asyncio.sleep(0)
+    assert not paused.is_set()
+    finish.set()
+    await asyncio.wait_for(asyncio.gather(work, removal), timeout=2)
 
 
 async def a_material(session: AsyncSession, tmp_path) -> Material:
