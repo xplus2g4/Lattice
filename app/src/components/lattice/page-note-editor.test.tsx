@@ -53,7 +53,8 @@ describe('Page Notes in the reader', () => {
     )
     await user.type(screen.getByRole('textbox'), 'Second page')
     fireEvent.blur(screen.getByRole('textbox'))
-    await screen.findByText('Saved · ready for Ask')
+    await screen.findByText('Ready for Ask')
+    expect(screen.getByText('Saved')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Change page' }))
     await waitFor(() =>
       expect(screen.getByRole('textbox')).toHaveValue('My first page'),
@@ -99,7 +100,8 @@ describe('Page Notes in the reader', () => {
     await screen.findByText('Could not save. Your draft has been kept.')
     expect(screen.getByRole('textbox')).toHaveValue('Keep this text')
     await user.click(screen.getByRole('button', { name: 'Retry save' }))
-    await screen.findByText('Saved · ready for Ask')
+    await screen.findByText('Ready for Ask')
+    expect(screen.getByText('Saved')).toBeInTheDocument()
   })
 
   it('does not overwrite another edit without an explicit conflict choice', async () => {
@@ -120,7 +122,8 @@ describe('Page Notes in the reader', () => {
     await user.click(
       screen.getByRole('button', { name: 'Replace with my draft' }),
     )
-    await screen.findByText('Saved · ready for Ask')
+    await screen.findByText('Ready for Ask')
+    expect(screen.getByText('Saved')).toBeInTheDocument()
     expect(records.notes.get(id)?.body_md).toBe('My draft')
     expect(records.writes.at(-1)?.expected_revision).toBe(2)
   })

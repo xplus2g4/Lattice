@@ -33,13 +33,15 @@ export function PageNoteEditor(props: Props) {
   return (
     <section
       aria-label={`Private Note for page ${page}`}
-      className="shrink-0 border-t border-border bg-card p-4"
+      className="shrink-0 bg-card p-4 sm:p-5"
     >
-      <div className="mb-2 flex items-center justify-between gap-3">
+      <div className="mb-4 space-y-1 border-b border-border pb-4">
         <label htmlFor="page-note-body" className="text-sm font-semibold">
           Your Note · Page {page}
         </label>
-        <span className="text-xs text-muted-foreground">Private to you</span>
+        <p className="text-xs text-muted-foreground">
+          Private to you · Saved automatically
+        </p>
       </div>
       {note.isPending ? (
         <p className="text-sm text-muted-foreground">Loading Note…</p>
@@ -120,21 +122,11 @@ function LoadedEditor({
     }
   }
 
-  const status =
+  const saveStatus =
     state.phase === 'saved'
       ? state.saved === null
         ? 'Autosaves as you write'
-        : cognifyEnabled === false
-          ? 'Saved · Cognify is turned off for your Notes'
-          : state.saved.status === 'failed'
-            ? 'Saved · Cognify failed'
-            : state.saved.cognified_revision === state.saved.revision
-              ? state.saved.body_md.trim()
-                ? 'Saved · ready for Ask'
-                : 'Saved · Note cleared'
-              : state.saved.status === 'indexing'
-                ? 'Saved · cognifying'
-                : 'Saved · waiting to Cognify'
+        : 'Saved'
       : state.phase === 'saving'
         ? 'Saving…'
         : state.phase === 'unsaved'
@@ -143,25 +135,46 @@ function LoadedEditor({
             ? 'This Note changed elsewhere. Your draft has been kept.'
             : 'Could not save. Your draft has been kept.'
 
+  const cognifyStatus =
+    cognifyEnabled === false
+      ? 'Turned off for your Notes'
+      : state.phase !== 'saved'
+        ? 'Waiting for your Note to save'
+        : state.saved === null
+          ? 'Starts after you save a Note'
+          : state.saved.status === 'failed'
+            ? 'Cognify failed. Your saved Note is safe.'
+            : state.saved.cognified_revision === state.saved.revision
+              ? state.saved.body_md.trim()
+                ? 'Ready for Ask'
+                : 'Note cleared'
+              : state.saved.status === 'indexing'
+                ? 'Cognifying your saved Note…'
+                : 'Waiting to Cognify'
+  const needsAttention = state.phase === 'conflict' || state.phase === 'error'
+
   return (
-    <div className="space-y-2">
+    <div className="space-y-4">
       <Textarea
         id="page-note-body"
         value={state.body}
         maxLength={50000}
-        className="min-h-24 max-h-48 resize-y"
+        className="page-note-input rounded-lg border-border bg-background p-3"
         placeholder="Write your understanding of this page…"
         onChange={(event) => draft.edit(event.target.value)}
         onBlur={() => void draft.flush()}
       />
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p role="status" className="text-xs text-muted-foreground">
-          {status}
+      <div
+        className={`flex flex-wrap items-center justify-between gap-3 rounded-lg px-3 py-2.5 ${needsAttention ? 'bg-feedback-developing text-feedback-developing-text' : state.phase === 'saved' && state.saved ? 'bg-feedback-strong text-feedback-strong-text' : 'bg-muted text-muted-foreground'}`}
+      >
+        <p role="status" className="text-xs font-medium leading-5">
+          {saveStatus}
         </p>
         {state.phase !== 'conflict' && state.phase !== 'saved' && (
           <Button
             size="xs"
             variant="outline"
+            className="min-h-11 rounded-lg bg-card"
             disabled={state.phase === 'saving'}
             onClick={() => void draft.flush()}
           >
@@ -170,25 +183,47 @@ function LoadedEditor({
         )}
       </div>
       {state.phase === 'conflict' && (
-        <div className="flex flex-wrap gap-2">
-          <Button
-            size="xs"
-            variant="outline"
-            disabled={resolving}
-            onClick={() => void resolve(false)}
-          >
-            Use saved Note
-          </Button>
-          <Button
-            size="xs"
-            variant="outline"
-            disabled={resolving}
-            onClick={() => void resolve(true)}
-          >
-            Replace with my draft
-          </Button>
+        <div className="space-y-3 rounded-lg border border-border p-3">
+          <p className="text-sm font-semibold">Choose which Note to keep</p>
+          <p className="text-xs leading-5 text-muted-foreground">
+            Use the saved Note to discard this draft, or replace the saved Note
+            with your draft.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="xs"
+              variant="outline"
+              className="min-h-11 rounded-lg"
+              disabled={resolving}
+              onClick={() => void resolve(false)}
+            >
+              Use saved Note
+            </Button>
+            <Button
+              size="xs"
+              variant="outline"
+              className="min-h-11 rounded-lg"
+              disabled={resolving}
+              onClick={() => void resolve(true)}
+            >
+              Replace with my draft
+            </Button>
+          </div>
         </div>
       )}
+      <div className="space-y-1 border-t border-border pt-4">
+        <p className="text-xs font-semibold">Cognify</p>
+        <p
+          role="status"
+          className={`text-xs leading-5 ${state.phase === 'saved' && state.saved?.status === 'failed' ? 'text-destructive' : 'text-muted-foreground'}`}
+        >
+          {cognifyStatus}
+        </p>
+        <p className="text-xs leading-5 text-muted-foreground">
+          Saving keeps your words. Cognify makes your saved Note available to
+          Ask.
+        </p>
+      </div>
       {(resolveError || state.error) && (
         <p role="alert" className="text-xs text-destructive">
           {resolveError || state.error}

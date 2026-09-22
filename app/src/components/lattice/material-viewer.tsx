@@ -11,6 +11,7 @@ import {
 } from '#/lib/api'
 import { useUser } from '#/lib/user'
 import { PageNoteEditor } from './page-note-editor'
+import { ReaderLayout } from './reader-layout'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
@@ -116,41 +117,42 @@ function Reader({
   }, [])
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2">
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!position.isSuccess || page <= 1}
-          onClick={() => navigate(page - 1)}
-        >
-          Previous page
-        </Button>
-        <span aria-live="polite" className="text-sm tabular-nums">
-          {numPages ? `Page ${page} of ${numPages}` : 'Loading pages…'}
-        </span>
-        <Button
-          size="sm"
-          variant="outline"
-          disabled={!position.isSuccess || page >= numPages}
-          onClick={() => navigate(page + 1)}
-        >
-          Next page
-        </Button>
-      </div>
-      {savePosition.isError && (
-        <p role="alert" className="px-4 py-2 text-xs text-destructive">
-          Could not save your reading position.{' '}
-          <Button
-            size="xs"
-            variant="outline"
-            onClick={() => savePosition.mutate(page)}
-          >
-            Retry position save
-          </Button>
-        </p>
-      )}
-      <div ref={containerRef} className="min-h-0 flex-1 overflow-auto">
+    <ReaderLayout
+      page={page}
+      numPages={numPages}
+      canNavigate={position.isSuccess}
+      onNavigate={navigate}
+      notice={
+        savePosition.isError && (
+          <p role="alert" className="px-4 py-2 text-xs text-destructive">
+            Could not save your reading position.{' '}
+            <Button
+              size="xs"
+              variant="outline"
+              onClick={() => savePosition.mutate(page)}
+            >
+              Retry position save
+            </Button>
+          </p>
+        )
+      }
+      note={
+        position.isSuccess &&
+        numPages > 0 && (
+          <PageNoteEditor
+            key={page}
+            user={user}
+            course={course}
+            material={material}
+            page={page}
+          />
+        )
+      }
+    >
+      <div
+        ref={containerRef}
+        className="min-h-0 flex-1 overflow-auto overscroll-contain"
+      >
         {position.isPending ? (
           <p className="p-6 text-sm text-muted-foreground">
             Restoring your reading position…
@@ -167,7 +169,7 @@ function Reader({
             </Button>
           </div>
         ) : text !== null ? (
-          <pre className="mx-auto max-w-3xl px-6 py-8 font-sans text-sm leading-7 whitespace-pre-wrap">
+          <pre className="mx-auto my-4 max-w-3xl rounded-xl border border-border bg-card px-6 py-8 font-sans text-sm leading-7 break-words whitespace-pre-wrap shadow-lattice">
             {text}
           </pre>
         ) : (
@@ -201,16 +203,7 @@ function Reader({
           </Document>
         )}
       </div>
-      {position.isSuccess && numPages > 0 && (
-        <PageNoteEditor
-          key={page}
-          user={user}
-          course={course}
-          material={material}
-          page={page}
-        />
-      )}
-    </div>
+    </ReaderLayout>
   )
 }
 
