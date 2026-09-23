@@ -74,4 +74,25 @@ describe('an answer', () => {
       screen.getByText(/Related concepts/).parentElement,
     ).toHaveTextContent('uses')
   })
+
+  it('turns an Evidence block of chunk ids into Page badges', async () => {
+    const sha = 'a'.repeat(64)
+    withAnswer(
+      [
+        'Kinetic energy is \\(K = \\frac{1}{2} m v^2\\).',
+        '',
+        'Evidence:',
+        `- chunk 1 of document ${sha} (data_id: d-1, chunk_id: c-1): "Page 5: Energy and motion This deck…"`,
+        `- chunk 2 of document ${sha} (data_id: d-1, chunk_id: c-2)`,
+      ].join('\n'),
+      [],
+    )
+
+    const badge = await screen.findByRole('link', { name: 'week1.pdf, p. 5' })
+    expect(badge.getAttribute('href')).toBe(
+      '/courses/cs101?material=week1.pdf&page=5',
+    )
+    expect(screen.queryByText(/chunk_id|data_id|Evidence:/)).toBeNull()
+    expect(document.body).not.toHaveTextContent(sha)
+  })
 })
