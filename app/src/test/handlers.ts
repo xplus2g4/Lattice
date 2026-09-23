@@ -66,7 +66,7 @@ function materialOut(m: Material): MaterialOut {
     lecture_no: null,
     kind: null,
     page_count: null,
-    sha256: '0'.repeat(64),
+    sha256: m.sha256,
     status: m.status,
     error: m.error,
     created_by: idFor('owner'),
@@ -171,6 +171,7 @@ export const handlers = [
     const created: Material = {
       course,
       filename: filename || 'unknown',
+      sha256: '0'.repeat(64),
       status: 'queued',
       error: null,
       created_at: at,

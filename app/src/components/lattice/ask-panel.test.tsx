@@ -51,8 +51,12 @@ describe('an answer', () => {
 
   it('lists references apart from the answer, linking to the cited Pages', async () => {
     withAnswer('See the slides.', [
-      evidence({ filename: 'week1', page_start: 3, page_end: 4 }),
-      evidence({ filename: 'week1', chunk_id: 'c2', page_start: 9 }),
+      evidence({ filename: 'a'.repeat(64), page_start: 3, page_end: 4 }),
+      evidence({
+        filename: 'a'.repeat(64),
+        chunk_id: 'c2',
+        page_start: 9,
+      }),
       evidence({ kind: 'relation', filename: null, relation: 'uses' }),
     ])
 

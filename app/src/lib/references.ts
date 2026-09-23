@@ -24,14 +24,14 @@ function stem(filename: string): string {
   return dot > 0 ? filename.slice(0, dot) : filename
 }
 
-/** Cognee names a document after its file without the extension. */
+/** Cognee names a document after its stored file, which is the Material's sha256. */
 export function materialFor(
   name: string,
   materials: ReadonlyArray<Material>,
 ): Material | undefined {
   return (
-    materials.find((m) => m.filename === name) ??
-    materials.find((m) => stem(m.filename) === name)
+    materials.find((m) => m.sha256 === name || m.sha256 === stem(name)) ??
+    materials.find((m) => m.filename === name || stem(m.filename) === name)
   )
 }
 

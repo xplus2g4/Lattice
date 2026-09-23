@@ -49,6 +49,8 @@ export interface SessionSummary {
 export interface Material {
   course: string
   filename: string
+  /** Also the name Cognee knows the Material by, so citations carry it. */
+  sha256: string
   status: IngestStatus
   error: string | null
   created_at: string
@@ -197,6 +199,7 @@ function materialView(course: string, row: MaterialOut): Material {
   return {
     course,
     filename: row.filename,
+    sha256: row.sha256,
     status: ingestStatus(row.status),
     error: row.error,
     created_at: row.created_at,

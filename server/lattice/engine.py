@@ -40,6 +40,8 @@ QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNK
 
 # Cognee's PDF loader prefixes each non-empty page with this line; chunking ignores it.
 _PAGE_LABEL = re.compile(r"^[ \t]*Page (\d+):[ \t]*$", re.MULTILINE)
+# Cognee's plain-text restatement of graph Evidence, appended to the answer.
+_EVIDENCE_BLOCK = re.compile(r"\n\nEvidence:\n(?:- chunk \S+ of document [^\n]*(?:\n|\Z))+\Z")
 
 
 class IsolationError(RuntimeError):
@@ -322,8 +324,10 @@ def _page_span(text: str | None) -> dict[str, int]:
 
 def _answer_text(text: Any) -> str | None:
     """Completion types return a string; CHUNKS returns chunk dicts whose `text` is the payload."""
-    if text is None or isinstance(text, str):
+    if text is None:
         return text
+    if isinstance(text, str):
+        return _EVIDENCE_BLOCK.sub("", text)
     if isinstance(text, list):
         parts = [t.get("text", str(t)) if isinstance(t, dict) else str(t) for t in text]
         return "\n\n".join(parts)

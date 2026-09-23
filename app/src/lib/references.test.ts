@@ -30,6 +30,21 @@ describe('groupReferences', () => {
     ])
   })
 
+  it('finds the Material a citation names by its sha256', () => {
+    const sha = 'b'.repeat(64)
+    const refs = groupReferences(
+      [evidence({ filename: sha, page_start: 2, page_end: 2 })],
+      [material({ filename: 'week2.pdf', sha256: sha })],
+      [],
+    )
+
+    expect(refs.sources[0]).toMatchObject({
+      label: 'week2.pdf',
+      filename: 'week2.pdf',
+      spans: [{ start: 2, end: 2 }],
+    })
+  })
+
   it('keeps a source without pages, and one the reader cannot open, unlinked', () => {
     const refs = groupReferences(
       [evidence({ filename: 'syllabus' }), evidence({ filename: 'n7' })],
