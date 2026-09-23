@@ -21,9 +21,6 @@ export const Route = createFileRoute('/courses/$course')({
   component: CourseLayout,
 })
 
-const tabClass = 'text-sm underline underline-offset-4'
-const activeTabClass = 'text-sm font-semibold underline underline-offset-4'
-
 function CourseLayout() {
   const { course } = Route.useParams()
   const [user, setUser] = useUser()
@@ -63,43 +60,8 @@ function CourseLayout() {
           “{course}” is not a course code. Codes match {COURSE_RE.source}.
         </p>
       ) : (
-        <>
-          <nav className="flex gap-4 border-b border-gray-200 pb-2">
-            <Tab
-              course={course}
-              to="/courses/$course/materials"
-              label="Materials"
-            />
-            <Tab course={course} to="/courses/$course/notes" label="Notes" />
-            <Tab course={course} to="/courses/$course/ask" label="Ask" />
-          </nav>
-          <Outlet />
-        </>
+        <Outlet />
       )}
     </main>
-  )
-}
-
-function Tab({
-  course,
-  to,
-  label,
-}: {
-  course: string
-  to:
-    | '/courses/$course/materials'
-    | '/courses/$course/notes'
-    | '/courses/$course/ask'
-  label: string
-}) {
-  return (
-    <Link
-      to={to}
-      params={{ course }}
-      className={tabClass}
-      activeProps={{ className: activeTabClass }}
-    >
-      {label}
-    </Link>
   )
 }
