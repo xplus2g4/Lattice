@@ -1346,6 +1346,7 @@ dependencies = [
     { name = "cognee", extra = ["fastembed"] },
     { name = "fastapi" },
     { name = "filelock" },
+    { name = "httpx" },
     { name = "mcp" },
     { name = "pydantic-settings" },
     { name = "pypdf" },
@@ -1355,7 +1356,6 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
-    { name = "httpx" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "ruff" },
@@ -1368,6 +1368,7 @@ requires-dist = [
     { name = "cognee", extras = ["fastembed"], specifier = "==1.5.4" },
     { name = "fastapi" },
     { name = "filelock", specifier = "==3.32.6" },
+    { name = "httpx" },
     { name = "mcp", specifier = "==1.30.0" },
     { name = "pydantic-settings" },
     { name = "pypdf", specifier = "==6.18.0" },
@@ -1377,7 +1378,6 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
-    { name = "httpx" },
     { name = "pytest" },
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "ruff" },
