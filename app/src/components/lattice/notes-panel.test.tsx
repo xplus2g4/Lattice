@@ -8,7 +8,7 @@ describe('uploading PDF Notes', () => {
   it('lists one Note per selected file', async () => {
     resetStore()
     renderRoute('/courses/cs101')
-    const input = (await screen.findByText('Upload PDF'))
+    const input = (await screen.findByText('NOTES'))
       .closest('section')
       ?.querySelector<HTMLInputElement>('input[type="file"]')
     if (!input) throw new Error('the Notes panel has no file input')

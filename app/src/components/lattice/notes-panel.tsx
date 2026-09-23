@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { PlusSignIcon } from '@hugeicons/core-free-icons'
+import { PenIcon, PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useRef, useState } from 'react'
 
 import { Button } from '#/components/ui/button'
@@ -68,7 +68,7 @@ export function NotesPanel({ course, user }: Enrolment) {
             onClick={() => inputRef.current?.click()}
           >
             <HugeiconsIcon icon={PlusSignIcon} data-icon="inline-start" />
-            {upload.isPending ? 'Uploading…' : 'Upload PDF'}
+            {upload.isPending ? 'Uploading…' : 'Upload'}
           </Button>
           <input
             ref={inputRef}
@@ -93,8 +93,8 @@ export function NotesPanel({ course, user }: Enrolment) {
               })
             }
           >
-            <HugeiconsIcon icon={PlusSignIcon} data-icon="inline-start" />
-            New note
+            <HugeiconsIcon icon={PenIcon} data-icon="inline-start" />
+            Write
           </Button>
         </div>
       </div>

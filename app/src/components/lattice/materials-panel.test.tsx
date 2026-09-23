@@ -8,7 +8,7 @@ describe('uploading Materials', () => {
   it('lists one Material per selected file', async () => {
     resetStore()
     renderRoute('/courses/cs101')
-    const input = (await screen.findByText('Upload'))
+    const input = (await screen.findByText('MATERIALS'))
       .closest('section')
       ?.querySelector<HTMLInputElement>('input[type="file"]')
     if (!input) throw new Error('the Materials panel has no file input')
