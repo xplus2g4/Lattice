@@ -1,7 +1,13 @@
 import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 
-import { ApiError, listMaterials, listNotes, saveNote } from '#/lib/api'
+import {
+  ApiError,
+  listMaterials,
+  listNotes,
+  saveNote,
+  uploadNote,
+} from '#/lib/api'
 import { note } from '#/test/fixtures'
 import { resetStore } from '#/test/handlers'
 import { server } from '#/test/server'
@@ -25,6 +31,18 @@ describe('caller identity', () => {
 
     expect(saved.owner).toBe('bob@example.com')
     expect(saved.body_md).toBe('my note')
+  })
+
+  it('uploads a PDF as a Note of the calling user', async () => {
+    const saved = await uploadNote(
+      'bob@example.com',
+      'cs101',
+      new File(['%PDF'], 'summary.pdf', { type: 'application/pdf' }),
+    )
+
+    expect(saved.owner).toBe('bob@example.com')
+    expect(saved.filename).toBe('summary.pdf')
+    expect(saved.body_md).toBe('')
   })
 })
 

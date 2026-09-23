@@ -5,7 +5,12 @@ import { PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useRef } from 'react'
 
 import { Button } from '#/components/ui/button'
-import { listMaterials, pollWhilePending, uploadMaterial } from '#/lib/api'
+import {
+  listMaterials,
+  pollWhilePending,
+  uploadEach,
+  uploadMaterial,
+} from '#/lib/api'
 import { StatusBadge } from './status-badge'
 
 import type { Enrolment } from '#/lib/api'
@@ -19,14 +24,18 @@ export function MaterialsPanel({ course, user }: Enrolment) {
     refetchInterval: (q) => pollWhilePending(q.state.data),
   })
   const inputRef = useRef<HTMLInputElement>(null)
+  // Every selected file is uploaded at once; a failure is reported per file.
   const upload = useMutation({
-    mutationFn: (f: File) => uploadMaterial(user, course, f),
-    onSuccess: (_, f) => {
+    mutationFn: (files: Array<File>) =>
+      uploadEach(files, (f) => uploadMaterial(user, course, f)),
+    onSuccess: (results) => {
       void queryClient.invalidateQueries({ queryKey: key })
-      // An upload replaces the bytes under an existing filename; drop the cached blob.
-      void queryClient.invalidateQueries({
-        queryKey: ['material-file', course, f.name, user],
-      })
+      // An upload replaces the bytes under an existing filename; drop each cached blob.
+      for (const r of results) {
+        void queryClient.invalidateQueries({
+          queryKey: ['material-file', course, r.file.name, user],
+        })
+      }
     },
   })
 
@@ -49,19 +58,22 @@ export function MaterialsPanel({ course, user }: Enrolment) {
           ref={inputRef}
           type="file"
           accept=".pdf,.pptx,.md,.txt"
+          multiple
           className="hidden"
           onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) upload.mutate(file)
+            if (e.target.files?.length)
+              upload.mutate(Array.from(e.target.files))
             e.target.value = ''
           }}
         />
       </div>
-      {upload.error && (
-        <p className="px-4 pb-1 text-xs text-destructive">
-          {upload.error.message}
-        </p>
-      )}
+      {upload.data
+        ?.filter((r) => r.error)
+        .map((r) => (
+          <p key={r.file.name} className="px-4 pb-1 text-xs text-destructive">
+            {r.file.name}: {r.error}
+          </p>
+        ))}
       {materials.error && (
         <p className="px-4 pb-1 text-xs text-destructive">
           {materials.error.message}
