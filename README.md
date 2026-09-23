@@ -53,7 +53,7 @@ Then open the web app. Enter a course code on the landing page, `cs101` will do,
 
 Things that will surprise you the first time:
 
-- The frontend uses demo data by default. Set `VITE_USE_MOCK_BACKEND=false` in `app/.env` for the RPC API. Application records then survive API restarts in Postgres; Cognee knowledge lives in its separate embedded store.
+- The frontend talks to the RPC API at `VITE_API_URL`, so the server has to be running. Application records survive API restarts in Postgres; Cognee knowledge lives in its separate embedded store.
 - The model name in `.env.example` is `openai/deepseek-v4-flash`, not `deepseek/...`. DeepSeek currently rejects the `json_schema` response format that Cognee's default path sends; the `openai/` prefix routes Cognee to its prompted-JSON fallback. Don't "fix" it.
 - `CHUNKS` in the query-type dropdown skips the LLM and returns raw chunks. Useful for checking what retrieval found before blaming the model.
 - On Windows, a material can sit at `cognifying` and then fail with a LanceDB `failed to persist temp file` error. That is `MAX_PATH`, not Cognee: the embedded stores nest about 185 characters below `COGNEE_ROOT`, so a checkout more than ~75 characters deep crosses 260. Enable long path support (`LongPathsEnabled`, admin, then reboot) or keep the checkout shallow, say `C:\dev\Lattice`. It is a per-machine registry setting, so it does not come with the clone and each Windows machine needs it; `scripts/dev-setup.sh` checks and tells you which case you are in.

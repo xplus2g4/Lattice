@@ -11,14 +11,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '#/components/ui/dialog'
-import { Input } from '#/components/ui/input'
 import { Textarea } from '#/components/ui/textarea'
-import {
-  listNotes,
-  pollWhilePending,
-  saveNote,
-  usesMockBackend,
-} from '#/lib/api'
+import { listNotes, pollWhilePending, saveNote } from '#/lib/api'
 import { StatusBadge } from './status-badge'
 
 import type { Enrolment } from '#/lib/api'
@@ -127,16 +121,6 @@ export function NotesPanel({ course, user }: Enrolment) {
                 }
               }}
             >
-              {usesMockBackend() && (
-                <Input
-                  className="font-mono"
-                  value={editing.id}
-                  disabled={!editing.isNew}
-                  onChange={(e) =>
-                    setEditing({ ...editing, id: e.target.value })
-                  }
-                />
-              )}
               <Textarea
                 className="min-h-40"
                 placeholder="Markdown body"
