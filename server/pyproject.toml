@@ -8,7 +8,9 @@ dependencies = [
     "asyncpg>=0.31.0",
     "cognee[fastembed]==1.5.4",
     "fastapi",
+    "google-auth>=2.58.0",
     "pydantic-settings",
+    "pyjwt>=2.13.0",
     "sqlalchemy[asyncio]>=2.0",
     "uvicorn",
 ]

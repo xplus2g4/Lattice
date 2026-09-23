@@ -1,10 +1,11 @@
 import re
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lattice.auth import SESSION_COOKIE, read_session_email
 from lattice.config import Settings, get_settings
 from lattice.db import Database
 from lattice.db.models import User
@@ -37,23 +38,43 @@ SessionDep = Annotated[AsyncSession, Depends(get_session)]
 
 
 def current_email(
+    request: Request,
     settings: SettingsDep,
     x_user: Annotated[str | None, Header()] = None,
+    authorization: Annotated[str | None, Header()] = None,
 ) -> str:
-    """The app user's email. Dev-only header identity; OAuth replaces this dependency."""
-    if not settings.dev_header_auth:
-        raise HTTPException(401, "no authentication configured (DEV_HEADER_AUTH is off)")
-    if not x_user or "@" not in x_user:
-        raise HTTPException(401, "X-User header must be an email")
-    return x_user.strip().lower()
+    """The caller's email: the session cookie or Bearer token first, then the
+    dev-only `X-User` header when `DEV_HEADER_AUTH` is on."""
+    token = request.cookies.get(SESSION_COOKIE)
+    if token is None and authorization and authorization.startswith("Bearer "):
+        token = authorization.removeprefix("Bearer ").strip() or None
+    if token is not None and (email := read_session_email(settings, token)) is not None:
+        return email
+    if settings.dev_header_auth and x_user and "@" in x_user:
+        return x_user.strip().lower()
+    raise HTTPException(401, "not signed in")
 
 
 CurrentEmail = Annotated[str, Depends(current_email)]
 
 
-async def current_user(email: CurrentEmail, session: SessionDep) -> User:
-    """The caller's `users` row, created on first sight. OAuth replaces `current_email` only."""
-    return await users.get_or_create(session, email)
+async def current_user(email: CurrentEmail, session: SessionDep, settings: SettingsDep) -> User:
+    """The caller's `users` row, created on first sight; `ADMIN_EMAILS` are promoted here."""
+    return await users.get_or_create(session, email, admin_emails=settings.admin_emails)
 
 
 CurrentUser = Annotated[User, Depends(current_user)]
+
+
+def require_role(*roles: str) -> Callable[[User], Awaitable[User]]:
+    """Gate an endpoint on `users.role`. Enrolment still decides what a role may read."""
+
+    async def dep(user: CurrentUser) -> User:
+        if user.role not in roles:
+            raise HTTPException(403, f"requires {' or '.join(roles)} role")
+        return user
+
+    return dep
+
+
+AdminUser = Annotated[User, Depends(require_role("admin"))]

@@ -110,6 +110,17 @@ class SessionOut(Record):
     last_turn_at: datetime
 
 
+class AdminSessionOut(Record):
+    """A Session with its owner named: the shape only admins may read."""
+
+    id: UUID
+    course_id: UUID
+    user_email: str
+    turns: list[TurnOut]
+    created_at: datetime
+    last_turn_at: datetime
+
+
 class AskOut(BaseModel):
     session: UUID
     turn: TurnOut

@@ -4,7 +4,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from lattice.api import (
+    admin,
     ask,
+    auth,
     courses,
     health,
     material_records,
@@ -45,6 +47,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.ingest = Ingest(database.sessionmaker, engine, settings)
     for router in (
         health.router,
+        auth.router,
+        admin.router,
         me.router,
         courses.router,
         material_records.router,

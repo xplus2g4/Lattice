@@ -22,8 +22,23 @@ class Settings(BaseSettings):
     # Run `alembic upgrade head` on start-up. Convenient in dev; deploys run it explicitly.
     database_auto_migrate: bool = False
 
-    # Honour the `X-User` header as the caller's identity. Dev only; there is no OAuth yet.
+    # Honour the `X-User` header as the caller's identity and enable `/auth/dev`.
+    # Dev only; never set this in a deploy — it is an impersonation backdoor.
     dev_header_auth: bool = False
+
+    # The Web OAuth client id the sign-in button is configured with.
+    # Empty disables `/auth/google` (it answers 501).
+    google_client_id: str = ""
+    # When set, Google sign-in only accepts Workspace accounts on this domain (`hd` claim).
+    google_hosted_domain: str = ""
+
+    # Signs the session token (a JWT). Unset means an ephemeral per-process key: dev
+    # sessions reset on restart instead of trusting a secret committed to the repo.
+    session_secret: str | None = None
+    session_ttl_hours: int = 24 * 7
+
+    # Emails promoted to the admin role at first sight.
+    admin_emails: list[str] = []
 
     # Principal that owns every course's global dataset and runs material ingest.
     instructor_email: str = "instructor@lattice.example"
