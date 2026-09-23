@@ -84,6 +84,8 @@ export function ReferenceList({
                       params={{ course }}
                       search={pageSearch(s.filename, s.spans.at(0))}
                       state={bumpJump}
+                      // The viewer scrolls to the Page itself; router scroll restoration would undo it.
+                      resetScroll={false}
                       className="min-w-0 truncate font-medium text-foreground underline-offset-2 hover:underline"
                     >
                       {s.label}
@@ -101,6 +103,7 @@ export function ReferenceList({
                         params={{ course }}
                         search={pageSearch(s.filename, span)}
                         state={bumpJump}
+                        resetScroll={false}
                         className="rounded-md bg-citation-context px-1.5 py-0.5 text-xs font-medium text-citation-context-text transition-opacity hover:opacity-80"
                         aria-label={`${s.label}, ${pages(span)}`}
                       >
