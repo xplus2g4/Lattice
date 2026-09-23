@@ -56,26 +56,28 @@ export function useMaterialFile(course: string, filename: string) {
 export interface PageRange {
   page?: number
   pageEnd?: number
+  jump?: number
 }
 
-function PdfPages({ blob, page, pageEnd }: { blob: Blob } & PageRange) {
+function PdfPages({ blob, page, pageEnd, jump }: { blob: Blob } & PageRange) {
   const [numPages, setNumPages] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState<number>()
   const [rendered, setRendered] = useState<ReadonlySet<number>>(new Set())
-  const scrolledTo = useRef<number | null>(null)
+  const scrolledTo = useRef<string | null>(null)
   const target = page && numPages ? Math.min(page, numPages) : undefined
   const last = target ? Math.max(pageEnd ?? target, target) : undefined
 
   // Pages above the target change height as they render, so wait for all of them.
   useEffect(() => {
-    if (!target || scrolledTo.current === target) return
+    const visit = `${target}:${jump}`
+    if (!target || scrolledTo.current === visit) return
     for (let p = 1; p <= target; p++) if (!rendered.has(p)) return
     containerRef.current
       ?.querySelector(`[data-page-number="${target}"]`)
       ?.scrollIntoView({ block: 'start' })
-    scrolledTo.current = target
-  }, [target, rendered])
+    scrolledTo.current = visit
+  }, [target, jump, rendered])
 
   useEffect(() => {
     const el = containerRef.current
@@ -133,6 +135,7 @@ export function MaterialViewer({
   filename,
   page,
   pageEnd,
+  jump,
 }: {
   course: string
   filename: string
@@ -160,6 +163,7 @@ export function MaterialViewer({
             blob={file.data.blob}
             page={page}
             pageEnd={pageEnd}
+            jump={jump}
           />
         ) : (
           <p className="p-6 text-sm text-muted-foreground">Loading…</p>

@@ -1,4 +1,5 @@
 import { Link } from '@tanstack/react-router'
+import type { HistoryState } from '@tanstack/react-router'
 import ReactMarkdown from 'react-markdown'
 import rehypeKatex from 'rehype-katex'
 import remarkGfm from 'remark-gfm'
@@ -41,6 +42,11 @@ function pages(span: PageSpan): string {
   return describePages({ page_start: span.start, page_end: span.end })
 }
 
+const bumpJump = (prev: HistoryState) => ({
+  ...prev,
+  jump: (prev.jump ?? 0) + 1,
+})
+
 function pageSearch(material: string, span: PageSpan | undefined) {
   return {
     material,
@@ -77,6 +83,7 @@ export function ReferenceList({
                       to="/courses/$course"
                       params={{ course }}
                       search={pageSearch(s.filename, s.spans.at(0))}
+                      state={bumpJump}
                       className="min-w-0 truncate font-medium text-foreground underline-offset-2 hover:underline"
                     >
                       {s.label}
@@ -93,6 +100,7 @@ export function ReferenceList({
                         to="/courses/$course"
                         params={{ course }}
                         search={pageSearch(s.filename, span)}
+                        state={bumpJump}
                         className="rounded-md bg-citation-context px-1.5 py-0.5 text-xs font-medium text-citation-context-text transition-opacity hover:opacity-80"
                         aria-label={`${s.label}, ${pages(span)}`}
                       >

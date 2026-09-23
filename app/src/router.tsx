@@ -24,4 +24,8 @@ declare module '@tanstack/react-router' {
   interface Register {
     router: ReturnType<typeof getRouter>
   }
+  interface HistoryState {
+    /** Bumped by each Page link click, so revisiting the current Page scrolls to it again. */
+    jump?: number
+  }
 }

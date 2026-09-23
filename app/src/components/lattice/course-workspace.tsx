@@ -19,6 +19,7 @@ export function CourseWorkspace({
   material,
   page,
   pageEnd,
+  jump,
 }: {
   course: string
   material?: string
@@ -30,7 +31,7 @@ export function CourseWorkspace({
   useEffect(() => {
     setMobileView('material')
     if (material) markOpened(course, material)
-  }, [course, material, page, markOpened])
+  }, [course, material, page, jump, markOpened])
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background md:flex-row">
@@ -125,6 +126,7 @@ export function CourseWorkspace({
                   filename={material}
                   page={page}
                   pageEnd={pageEnd}
+                  jump={jump}
                 />
               </div>
             </section>
