@@ -2,7 +2,7 @@
 
 The browser-facing component of the course knowledge store: TanStack Start (React, file-based routing, SSR) with TanStack Query for talking to the API. Architecture and ownership are in [`docs/wiki/components.md`](../docs/wiki/components.md).
 
-The app runs on demo data by default through `src/lib/mock-backend.ts`. Set `VITE_USE_MOCK_BACKEND=false` and `VITE_API_URL` to use the persistent RPC API instead. The shared facade normalizes server records for both the reader workspace and existing study routes.
+The app talks to the persistent RPC API at `VITE_API_URL`, so it needs the server running. The shared facade in `src/lib/api.ts` normalizes server records for both the reader workspace and existing study routes.
 
 First time on a machine: `scripts/dev-setup.sh` from the repo root sets up both `app/` and `server/`. By hand:
 
@@ -44,7 +44,7 @@ The query-type union is derived from the generated request, not maintained indep
 
 The course lives in the URL. The standalone study routes keep a conversation in
 `$sessionId`, making it linkable and supporting back/forward. The reader workspace also
-retains the mock shell's local Session pointer and history picker. `Ask` therefore takes
+retains a local Session pointer and history picker. `Ask` therefore takes
 `sessionId` plus `onSessionStarted` and `onLeaveSession`, and the route decides where
 those go; the component never navigates and never touches storage.
 

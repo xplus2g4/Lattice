@@ -1,9 +1,4 @@
-/** The API surface the app codes against.
- *
- * Mock data remains the default for the product shell. Set
- * VITE_USE_MOCK_BACKEND=false to use the persistent RPC API.
- */
-import * as backend from './mock-backend'
+/** The API surface the app codes against: the persistent RPC API. */
 import { ApiError } from './api-error'
 import type {
   AskOut as RpcAskOut,
@@ -23,8 +18,6 @@ export { ApiError } from './api-error'
 // here. The view models below normalize RPC records for both the reader and study routes;
 // this module also owns the X-User transport and how a FastAPI error becomes an Error.
 const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
-export const usesMockBackend = () =>
-  import.meta.env.VITE_USE_MOCK_BACKEND !== 'false'
 export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
 // FastAPI inlines these unions into each field rather than naming them, so name them here.
 export type QueryType = NonNullable<RpcAskRequest['query_type']>
@@ -259,7 +252,6 @@ function turnView(row: TurnOut): Turn {
 }
 
 export async function listCourses(user: string): Promise<Array<CourseSummary>> {
-  if (usesMockBackend()) return backend.listCourses(user)
   const rows = await request<Array<CourseOut>>(user, '/courses.list')
   return Promise.all(
     rows.map(async (row) => {
@@ -279,7 +271,6 @@ export async function listCourses(user: string): Promise<Array<CourseSummary>> {
   )
 }
 export async function joinCourse(user: string, course: string): Promise<void> {
-  if (usesMockBackend()) return
   try {
     await request(user, '/enrolments.join', json({ course }))
   } catch (error) {
@@ -301,7 +292,6 @@ export async function listSessions(
   user: string,
   course: string,
 ): Promise<Array<SessionSummary>> {
-  if (usesMockBackend()) return backend.listSessions(user, course)
   const rows = await request<Array<SessionOut>>(
     user,
     query('/sessions.list', { course }),
@@ -320,7 +310,6 @@ export async function downloadMaterial(
   course: string,
   filename: string,
 ): Promise<Blob> {
-  if (usesMockBackend()) return backend.downloadMaterial(user, course, filename)
   const rows = await request<Array<MaterialOut>>(
     user,
     query('/materials.list', { course }),
@@ -341,7 +330,6 @@ export async function listMaterials(
   user: string,
   course: string,
 ): Promise<Array<Material>> {
-  if (usesMockBackend()) return backend.listMaterials(user, course)
   const rows = await request<Array<MaterialOut>>(
     user,
     query('/materials.list', { course }),
@@ -353,7 +341,6 @@ export async function uploadMaterial(
   course: string,
   file: File,
 ): Promise<Material> {
-  if (usesMockBackend()) return backend.uploadMaterial(user, course, file)
   const form = new FormData()
   form.append('course', course)
   form.append('file', file)
@@ -367,7 +354,6 @@ export async function listNotes(
   user: string,
   course: string,
 ): Promise<Array<Note>> {
-  if (usesMockBackend()) return backend.listNotes(user, course)
   const rows = await request<Array<NoteOut>>(
     user,
     query('/notes.list', { course }),
@@ -380,7 +366,6 @@ export async function saveNote(
   id: string,
   body_md: string,
 ): Promise<Note> {
-  if (usesMockBackend()) return backend.saveNote(user, course, id, body_md)
   const note =
     /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
       ? id
@@ -400,7 +385,6 @@ export async function ask(
   course: string,
   req: AskRequest,
 ): Promise<AskResponse> {
-  if (usesMockBackend()) return backend.ask(user, course, req)
   const body: RpcAskRequest = {
     course,
     question: req.question,
@@ -415,7 +399,6 @@ export async function getSession(
   course: string,
   id: string,
 ): Promise<Session> {
-  if (usesMockBackend()) return backend.getSession(user, course, id)
   const [row, scope] = await Promise.all([
     request<SessionOut>(user, query('/sessions.get', { session: id })),
     request<CourseOut>(user, query('/courses.get', { course })),

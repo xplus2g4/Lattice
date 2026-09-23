@@ -5,7 +5,6 @@ import { cleanup } from '@testing-library/react'
 import { resetStore } from './handlers'
 import { server } from './server'
 
-vi.stubEnv('VITE_USE_MOCK_BACKEND', 'false')
 Object.defineProperty(window, 'scrollTo', {
   configurable: true,
   value: vi.fn(),

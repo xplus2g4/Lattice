@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 
-import { listNotes, saveNote, usesMockBackend } from '#/lib/api'
+import { listNotes, saveNote } from '#/lib/api'
 import type { Note } from '#/lib/api'
 import {
   ErrorLine,
@@ -20,7 +20,7 @@ export function Notes({ course, user }: Scope) {
     queryFn: () => listNotes(user, course),
     refetchInterval: (q) => pollWhilePending<Note>(q.state.data),
   })
-  const [noteId, setNoteId] = useState(() => (usesMockBackend() ? 'n1' : ''))
+  const [noteId, setNoteId] = useState('')
   const [body, setBody] = useState('')
   const save = useMutation({
     mutationFn: () => saveNote(user, course, noteId, body),
@@ -37,7 +37,7 @@ export function Notes({ course, user }: Scope) {
         type="button"
         className={buttonClass}
         onClick={() => {
-          setNoteId(usesMockBackend() ? crypto.randomUUID() : '')
+          setNoteId('')
           setBody('')
         }}
       >
@@ -50,15 +50,6 @@ export function Notes({ course, user }: Scope) {
           save.mutate()
         }}
       >
-        {usesMockBackend() && (
-          <input
-            className={inputClass}
-            value={noteId}
-            pattern="[A-Za-z0-9_\-]{1,64}"
-            placeholder="note id"
-            onChange={(e) => setNoteId(e.target.value)}
-          />
-        )}
         <textarea
           className={`${inputClass} block w-full`}
           rows={4}
