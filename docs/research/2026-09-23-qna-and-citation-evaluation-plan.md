@@ -1,426 +1,313 @@
-# Evaluating Lattice: QnA precision/recall and Citation precision
+# Evaluating Lattice: retrieval, answer, Citations
 
-Point-in-time research, 23 Sep 2026. A plan, not an implementation: it defines what to measure,
-what Lattice can and cannot expose today, how to build the ground truth, and how many labelled
-questions are needed before a number means anything. Nothing here is built yet.
+Point-in-time research, 23 Sep 2026. A plan, not an implementation.
 
-## 1. What the question really asks
+Scope: three layers, measured separately, because they fail independently. A correct answer over bad
+retrieval means the model answered from memory and will not generalise to the next course; good
+retrieval with a wrong answer is a generation problem; a right answer with a wrong Page badge is a
+product defect, because the student clicks that badge. RAGChecker's retriever/generator split is the
+same decomposition ([arXiv:2408.08067](https://arxiv.org/html/2408.08067)).
 
-"QnA precision and recall" and "Reference precision" are two of five layers that a cited-answer
-system fails at independently. Measuring them jointly hides the cause of every failure:
+Out of scope here: isolation and prompt-injection (already canaried per run), cost and latency
+(recorded, not analysed).
 
-| Layer | Question it answers | Fails alone when |
-| --- | --- | --- |
-| Retrieval | Did search return the Chunks that contain the answer? | Chunking, embeddings, `top_k`, graph seeds |
-| Answer | Is the answer correct and complete? | Prompt, model, context ordering |
-| Citation | Do the returned Citations actually support what the answer says? | Evidence extraction, Page mapping |
-| Isolation | Did anything leak across Tiers or courses? | Dataset filtering |
-| Operations | How slow and how expensive was the Turn? | Retriever choice, model choice |
+## 1. The four modes, plus baselines
 
-Two diagnostics justify the split. A correct answer over bad retrieval means the model answered
-from parametric knowledge, which will not generalise to the next course; good retrieval with a bad
-answer is a generation problem. RAGChecker is built on exactly this decomposition, reporting
-retriever, generator and overall metrics separately from claim-level entailment
-([arXiv:2408.08067](https://arxiv.org/html/2408.08067)).
-
-For Lattice the Citation layer is not a nice-to-have: a Turn renders Page badges the student
-clicks through to the Material (`app/src/lib/references.ts`, `describeCitation`). A correct answer
-with a wrong Page badge is a product defect, so Citation quality gets first-class metrics rather
-than being folded into answer quality.
-
-## 2. What Lattice can be measured through today
-
-Read from the source, not from the docs.
-
-`server/lattice/retrieval.py` returns one `TierResult` per Tier, each carrying `answer` plus a
-list of `Evidence`:
-
-```python
-class Evidence(BaseModel):
-    kind: str
-    dataset_id: str | None = None
-    data_id: str | None = None
-    chunk_id: str | None = None
-    chunk_index: int | None = None
-    document_name: str | None = None
-    label: str | None = None
-    relationship_name: str | None = None
-    page_start: int | None = None
-    page_end: int | None = None
-```
-
-`server/lattice/study.py` persists per assistant Turn: the full `results` JSON, `query_type`,
-`cited_chunk_ids`, `used_notes` and `latency_ms`. `server/lattice/db/models/conversation.py`
-confirms those are real columns, and `Feedback` already stores a per-Turn thumb rating. So an
-offline harness needs no schema change to capture a run.
-
-Four retrieval modes are in scope, from `study.py`:
+`server/lattice/study.py`:
 
 ```python
 QueryType = Literal["GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS"]
 ```
 
-Three constraints follow from the code and change the metric design:
+| Mode | What it does | Why it is in the matrix |
+| --- | --- | --- |
+| `RAG_COMPLETION` | Vector search over Chunks → LLM answer | Plain RAG reference point |
+| `GRAPH_COMPLETION` | Entity/relation traversal of the Cognify graph → LLM answer | Does the graph earn its Cognify cost? |
+| `HYBRID_COMPLETION` | Chunk lane + entity lane + fact lane merged → LLM answer | Current default candidate |
+| `CHUNKS` | Retrieval only, no generation | Clean retrieval upper bound: what the other three *could* have answered from |
 
-1. **Citations are answer-level, not statement-level.** `_StructuredReferences` in
-   `server/lattice/grounding.py` deliberately suppresses Cognee's inline reference block
-   ("Citations travel as structured Evidence, so the answer text gets no Evidence block"), and
-   `Evidence` has no field tying a Citation to a sentence or claim. Nothing in the pipeline records
-   *which* claim a Citation supports.
-2. **Some Citations are not text at all.** `kind` is `chunk`, `relation` or an entity label
-   (`app/src/lib/api.ts`, `describeCitation`). Graph Citations have no passage to entail a claim
-   against, so they cannot enter a text-entailment metric.
-3. **Page spans are approximate and known-unreliable.** `Evidence.page_start/page_end` are read
-   from loader page labels; backlog issue [#6](https://github.com/xplus2g4/Lattice/issues/6)
-   ("Reliable page/slide attribution") is open, with the PDF and PPTX findings showing Chunk
-   indices and text headers are insufficient.
+Wired in `server/lattice/grounding.py` (`_RagRetriever`, `_GraphRetriever`, `_HybridRetriever`,
+all `top_k=15` by default).
 
-### 2.1 The consequence for "Reference precision"
+Two baseline arms answer "is Lattice better than just calling the model?":
 
-The standard definition of Citation precision/recall is ALCE's, and it is per-statement: citation
-recall is the share of answer statements *fully supported* by their cited passages, and citation
-precision is the share of citations that are relevant to the statement they are attached to and
-non-redundant — a citation that could be removed without losing support is counted as imprecise
-([arXiv:2305.14627](https://arxiv.org/html/2305.14627),
-[ACL](https://aclanthology.org/2023.emnlp-main.398/)).
+- **B0 — direct model.** Same question, same LLM, no retrieval and no course context. Scores the
+  model's parametric knowledge of the course topic.
+- **B1 — context stuffing.** Same question with the whole relevant Material pasted into the prompt,
+  where it fits the context window. The strongest non-RAG competitor, and cheap to add.
 
-Lattice cannot produce that number today, because there is no statement→Citation attachment to
-score. This is the single most important finding of this research. There are two ways forward and
-the choice should be explicit:
+B0 and B1 produce no Citations, so they are scored on retrieval-free answer metrics only. Six arms
+total per question.
 
-- **Option A (no product change).** Score Citations as an unordered evidence *set* against the
-  answer: for each answer claim, ask whether any returned Chunk Citation entails it (set-level
-  recall), and for each Citation, whether it entails at least one claim (set-level precision).
-  This is measurable now but is a weaker guarantee: it cannot catch a Citation attached to the
-  wrong sentence, and it rewards dumping `top_k` Chunks into the reference list.
-- **Option B (small product change, recommended before launch).** Emit per-claim or per-sentence
-  Citation indices alongside the structured Evidence, then compute ALCE citation precision/recall
-  directly. This is a schema and prompt change, out of scope here, but the evaluation plan should
-  drive the decision rather than quietly accept Option A's ceiling.
+## 2. Evaluation dataset: perturbed seed Materials
 
-Plan of record: build the harness for Option A, report set-level Citation metrics, and log
-"claim with support in the evidence set but no way to tell which Citation" as its own error class
-so the size of the gap Option B would close is quantified rather than asserted.
+Chen provides seed Materials per course. The dataset is built by **editing known facts in those
+Materials and asking questions only the edited text can answer.** This is Longpre et al.'s
+knowledge-conflict construction — substitute entity mentions in the gold document so the contextual
+answer contradicts the memorised one, then measure whether the model reads or recites
+([ACL 2021](https://aclanthology.org/2021.emnlp-main.565/), [PDF](https://aclanthology.org/2021.emnlp-main.565.pdf)).
 
-## 3. Evaluation unit and ground truth
+Why this method is worth the editing effort:
 
-One record per question. JSONL, one file per course, versioned against a frozen Material snapshot.
+1. **It separates retrieval from memory.** The pre-training answer and the snapshot answer differ,
+   so an answer can be attributed. B0 should score near zero on perturbed questions; if it does
+   not, the question was guessable and is cut.
+2. **Gold labels come free from the edit log.** We know which Material, which Page, and which text
+   span was changed, so `gold_pages` and the expected answer need no annotation — only human
+   *verification*.
+3. **Detection is cheap.** A distinctive perturbed value can be string-matched, so grounding is
+   checkable before any LLM judge runs.
+
+### 2.1 Perturbation types
+
+| Type | Edit | Question it creates |
+| --- | --- | --- |
+| Value swap | Numbers, dates, thresholds → distinctive new values | "What is the X threshold?" — answerable only from the snapshot |
+| Term rename | Rename a concept to a coined course-specific term | Tests retrieval on vocabulary absent from pre-training |
+| Relation swap | "A causes B" → "A causes C" | Tests graph modes specifically |
+| Insertion | Add a fact that exists nowhere in pre-training (a policy, a made-up lemma) | No memorised competitor at all; pure retrieval |
+| Deletion | Remove a fact, then ask about it | Correct behaviour is the abstention string; catches answering from memory |
+
+Rules: every perturbation must be **plausible** (the model must not reject it as absurd),
+**internally consistent** (propagate the edit to every occurrence in the snapshot, or the Materials
+contradict themselves and Citation gold becomes ambiguous), and **localised** to a recorded Page
+range.
+
+### 2.2 Set composition
+
+50 questions per course, 2 courses, 100 total.
+
+| Slice | Share | Purpose |
+| --- | --- | --- |
+| Perturbed single-fact | 40% | Unambiguous retrieval + Citation gold |
+| Perturbed multi-hop / comparison | 15% | Needs two edited spans, often two Materials |
+| Deletion → unsupported | 15% | Abstention, and memory-leak detection |
+| Unperturbed application / reasoning | 20% | Realistic difficulty; perturbation alone over-weights lookup |
+| Unperturbed paraphrase | 10% | Student vocabulary ≠ Material vocabulary |
+
+The unsupported slice is not optional. NoMIRACL shows how badly abstention is distributed — over
+88% hallucination rate on non-relevant passages for some models, while models that abstain readily
+reach a 74.9% error rate on the relevant subset — so both sides must be scored together or
+always-abstain wins ([arXiv:2312.11361](https://arxiv.org/html/2312.11361v1),
+[ACL](https://aclanthology.org/2024.findings-emnlp.730/)).
+
+### 2.3 Record format
 
 ```json
 {
   "id": "cs2100-q017",
   "course": "CS2100",
-  "kind": "comparison",
-  "question": "How do sign extension and zero extension differ?",
-  "gold_answer": "…reference answer, 1–4 sentences…",
-  "gold_claims": [
-    "Sign extension repeats the most significant bit.",
-    "Zero extension fills the new high bits with zeros.",
-    "Only sign extension preserves the value of a negative signed integer."
-  ],
-  "gold_chunk_ids": ["…"],
-  "gold_material": "week03-number-systems.pdf",
-  "gold_pages": [[12, 13]],
+  "slice": "perturbed_single_fact",
+  "question": "How many bits does the widening stage of the pipeline extend to?",
+  "perturbation": {"type": "value_swap", "from": "32", "to": "47",
+                   "material": "week03.pdf", "pages": [12]},
+  "gold_answer": "47 bits.",
+  "gold_claims": ["The widening stage extends to 47 bits."],
+  "gold_pages": {"week03.pdf": [[12, 12]]},
   "answerable": true,
-  "abstention_expected": false,
-  "tier": "course",
-  "snapshot": "2026-09-23-cs2100",
-  "annotators": ["a1", "a2"],
-  "notes": "adjudicated: a2 initially marked claim 3 optional"
+  "snapshot": "2026-09-23-cs2100-perturbed",
+  "verified_by": "human",
+  "guessable_by_b0": false
 }
 ```
 
-`gold_claims` is the unit that makes precision and recall meaningful for long-form answers; token
-F1 and exact match cannot distinguish a complete answer from a verbose one. `gold_chunk_ids` is
-what makes retrieval measurable independently of the model, and it must be collected by having an
-annotator read the Material, not by accepting what Lattice retrieved (that would make every
-retrieval metric circular).
+`gold_claims` is the unit that makes answer precision and recall meaningful for prose answers; token
+F1 and exact match cannot tell a complete answer from a verbose one.
 
-### 3.1 Question mix
+### 2.4 Human verification
 
-Extend the six kinds the existing synthetic canary already uses in
-`server/tests/test_study_evaluation.py` (`direct`, `paraphrase`, `comparison`, `application`,
-`false_premise`, `unsupported`) with three that the canary lacks:
+Cheap, because the edit log supplies the gold. Per question a human confirms: the question is
+answerable from the snapshot alone; `gold_answer` and `gold_claims` match the edited text;
+`gold_pages` lists every Page containing the fact; the question is not guessable without the
+Material (cross-checked against the B0 run). Questions failing any check are cut, not repaired.
 
-| Kind | Share | Why it is in the set |
-| --- | --- | --- |
-| `direct` | 20% | Baseline lookup; isolates chunking and embeddings |
-| `paraphrase` | 15% | Vocabulary mismatch between student and Material |
-| `comparison` | 15% | Needs two Chunks, often two Materials — separates GRAPH from RAG |
-| `application` | 15% | Reasoning over retrieved facts, not extraction |
-| `multi_part` | 10% | Exposes partial answers that claim recall catches and a thumbs-up does not |
-| `ambiguous` | 5% | Should ask back or cover both readings, not guess |
-| `false_premise` | 10% | Must contradict the premise, not accept it |
-| `unsupported` | 10% | Must abstain with "Not covered by the supplied materials." |
+Deletion-slice questions get one extra check: the fact is absent from the *whole* snapshot, not just
+its original Page.
 
-The last two are a third of the set on purpose. `GROUNDING_POLICY` in
-`server/lattice/grounding.py` mandates the abstention string, and NoMIRACL shows how badly this
-capability is distributed: on non-relevant passages, LLAMA-2 and Orca-2 hallucinate on over 88% of
-queries, while models that abstain readily reach up to a 74.9% error rate on the relevant subset —
-models struggle to balance the two, so both subsets must be measured together or the metric is
-gameable by always abstaining
-([arXiv:2312.11361](https://arxiv.org/html/2312.11361v1),
-[ACL](https://aclanthology.org/2024.findings-emnlp.730/)).
-
-### 3.2 Annotation protocol
-
-- Two annotators independently write `gold_claims` and `gold_chunk_ids` for every question in the
-  pilot set; a third adjudicates disagreements, and the adjudicated version is the gold.
-- Report inter-annotator agreement (Cohen's κ on claim-level judgements) as a metric of the *set*,
-  not of the system. An evaluation whose annotators agree at κ≈0.5 cannot detect a 5-point system
-  difference.
-- Keep answer correctness and Citation correctness on separate judgement forms. An annotator who
-  has just decided the answer is right is primed to accept its Citations.
-- Annotators label against the frozen Material snapshot only. Anything true but absent from the
-  snapshot is `unsupported`, however obvious.
-
-## 4. Metrics
+## 3. Metrics
 
 Notation: generated claims \(G\), gold claims \(Y\), retrieved Chunks \(R_k\), gold Chunks \(G_R\),
-Chunk Citations returned with the answer \(C\).
+Chunk Citations returned \(C\).
 
-### 4.1 Answer (the "QnA precision and recall" ask)
-
-\[
-\text{AnswerPrecision}=\frac{|\{g\in G:\ g\ \text{is supported by the snapshot and not contradicted by } Y\}|}{|G|}
-\qquad
-\text{AnswerRecall}=\frac{|\{y\in Y:\ y\ \text{is covered by } G\}|}{|Y|}
-\]
+### 3.1 Retrieval
 
 \[
-\text{AnswerF1}=\frac{2\,P\,R}{P+R}
+\text{P@k}=\frac{|R_k\cap G_R|}{|R_k|}\qquad
+\text{R@k}=\frac{|R_k\cap G_R|}{|G_R|}\qquad
+\text{MRR}
 \]
 
-Claim extraction and entailment are judged by an LLM judge with human spot-checking; this is
-RAGChecker's construction and the reason it reports claim-level rather than token-level scores
-(arXiv:2408.08067). Keep token F1 and exact match as cheap secondary signals — they are what
-Cognee's bundled `eval_framework` already computes by default (`evaluation_metrics = ["correctness",
-"EM", "f1"]` in `cognee/eval_framework/eval_config.py`) — but do not gate on them for long-form
-answers.
+Gold Chunks are the Chunks overlapping the perturbed span, resolved once per snapshot. Because Chunk
+identity dies on re-Cognify, anchor gold to Material + Page range too and derive Chunk IDs from it.
 
-Also report, per question kind: **completeness** (all parts of a `multi_part` question answered),
-**correct abstention rate** on the `unsupported` and `false_premise` subsets, and **hallucination
-rate** on those same subsets, using NoMIRACL's two-sided framing so abstaining on everything scores
-badly on the answerable subset.
+Also report Ragas **context precision** (are relevant Chunks ranked above irrelevant ones) and
+**context recall** (share of reference-answer claims attributable to retrieved context) — both
+reference-free, so they extend to production sampling later
+([precision](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_precision/),
+[recall](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/)).
 
-### 4.2 Retrieval
+### 3.2 Answer
 
 \[
-\text{P@k}=\frac{|R_k\cap G_R|}{|R_k|}
-\qquad
-\text{R@k}=\frac{|R_k\cap G_R|}{|G_R|}
-\qquad
-\text{MRR},\ \text{nDCG@k}
+\text{Precision}=\frac{|\{g\in G:\ \text{supported by the snapshot}\}|}{|G|}\qquad
+\text{Recall}=\frac{|\{y\in Y:\ \text{covered by } G\}|}{|Y|}\qquad
+F_1
 \]
 
-Plus the two reference-free framings from Ragas, which are worth computing because they do not need
-`gold_chunk_ids` and so extend to production sampling: **context precision**, whether relevant
-Chunks are ranked above irrelevant ones
-([docs](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_precision/)),
-and **context recall**, the share of reference-answer claims attributable to the retrieved context
-([docs](https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/)).
+Claim extraction and entailment by LLM judge, human-checked on a subsample (§4). Token F1 and exact
+match stay as cheap secondary signals — they are what Cognee's bundled `eval_framework` already
+computes (`evaluation_metrics = ["correctness", "EM", "f1"]`) — but do not gate on them.
 
-`CHUNKS` mode returns retrieval with no generation, which makes it the clean upper bound for what
-the other three modes could have answered from. Report every retrieval metric for all four modes;
-gaps between `CHUNKS` retrieval quality and `*_COMPLETION` answer quality localise the failure to
-generation.
+Perturbation adds two metrics the plan is really built for:
 
-### 4.3 Citation ("Reference precision")
+- **Grounded-answer rate** — answer states the perturbed value. Retrieval won.
+- **Memorised-answer rate** — answer states the original, pre-perturbation value. Memory won; this
+  is Longpre's memorisation ratio and it is the headline number distinguishing Lattice from B0.
 
-Set-level, per Option A above, over Chunk Citations only:
+Plus **correct-abstention rate** and **hallucination rate** on the deletion slice.
+
+### 3.3 Citations — Page-lenient
+
+Per Chen: a Citation passes if the Page it points to contains the relevant fact. Chunk identity and
+which sentence the Citation is attached to do not matter.
 
 \[
-\text{CitationPrecision}=\frac{|\{c\in C:\ c\ \text{entails at least one claim in } G\}|}{|C|}
+\text{CitationPrecision}=\frac{|\{c\in C:\ \text{span}(c)\cap\text{gold\_pages}\neq\varnothing\}|}{|C|}
 \qquad
-\text{CitationRecall}=\frac{|\{g\in G_{\text{ext}}:\ \exists c\in C,\ c\models g\}|}{|G_{\text{ext}}|}
+\text{CitationRecall}=\frac{|\{g\in G_{\text{ext}}:\ \exists c\in C\ \text{on a Page containing } g\}|}{|G_{\text{ext}}|}
 \]
 
-where \(G_{\text{ext}}\) is the claims needing external evidence (excluding restatements of the
-question and hedges). Report alongside:
+\(G_{\text{ext}}\) = claims needing external evidence, excluding restatements of the question and
+hedges. Leniency settles a design question that would otherwise block: `_StructuredReferences` in
+`grounding.py` strips Cognee's inline reference block and `Evidence` carries no claim/sentence
+field, so per-statement Citation precision in ALCE's sense is not computable on Lattice today
+([ALCE](https://arxiv.org/html/2305.14627), [ACL](https://aclanthology.org/2023.emnlp-main.398/)).
+Page-level set semantics is exactly what Lattice can produce, so it becomes the spec rather than a
+compromise. The cost is stated once and accepted: this cannot catch a Citation attached to the wrong
+sentence, and it rewards returning more Citations, which is why redundancy is measured below.
 
-- **Citation resolution rate** — share of returned `chunk_id`s that resolve to a live Chunk and a
-  Material the caller can open. `references.ts` silently drops a Citation with no `filename`, so an
-  unresolvable Citation is invisible in the UI and must be caught here. Target: 1.0.
-- **Page attribution accuracy** — share of Chunk Citations whose `page_start`/`page_end` overlap
-  the annotated `gold_pages`. Report separately and expect it to be the weakest number in the
-  report while issue #6 is open; do not let it depress the Chunk-level figure.
-- **Citation redundancy** — Citations removable without losing claim support, as ALCE's precision
-  requires; this is the metric that punishes dumping all of `top_k` into the reference list.
-- **Graph Citation usefulness** — for `relation`/entity Citations, a human 3-point rubric
-  (on-topic and useful / on-topic but unhelpful / irrelevant). Not an entailment metric; reported
-  as its own column, never mixed into Citation precision.
-- **Unauthorized citation rate** — must be 0. `engine.search` already raises `IsolationError` for
-  Evidence from a Dataset the caller cannot read, so any non-zero count is a bug, not a score.
+Three companions, reported separately, never folded into the two headline numbers:
 
-### 4.4 Safety and operations
+- **Citation resolution rate** — share of returned `chunk_id`s that resolve to a live Chunk with a
+  `filename` and a non-null Page span. `references.ts` silently drops a Citation with no
+  `filename`, so an unresolvable Citation is invisible in the UI. Target 1.0. A Citation with a null
+  span cannot be scored leniently and counts as a resolution failure, not a precision failure —
+  Page spans are approximate and backlog issue [#6](https://github.com/xplus2g4/Lattice/issues/6)
+  is open, so this number is the honest measure of how much of the leniency rule is even applicable.
+- **Citation redundancy** — Citations removable without losing Page coverage of any claim. Without
+  this, Page-lenient precision is trivially gamed by returning all of `top_k`.
+- **Graph Citation usefulness** — `kind` is `chunk | relation | <entity label>`
+  (`app/src/lib/api.ts`). Relation and entity Citations have no Page, so they get a human 3-point
+  rubric (useful / on-topic but unhelpful / irrelevant) and are excluded from the formulas above.
 
-Faithfulness to retrieved context, context utilization, and noise sensitivity (all four available
-as RAGChecker diagnostics); prompt-injection resistance against `GROUNDING_POLICY`; cross-course
-and cross-Tier leakage counts; `latency_ms` p50/p95 per mode; tokens and cost per Turn; failure and
-empty-Dataset behaviour per mode. Isolation, injection and Citation-resolution failures are
-zero-tolerance gates. Everything else is a tracked number with a threshold set after the pilot.
+## 4. Procedure
 
-## 5. How large the set must be
+1. **Build two snapshots per course**: the original Materials, and the perturbed copy. Cognify the
+   perturbed copy into its own Dataset, never the real course Dataset. Record Cognee version,
+   embedding model, LLM, `top_k` and prompt hashes with the run.
+2. **Run all 100 questions through six arms** — four modes plus B0 and B1 — one fresh Session per
+   question so history cannot leak answers between questions.
+3. **Capture** per (question, arm): answer text, every `TierResult` and its `Evidence`,
+   `cited_chunk_ids`, `latency_ms`, tokens, exceptions. All already persisted on `Turn` — no schema
+   change needed.
+4. **Score** the string-matchable things first (grounded vs memorised value, Citation Page overlap,
+   resolution), then run the LLM judge for claim extraction and entailment.
+5. **Validate the judge** before trusting it. MT-Bench found GPT-4 judges agree with human experts
+   over 80% of the time, matching human–human agreement, but documents position, verbosity and
+   self-enhancement bias ([arXiv:2306.05685](https://browse.arxiv.org/html/2306.05685v4)).
+   Mitigations: human-label a stratified 20% subsample and report judge-vs-human agreement per
+   metric; judge one claim at a time; randomise order; do not let the judge grade its own family's
+   output unchecked.
+6. **Repeat 20 questions three times** to quantify run-to-run variance. Any arm difference smaller
+   than that spread is noise.
 
-The plan needs a defensible size before anyone spends annotation hours. Simulation, standard
-library only, seed 20260923 (`/tmp/eval_power.py`, reproduced in the appendix):
+## 5. What 50 × 2 can and cannot support
 
-**Absolute precision of one metric** — 95% CI half-width on a per-question score whose true mean is
-0.80. "Graded" mixes saturated 0/1 questions with partial-credit ones, which is how claim-level
-scores actually distribute:
+Simulation, standard library, seed 20260923 (`/tmp/eval_power.py`; bootstrap CI on per-question
+scores, and exact paired sign test for arm comparisons).
 
-|   n | Wilson (binary) | bootstrap (graded) |
-|----:|----------------:|-------------------:|
-|  30 | ±0.139 | ±0.069 |
-|  50 | ±0.109 | ±0.102 |
-|  75 | ±0.089 | ±0.078 |
-| 100 | ±0.078 | ±0.074 |
-| 150 | ±0.064 | ±0.055 |
-| 200 | ±0.055 | ±0.047 |
-| 300 | ±0.045 | ±0.037 |
+95% CI half-width on one metric, true mean 0.80:
 
-(The n=30 bootstrap figure is narrower than n=50 because the bootstrap understates spread at very
-small n — itself a reason not to report a 30-question result.)
+| n | 50 (one course) | 100 (pooled) | 200 |
+| --- | --- | --- | --- |
+| Wilson (binary) | ±0.109 | ±0.078 | ±0.055 |
+| bootstrap (graded) | ±0.102 | ±0.074 | ±0.047 |
 
-**Comparing two query types on the same questions** — power of the exact paired sign/McNemar test,
-α=0.05. "Discordance" is the share of questions where the two modes differ at all:
+Power of the paired test, α=0.05, at 30% discordance between two arms:
 
-| discordance | true gap | n=50 | n=100 | n=200 |
-|---|---:|---:|---:|---:|
-| 20% | 5% | 0.07 | 0.14 | 0.29 |
-| 20% | 10% | 0.24 | 0.54 | 0.87 |
-| 20% | 15% | 0.59 | 0.93 | 1.00 |
-| 30% | 5% | 0.06 | 0.10 | 0.21 |
-| 30% | 10% | 0.18 | 0.37 | 0.70 |
-| 30% | 15% | 0.39 | 0.76 | 0.97 |
-| 40% | 5% | 0.06 | 0.09 | 0.16 |
-| 40% | 10% | 0.14 | 0.30 | 0.57 |
-| 40% | 15% | 0.32 | 0.62 | 0.91 |
+| true gap | n=50 | n=100 | n=200 |
+| --- | --- | --- | --- |
+| 5% | 0.06 | 0.10 | 0.21 |
+| 10% | 0.18 | 0.37 | 0.70 |
+| 15% | 0.39 | 0.76 | 0.97 |
 
-Read off the consequences:
+Consequences, to be stated in the report rather than discovered afterwards:
 
-- **50 questions** buys roughly ±0.10 on any single metric and almost no ability to rank the four
-  modes. Adequate for a pilot that shakes out the harness; not adequate for a launch claim.
-- **100 questions per course** is the recommended pilot target: ±0.07 absolute, and it detects a
-  15-point gap between two modes with ~0.8 power. Enough to pick a default retrieval mode if the
-  modes differ substantially.
-- **200+ questions** is what "GRAPH beats HYBRID by 10 points" requires. Below that, do not make
-  ranking claims about the modes at all.
-- No realistic set size detects a 5-point difference between modes. Treat sub-5-point gaps as ties
-  and decide on latency and cost instead, which the same run already measures.
+- **Per course (n=50): ±0.10.** Enough to say "retrieval recall is roughly 0.8", not enough to rank
+  the four modes against each other.
+- **Pooled (n=100): ±0.07**, and ~0.76 power at a 15-point gap. Enough to pick a default mode *if*
+  the modes differ substantially, and enough to compare Lattice against B0, where the gap should be
+  large by construction.
+- **Sub-5-point gaps between modes are unresolvable** at any realistic size. Call them ties and
+  decide on latency and cost, which the same run records.
+- **Slices are small.** The 15-question unsupported slice catches a broken abstention path; it
+  cannot support a quoted hallucination rate. Report every slice with its count, never as a bare
+  percentage.
 
-Per-kind subgroup reporting divides these n's by the share in §3.1, so a 100-question set gives
-only ~10 `unsupported` questions — enough to catch a broken abstention path, not enough to quote a
-hallucination rate. Report subgroup numbers with counts, never as bare percentages.
+Every arm is scored on the same questions, so all comparisons are paired: use the paired test, and
+bootstrap CIs over questions (Cognee's `eval_framework/analysis/` already ships that pattern).
 
-Because scores are compared across modes on the same questions, every comparison is paired: use the
-paired test, and bootstrap CIs over questions (Cognee's `eval_framework` already ships bootstrap CI
-reporting in `analysis/`, which is reusable as a pattern).
+## 6. Reporting
 
-## 6. Procedure
+One table: rows = six arms, columns = retrieval P@k/R@k/MRR, answer P/R/F1, grounded rate,
+memorised rate, Citation precision/recall/resolution/redundancy, correct-abstention — each with a
+CI, plus a slice breakdown with counts and a paired-comparison table. Error taxonomy with worked
+examples: retrieval miss; retrieval hit but answer miss; memorised instead of retrieved; missing
+Citation; off-Page Citation; unresolvable Citation; redundant Citation; wrong abstention; missed
+abstention.
 
-1. **Freeze a snapshot.** Pin a Material set per course, Cognify it, record the Cognee version,
-   embedding model, LLM, `top_k` and prompt hashes with the run. A run whose config is not recorded
-   is not comparable to the next one.
-2. **Run each question through all four modes** with the same session semantics as `/ask`, one
-   fresh Session per question so conversation history cannot leak answers between questions.
-3. **Capture** answer text, every `TierResult` and its `Evidence`, `cited_chunk_ids`, `used_notes`,
-   `latency_ms`, tokens/cost, and any exception, as one JSONL row per (question, mode).
-4. **Judge** with the LLM judge for claim extraction, claim entailment and Citation entailment;
-   have humans label a stratified 15–20% subsample of the same rows.
-5. **Validate the judge** before trusting it: report judge-vs-human agreement per metric. MT-Bench
-   found GPT-4 judges reach >80% agreement with human experts, the same level as human–human
-   agreement, but also documents position, verbosity and self-enhancement biases
-   ([arXiv:2306.05685](https://browse.arxiv.org/html/2306.05685v4),
-   [NeurIPS](https://proceedings.neurips.cc/paper_files/paper/2023/file/91f18a1287b398d378ef22505bf41832-Paper-Datasets_and_Benchmarks.pdf)).
-   Mitigations to apply: never let the judge score its own family's output without a human check on
-   that subsample, randomise presentation order, and judge one claim at a time rather than ranking
-   whole answers.
-6. **Repeat** a 20-question subset three times to quantify run-to-run variance. Report that spread;
-   any mode difference smaller than it is noise.
-7. **Aggregate** per mode, per question kind and per course, with bootstrap CIs and paired tests.
+Artifacts: perturbation edit log, golden JSONL, raw outputs JSONL, per-question scores, aggregate
+report, config manifest.
 
-## 7. Reporting
+## 7. Limits
 
-One table per run: rows = the four modes, columns = AnswerP/R/F1, retrieval P@k/R@k/MRR, Citation
-precision/recall/resolution/Page accuracy, correct-abstention, hallucination, p50/p95 latency, cost
-per Turn — every cell with a CI, and the isolation/injection/resolution gates as pass/fail rather
-than scores. Plus a per-kind breakdown with counts, a paired-comparison table between modes, and an
-error taxonomy with worked examples: retrieval miss, retrieval hit but answer miss, unsupported
-claim, missing Citation, wrong-Page Citation, redundant Citation, wrong abstention, missed
-abstention, graph-Citation noise, isolation failure.
-
-Artifacts per run: golden JSONL, annotation guide, raw outputs JSONL, per-question scores, the
-aggregate report, and the config manifest.
-
-## 8. Phasing
-
-- **Phase 0** — Fix the golden-set schema, write the annotation guide and judge rubrics, decide
-  Option A vs Option B for statement-level Citations. No code.
-- **Phase 1** — Pilot: one course, 100 questions, two annotators, all four modes. Output is a
-  baseline plus a list of harness defects; thresholds are set *from* this, not before it.
-- **Phase 2** — Expand to 200+ per course and 2–3 courses; add the private-Tier questions that
-  exercise Notes and the Tier merge.
-- **Phase 3** — Run as a regression gate on every retrieval, prompt or model change, with the
-  zero-tolerance gates in CI and the quality metrics tracked as trends.
-- **Phase 4** — Sample production Turns and join against the existing `Feedback` thumbs; the
-  reference-free Ragas metrics work here, the gold-Chunk ones do not.
-
-## 9. Risks and limitations
-
+- **Perturbation shifts the difficulty distribution.** Distinctive edited values are easier to
+  retrieve than genuinely confusable course content, so retrieval numbers on the perturbed slices
+  are an optimistic bound. The unperturbed 30% is the corrective and should be reported separately,
+  not averaged in.
+- **Knowledge conflict is a confound, not just a tool.** A model torn between the snapshot and its
+  prior may answer with a blend that is neither the perturbed nor the original value. Score that as
+  a third outcome rather than forcing it into grounded/memorised.
+- **Page spans are approximate** (issue #6). The leniency rule depends on them, so Citation
+  precision is only as trustworthy as the resolution rate reported beside it.
+- **Statement-level Citation precision is out of reach today** (§3.3). Page-lenient numbers are an
+  upper bound on the guarantee a student actually experiences.
+- **Judges and embeddings drift.** Pin both per run; changing either invalidates cross-run
+  comparison.
 - **The existing canary is not this.** `server/tests/test_study_evaluation.py` is gated on
-  `LATTICE_RUN_STUDY_EVAL=1`, uses one tiny synthetic Material, and has no gold claims or gold
-  Chunks. AGENTS.md already says it "does not substitute for real-course quality evaluation". It
-  belongs in this plan as a smoke test that the pipeline answers at all, and nowhere else.
-- **Cognee's `eval_framework` is not a drop-in.** It supplies useful machinery — benchmark
-  adapters, answer generation, DeepEval/DirectLLM evaluators, EM/token-F1/correctness/contextual
-  relevancy, bootstrap CI reporting — but its data model is (question, answer, retrieved context).
-  It has no notion of Lattice's two Tiers, structured `Evidence`, Chunk/Page identity or isolation,
-  so it can back §4.1's secondary metrics and be borrowed from for reporting, while the Citation,
-  Page and isolation metrics need a Lattice-specific evaluator.
-- **Page attribution will score badly and that is a known open issue (#6), not a finding.** Report
-  it separately so it does not contaminate the Chunk-level numbers or the mode comparison.
-- **Statement-level Citation precision is not measurable today** (§2.1). Any "Reference precision"
-  figure produced under Option A is an upper bound on the guarantee students actually experience.
-- **LLM judges drift** across model versions. Pin the judge model and version per run; a judge
-  change invalidates cross-run comparison exactly like an embedding change does.
-- **Gold Chunk IDs are snapshot-bound.** Re-chunking or re-Cognifying invalidates `gold_chunk_ids`;
-  anchor gold to Material + Page ranges as well so the set survives a chunking change.
-- **Cost.** Four modes × N questions × repeats × a judge pass is the dominant expense; budget it
-  from the per-Material cost baseline in the 20 Sep findings before committing to Phase 2 sizes.
-
-## Appendix: sizing script
-
-The numbers in §5 come from this throwaway simulation, kept here for reproducibility rather than
-added to the repo as code. Standard library only.
-
-```python
-# /tmp/eval_power.py — bootstrap CI half-width vs n, and paired-test power.
-# Full source used for this note: seed 20260923; 4000 bootstrap draws; 3000 power trials.
-# 1. bootstrap_half_width(scores): resample per-question scores, take the 2.5/97.5 percentile
-#    spread of the mean, halve it.
-# 2. graded_scores(n, mean): 70% saturated 0/1 questions, 30% partial credit ~ N(mean, 0.25),
-#    clipped to [0, 1] — the shape claim-level per-question scores take.
-# 3. wilson_half_width(n, p): closed-form Wilson interval, the binary baseline.
-# 4. mcnemar_power(n, discordance, delta): exact binomial sign test on discordant pairs,
-#    delta split over the discordance, alpha 0.05.
-```
+  `LATTICE_RUN_STUDY_EVAL=1`, uses one tiny synthetic Material, and has no gold claims or Pages.
+  AGENTS.md already says it does not substitute for real-course quality evaluation.
+- **Cognee's `eval_framework` is not a drop-in.** Its data model is (question, answer, retrieved
+  context), with no Tiers, structured `Evidence`, or Page identity, so it can back §3.2's secondary
+  metrics and be borrowed from for reporting only.
+- **Cost.** Six arms × 100 questions × repeats × a judge pass is the dominant expense; budget from
+  the per-Material baseline in the 20 Sep findings before scaling past two courses.
 
 ## Sources
 
-- RAGChecker, claim-level retriever/generator decomposition: <https://arxiv.org/html/2408.08067>
-- ALCE, statement-level citation precision and recall:
-  <https://arxiv.org/html/2305.14627>, <https://aclanthology.org/2023.emnlp-main.398/>
-- Ragas context precision: <https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_precision/>
-- Ragas context recall: <https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/>
-- NoMIRACL, hallucination rate and error rate on non-relevant/relevant subsets:
-  <https://arxiv.org/html/2312.11361v1>, <https://aclanthology.org/2024.findings-emnlp.730/>
-- MT-Bench, LLM-judge agreement and biases: <https://browse.arxiv.org/html/2306.05685v4>,
-  <https://proceedings.neurips.cc/paper_files/paper/2023/file/91f18a1287b398d378ef22505bf41832-Paper-Datasets_and_Benchmarks.pdf>
-- Lattice source: `server/lattice/retrieval.py`, `server/lattice/study.py`,
-  `server/lattice/grounding.py`, `server/lattice/engine.py`,
-  `server/lattice/db/models/conversation.py`, `server/tests/test_study_evaluation.py`,
-  `app/src/lib/api.ts`, `app/src/lib/references.ts`
+- Knowledge conflicts / entity substitution, the dataset method:
+  <https://aclanthology.org/2021.emnlp-main.565/>
+- RAGChecker, claim-level retriever/generator split: <https://arxiv.org/html/2408.08067>
+- ALCE, statement-level Citation precision/recall: <https://arxiv.org/html/2305.14627>,
+  <https://aclanthology.org/2023.emnlp-main.398/>
+- Ragas context precision / recall:
+  <https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_precision/>,
+  <https://docs.ragas.io/en/stable/concepts/metrics/available_metrics/context_recall/>
+- NoMIRACL, abstention measured on both subsets: <https://arxiv.org/html/2312.11361v1>,
+  <https://aclanthology.org/2024.findings-emnlp.730/>
+- MT-Bench, LLM-judge agreement and biases: <https://browse.arxiv.org/html/2306.05685v4>
+- Lattice source: `server/lattice/study.py`, `server/lattice/grounding.py`,
+  `server/lattice/retrieval.py`, `server/lattice/db/models/conversation.py`,
+  `server/tests/test_study_evaluation.py`, `app/src/lib/api.ts`, `app/src/lib/references.ts`
 - Lattice docs: `AGENTS.md`, `CONTEXT.md`, `docs/wiki/backlog.md` (issue #6)
-- Cognee 1.5.4 `cognee/eval_framework/` (installed package): `eval_config.py`, `runner.py`,
-  `evaluation/`, `analysis/`, `reporting/`
+- Cognee 1.5.4 `cognee/eval_framework/` (installed package)
