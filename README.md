@@ -6,6 +6,10 @@ The backend is a thin FastAPI service in front of [Cognee](https://github.com/to
 
 This runnable cut uses Cognee's embedded SQLite, LanceDB and Ladybug stores for knowledge, and a separate Postgres database for application records. Identity still uses a development-only `X-User` header; Enrolment and ownership are checked against the persistent records. The API runs background ingest while the dedicated Worker queue and OAuth remain future work; see [docs/wiki/backlog.md](docs/wiki/backlog.md).
 
+## Landing page
+
+The student-facing marketing page lives in [`marketing/`](./marketing/README.md). It has an independent static build for GitHub Pages, documented product-vision decisions, and informational-only waitlist/sign-in previews.
+
 ## Repository
 
 | Path | What it is |
