@@ -26,6 +26,41 @@ async def anchored(
     )
 
 
+async def by_sha256(
+    session: AsyncSession, *, user: User, course: Course, sha256: str
+) -> Note | None:
+    return await session.scalar(
+        select(Note).where(
+            Note.user_id == user.id, Note.course_id == course.id, Note.sha256 == sha256
+        )
+    )
+
+
+async def add_file(
+    session: AsyncSession,
+    *,
+    user: User,
+    course: Course,
+    filename: str,
+    sha256: str,
+    storage_uri: str,
+) -> Note:
+    """A Note that is a stored PDF: nothing is being typed, so no debounce delay."""
+    note = Note(
+        user_id=user.id,
+        course_id=course.id,
+        body_md="",
+        filename=filename,
+        sha256=sha256,
+        storage_uri=storage_uri,
+        revision=1,
+        status="dirty",
+    )
+    session.add(note)
+    await session.flush()
+    return note
+
+
 async def save(
     session: AsyncSession,
     *,
@@ -56,6 +91,8 @@ async def save(
             .with_for_update()
             .execution_options(populate_existing=True)
         )
+        if note.storage_uri is not None:
+            raise ValueError("a PDF Note has no editable body")
         if note.user_id != user.id or note.course_id != course.id:
             raise ValueError("note belongs to another course or user")
         if material is not None and note.material_id != material.id:

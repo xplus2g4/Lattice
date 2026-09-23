@@ -83,6 +83,26 @@
         "title": "Body_upload_material_materials_upload_post",
         "type": "object"
       },
+      "Body_upload_note_notes_upload_post": {
+        "properties": {
+          "course": {
+            "pattern": "^[a-z][a-z0-9]{1,15}$",
+            "title": "Course",
+            "type": "string"
+          },
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "course",
+          "file"
+        ],
+        "title": "Body_upload_note_notes_upload_post",
+        "type": "object"
+      },
       "CourseOut": {
         "properties": {
           "code": {
@@ -567,6 +587,17 @@
             ],
             "title": "Error"
           },
+          "filename": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filename"
+          },
           "id": {
             "format": "uuid",
             "title": "Id",
@@ -599,6 +630,17 @@
             "title": "Revision",
             "type": "integer"
           },
+          "sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sha256"
+          },
           "status": {
             "title": "Status",
             "type": "string"
@@ -617,6 +659,8 @@
           "material_id",
           "page",
           "body_md",
+          "filename",
+          "sha256",
           "status",
           "error",
           "created_at",
@@ -637,6 +681,23 @@
           "note"
         ],
         "title": "NoteRef",
+        "type": "object"
+      },
+      "NoteUploadOut": {
+        "properties": {
+          "deduplicated": {
+            "title": "Deduplicated",
+            "type": "boolean"
+          },
+          "note": {
+            "$ref": "#/components/schemas/NoteOut"
+          }
+        },
+        "required": [
+          "note",
+          "deduplicated"
+        ],
+        "title": "NoteUploadOut",
         "type": "object"
       },
       "QuizAnswerOut": {
@@ -3047,6 +3108,66 @@
           }
         },
         "summary": "Save Note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
+    "/notes.upload": {
+      "post": {
+        "description": "One Note per PDF, into the student's private tier; the same bytes twice join the first.",
+        "operationId": "upload_note_notes_upload_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_upload_note_notes_upload_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteUploadOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Upload Note",
         "tags": [
           "notes"
         ]

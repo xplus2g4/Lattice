@@ -3,7 +3,7 @@
 import pytest
 from httpx import AsyncClient
 
-from tests.test_materials import BOB, join, upload
+from tests.test_materials import BOB, join, upload, upload_args
 
 pytestmark = pytest.mark.asyncio
 
@@ -15,6 +15,12 @@ async def material_id(client: AsyncClient) -> str:
 
 async def save(client: AsyncClient, headers: dict | None = None, **body) -> dict:
     response = await client.post("/notes.save", json={"course": "cs3216", **body}, headers=headers)
+    assert response.status_code == 202, response.text
+    return response.json()
+
+
+async def upload_note(client: AsyncClient, headers: dict | None = None, **kwargs) -> dict:
+    response = await client.post("/notes.upload", headers=headers, **upload_args(**kwargs))
     assert response.status_code == 202, response.text
     return response.json()
 
@@ -132,3 +138,67 @@ async def test_delete_removes_the_note(student: AsyncClient) -> None:
 
 async def test_notes_need_an_identity(client: AsyncClient) -> None:
     assert (await client.get("/notes.list", params={"course": "cs3216"})).status_code == 401
+
+
+async def test_a_pdf_becomes_a_queued_file_note(student: AsyncClient, ingest) -> None:
+    await join(student)
+    body = await upload_note(student, content=b"my summary", filename="summary.pdf")
+
+    note = body["note"]
+    assert body["deduplicated"] is False
+    assert (note["status"], note["filename"], note["body_md"]) == ("dirty", "summary.pdf", "")
+    assert note["sha256"]
+    assert [str(queued) for queued in ingest.notes] == [note["id"]]
+
+
+async def test_the_same_pdf_twice_joins_the_first_note(student: AsyncClient, ingest) -> None:
+    await join(student)
+    first = (await upload_note(student, content=b"my summary"))["note"]
+
+    body = await upload_note(student, content=b"my summary", filename="copy.pdf")
+    assert body["deduplicated"] is True
+    assert body["note"]["id"] == first["id"]
+    assert len(ingest.notes) == 1
+
+
+async def test_a_note_upload_accepts_only_pdf(student: AsyncClient) -> None:
+    await join(student)
+
+    response = await student.post("/notes.upload", **upload_args(filename="notes.md"))
+    assert response.status_code == 415
+
+
+async def test_a_note_upload_needs_enrolment(student: AsyncClient) -> None:
+    await join(student)
+
+    response = await student.post("/notes.upload", headers=BOB, **upload_args())
+    assert response.status_code == 403
+
+
+async def test_a_file_note_is_private_to_its_author(student: AsyncClient) -> None:
+    await join(student)
+    mine = (await upload_note(student))["note"]
+    await student.post("/enrolments.join", json={"course": "cs3216"}, headers=BOB)
+
+    stolen = await student.get("/notes.get", params={"note": mine["id"]}, headers=BOB)
+    assert stolen.status_code == 404
+    theirs = await student.get("/notes.list", params={"course": "cs3216"}, headers=BOB)
+    assert theirs.json() == []
+
+
+async def test_a_file_note_has_no_editable_body(student: AsyncClient) -> None:
+    await join(student)
+    note = (await upload_note(student))["note"]
+
+    response = await student.post(
+        "/notes.save", json={"course": "cs3216", "note": note["id"], "body_md": "typed over it"}
+    )
+    assert response.status_code == 422
+
+
+async def test_opting_out_keeps_a_file_note_out_of_the_engine(student: AsyncClient, ingest) -> None:
+    await join(student)
+    await student.post("/me.update", json={"notes_opt_out": True})
+
+    await upload_note(student)
+    assert ingest.notes == []

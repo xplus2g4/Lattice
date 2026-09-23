@@ -81,6 +81,9 @@ function noteOut(n: Note): NoteOut {
     material_id: null,
     page: null,
     body_md: n.body_md,
+    // A typed Note; the PDF Note fields reach the view model with the app-side change.
+    filename: null,
+    sha256: null,
     revision: 1,
     cognified_revision: n.status === 'ready' ? 1 : 0,
     status:
