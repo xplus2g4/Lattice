@@ -4,6 +4,7 @@ from cognee.modules.retrieval.completion_retriever import CompletionRetriever
 from cognee.modules.retrieval.graph_completion_retriever import GraphCompletionRetriever
 from cognee.modules.retrieval.hybrid_retriever import DEFAULT_HYBRID_LANE_TOP_K, HybridRetriever
 from cognee.modules.retrieval.register_retriever import use_retriever
+from cognee.modules.retrieval.utils.evidence import chunk_context_evidence
 from cognee.modules.search.types import SearchType
 
 GROUNDING_POLICY = """Answer the student's question briefly using only the supplied course context.
@@ -25,6 +26,13 @@ class _UntrustedContext:
         return f'<retrieved_context trust="untrusted">\n{escape(context)}\n</retrieved_context>'
 
 
+class _StructuredReferences:
+    """Citations travel as structured Evidence, so the answer text gets no Evidence block."""
+
+    async def append_references(self, completions, retrieved_objects):
+        return completions
+
+
 def _completion_options(kwargs):
     config = kwargs.get("retriever_specific_config") or {}
     return {
@@ -38,7 +46,7 @@ def _completion_options(kwargs):
     }
 
 
-class _RagRetriever(_UntrustedContext, CompletionRetriever):
+class _RagRetriever(_StructuredReferences, _UntrustedContext, CompletionRetriever):
     def __init__(self, **kwargs):
         super().__init__(
             **_completion_options(kwargs),
@@ -64,7 +72,7 @@ class _GraphRetriever(_UntrustedContext, GraphCompletionRetriever):
         )
 
 
-class _HybridRetriever(_UntrustedContext, HybridRetriever):
+class _HybridRetriever(_StructuredReferences, _UntrustedContext, HybridRetriever):
     def __init__(self, **kwargs):
         config = kwargs.get("retriever_specific_config") or {}
         top_k = kwargs.get("top_k", 15)
@@ -81,6 +89,11 @@ class _HybridRetriever(_UntrustedContext, HybridRetriever):
             use_importance_weight=config.get("use_importance_weight", True),
             use_truth_weight=config.get("use_truth_weight", False),
         )
+
+    def get_context_evidence(self, retrieved_objects, dataset_id=None):
+        """The chunk lane the completion read; Cognee's hybrid retriever reports none."""
+        chunks = retrieved_objects.get("chunks") if isinstance(retrieved_objects, dict) else None
+        return chunk_context_evidence(chunks or [], dataset_id=dataset_id)
 
 
 def install_retrievers() -> None:

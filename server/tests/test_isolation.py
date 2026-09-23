@@ -9,6 +9,7 @@ between the test and the thing being asserted.
 from uuid import uuid4
 
 import pytest
+from cognee.infrastructure.databases.vector.models.ScoredResult import ScoredResult
 
 from lattice.engine import IsolationError, _tier_result
 
@@ -70,3 +71,40 @@ def test_still_dedupes_citations():
     """Cognee repeats a segment once per citing edge; the check must not break that."""
     evidence = [segment(COURSE), segment(COURSE), segment(COURSE, "a2")]
     assert len(_tier_result(result(COURSE, evidence), DATASETS).evidence) == 2
+
+
+def chunk(chunk_id, text):
+    return {"id": chunk_id, "score": 0.1, "payload": {"text": text}}
+
+
+def cited(objects, chunk_id="c1"):
+    raw = result(COURSE, [{**segment(COURSE), "chunk_id": chunk_id}])
+    return _tier_result({**raw, "objects_result": objects}, DATASETS).evidence[0]
+
+
+def test_a_chunk_opening_on_a_page_label_starts_on_that_page():
+    e = cited([chunk("c1", "Page 3:\nHashing\n\nPage 4:\nProbing\n")])
+    assert (e.page_start, e.page_end) == (3, 4)
+
+
+def test_a_chunk_opening_mid_page_starts_on_the_page_before():
+    e = cited({"chunks": [chunk("c1", "…continued\n\nPage 7:\nTrees\nPage 9:\nHeaps")]})
+    assert (e.page_start, e.page_end) == (6, 9)
+
+
+def test_a_chunk_without_page_labels_or_text_gets_no_pages():
+    assert cited([chunk("c1", "a note with no page labels")]).page_start is None
+    assert cited([]).page_start is None
+
+
+def test_reads_page_labels_from_cognee_scored_results():
+    chunk_id = uuid4()
+    scored = ScoredResult(id=chunk_id, score=0.1, payload={"text": "Page 2:\nStacks"})
+    e = cited([scored], str(chunk_id))
+    assert (e.page_start, e.page_end) == (2, 2)
+
+
+def test_drops_cognees_plain_text_evidence_block_from_the_answer():
+    raw = result(COURSE)
+    text = "Chaining.\n\nEvidence:\n- chunk 0 of document abc (data_id: d1, chunk_id: c1)\n"
+    assert _tier_result({**raw, "text_result": text}, DATASETS).answer == "Chaining."

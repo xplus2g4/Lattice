@@ -12,13 +12,18 @@ import { NotesPanel } from '#/components/lattice/notes-panel'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
+import type { PageRange } from '#/components/lattice/material-viewer'
+
 export function CourseWorkspace({
   course,
   material,
+  page,
+  pageEnd,
+  jump,
 }: {
   course: string
   material?: string
-}) {
+} & PageRange) {
   const [user] = useUser()
   const { markOpened } = useLibrary()
   const [mobileView, setMobileView] = useState<'material' | 'ask'>('material')
@@ -26,7 +31,7 @@ export function CourseWorkspace({
   useEffect(() => {
     setMobileView('material')
     if (material) markOpened(course, material)
-  }, [course, material, markOpened])
+  }, [course, material, page, jump, markOpened])
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background md:flex-row">
@@ -116,7 +121,13 @@ export function CourseWorkspace({
                 </Button>
               </div>
               <div className="min-h-0 flex-1">
-                <MaterialViewer course={course} filename={material} />
+                <MaterialViewer
+                  course={course}
+                  filename={material}
+                  page={page}
+                  pageEnd={pageEnd}
+                  jump={jump}
+                />
               </div>
             </section>
           )}

@@ -18,6 +18,7 @@ export function material(over: Partial<Material> = {}): Material {
   return {
     course: 'cs101',
     filename: 'week1.pdf',
+    sha256: 'a'.repeat(64),
     status: 'ready',
     error: null,
     created_at: AT,

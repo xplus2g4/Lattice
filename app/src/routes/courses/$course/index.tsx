@@ -1,4 +1,4 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useLocation } from '@tanstack/react-router'
 
 import { CourseWorkspace } from '#/components/lattice/course-workspace'
 
@@ -9,6 +9,15 @@ export const Route = createFileRoute('/courses/$course/')({
 
 function Workspace() {
   const { course } = Route.useParams()
-  const { material } = Route.useSearch()
-  return <CourseWorkspace course={course} material={material} />
+  const { material, page, pageEnd } = Route.useSearch()
+  const jump = useLocation({ select: (l) => l.state.jump })
+  return (
+    <CourseWorkspace
+      course={course}
+      material={material}
+      page={page}
+      pageEnd={pageEnd}
+      jump={jump}
+    />
+  )
 }
