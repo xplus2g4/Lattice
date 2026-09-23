@@ -6,34 +6,24 @@ import { resetStore } from '#/test/handlers'
 import { renderRoute } from '#/test/render'
 
 describe('a course URL', () => {
-  it('shows the materials section on its own route', async () => {
+  it('opens the workspace with its materials, notes and Ask', async () => {
     resetStore({ materials: [material({ filename: 'week1.pdf' })] })
 
-    renderRoute('/courses/cs101/materials')
-
-    expect(await screen.findByText('week1.pdf')).toBeInTheDocument()
-    expect(
-      screen.queryByPlaceholderText(/Ask a question/),
-    ).not.toBeInTheDocument()
-  })
-
-  it('opens on the reader workspace with Ask', async () => {
     renderRoute('/courses/cs101')
 
-    expect(
-      await screen.findByPlaceholderText(/Ask about CS101/),
-    ).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Upload' })).toBeInTheDocument()
+    expect(await screen.findByText('week1.pdf')).toBeInTheDocument()
+    expect(screen.getByText('NOTES')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText(/Ask about CS101/)).toBeInTheDocument()
   })
 
   it('names the course it is scoped to', async () => {
-    renderRoute('/courses/cs101/materials')
+    renderRoute('/courses/cs101')
 
     expect(await screen.findByText('cs101')).toBeInTheDocument()
   })
 
   it('refuses a course code the API would reject', async () => {
-    renderRoute('/courses/NOT_A_COURSE/materials')
+    renderRoute('/courses/NOT_A_COURSE')
 
     expect(await screen.findByText(/not a course code/i)).toBeInTheDocument()
   })

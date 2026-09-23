@@ -14,7 +14,6 @@ import { Route as DevRouteImport } from './routes/dev'
 import { Route as FoundationRouteImport } from './routes/foundation'
 import { Route as CoursesCourseRouteImport } from './routes/courses/$course'
 import { Route as CoursesCourseIndexRouteImport } from './routes/courses/$course/index'
-import { Route as CoursesCourseMaterialsRouteImport } from './routes/courses/$course/materials'
 import { Route as CoursesCourseMaterialsFilenameRouteImport } from './routes/courses.$course_.materials.$filename'
 
 const IndexRoute = IndexRouteImport.update({
@@ -42,11 +41,6 @@ const CoursesCourseIndexRoute = CoursesCourseIndexRouteImport.update({
   path: '/',
   getParentRoute: () => CoursesCourseRoute,
 } as any)
-const CoursesCourseMaterialsRoute = CoursesCourseMaterialsRouteImport.update({
-  id: '/materials',
-  path: '/materials',
-  getParentRoute: () => CoursesCourseRoute,
-} as any)
 const CoursesCourseMaterialsFilenameRoute =
   CoursesCourseMaterialsFilenameRouteImport.update({
     id: '/courses/$course_/materials/$filename',
@@ -59,7 +53,6 @@ export interface FileRoutesByFullPath {
   '/dev': typeof DevRoute
   '/foundation': typeof FoundationRoute
   '/courses/$course': typeof CoursesCourseRouteWithChildren
-  '/courses/$course/materials': typeof CoursesCourseMaterialsRoute
   '/courses/$course/': typeof CoursesCourseIndexRoute
   '/courses/$course/materials/$filename': typeof CoursesCourseMaterialsFilenameRoute
 }
@@ -67,7 +60,6 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dev': typeof DevRoute
   '/foundation': typeof FoundationRoute
-  '/courses/$course/materials': typeof CoursesCourseMaterialsRoute
   '/courses/$course': typeof CoursesCourseIndexRoute
   '/courses/$course/materials/$filename': typeof CoursesCourseMaterialsFilenameRoute
 }
@@ -77,7 +69,6 @@ export interface FileRoutesById {
   '/dev': typeof DevRoute
   '/foundation': typeof FoundationRoute
   '/courses/$course': typeof CoursesCourseRouteWithChildren
-  '/courses/$course/materials': typeof CoursesCourseMaterialsRoute
   '/courses/$course/': typeof CoursesCourseIndexRoute
   '/courses/$course_/materials/$filename': typeof CoursesCourseMaterialsFilenameRoute
 }
@@ -88,7 +79,6 @@ export interface FileRouteTypes {
     | '/dev'
     | '/foundation'
     | '/courses/$course'
-    | '/courses/$course/materials'
     | '/courses/$course/'
     | '/courses/$course/materials/$filename'
   fileRoutesByTo: FileRoutesByTo
@@ -96,7 +86,6 @@ export interface FileRouteTypes {
     | '/'
     | '/dev'
     | '/foundation'
-    | '/courses/$course/materials'
     | '/courses/$course'
     | '/courses/$course/materials/$filename'
   id:
@@ -105,7 +94,6 @@ export interface FileRouteTypes {
     | '/dev'
     | '/foundation'
     | '/courses/$course'
-    | '/courses/$course/materials'
     | '/courses/$course/'
     | '/courses/$course_/materials/$filename'
   fileRoutesById: FileRoutesById
@@ -155,13 +143,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoursesCourseIndexRouteImport
       parentRoute: typeof CoursesCourseRoute
     }
-    '/courses/$course/materials': {
-      id: '/courses/$course/materials'
-      path: '/materials'
-      fullPath: '/courses/$course/materials'
-      preLoaderRoute: typeof CoursesCourseMaterialsRouteImport
-      parentRoute: typeof CoursesCourseRoute
-    }
     '/courses/$course_/materials/$filename': {
       id: '/courses/$course_/materials/$filename'
       path: '/courses/$course/materials/$filename'
@@ -173,12 +154,10 @@ declare module '@tanstack/react-router' {
 }
 
 interface CoursesCourseRouteChildren {
-  CoursesCourseMaterialsRoute: typeof CoursesCourseMaterialsRoute
   CoursesCourseIndexRoute: typeof CoursesCourseIndexRoute
 }
 
 const CoursesCourseRouteChildren: CoursesCourseRouteChildren = {
-  CoursesCourseMaterialsRoute: CoursesCourseMaterialsRoute,
   CoursesCourseIndexRoute: CoursesCourseIndexRoute,
 }
 

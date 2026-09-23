@@ -1,14 +1,7 @@
-import {
-  Link,
-  Outlet,
-  createFileRoute,
-  useLocation,
-} from '@tanstack/react-router'
+import { Outlet, createFileRoute } from '@tanstack/react-router'
 import { useEffect } from 'react'
 
-import { inputClass } from '#/components/common'
 import { COURSE_RE, recordRecentCourse } from '#/lib/course'
-import { useUser } from '#/lib/storage'
 
 export const Route = createFileRoute('/courses/$course')({
   validateSearch: (search: Record<string, unknown>): { material?: string } => ({
@@ -23,45 +16,21 @@ export const Route = createFileRoute('/courses/$course')({
 
 function CourseLayout() {
   const { course } = Route.useParams()
-  const [user, setUser] = useUser()
   const courseOk = COURSE_RE.test(course)
-  const pathname = useLocation({ select: (location) => location.pathname })
 
   useEffect(() => {
     if (courseOk) recordRecentCourse(course)
   }, [course, courseOk])
 
-  if (
-    courseOk &&
-    (pathname === `/courses/${course}` || pathname === `/courses/${course}/`)
-  ) {
-    return <Outlet />
-  }
-
-  return (
-    <main className="mx-auto max-w-3xl space-y-8 p-8">
-      <header className="flex flex-wrap items-end gap-4">
-        <h1 className="mr-auto text-2xl font-bold">
-          <Link to="/">Course knowledge store</Link>
-        </h1>
-        <span className="font-mono text-sm">{course}</span>
-        <label className="flex flex-col text-xs">
-          User
-          <input
-            className={inputClass}
-            type="email"
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-          />
-        </label>
-      </header>
-      {!courseOk ? (
+  if (!courseOk) {
+    return (
+      <main className="mx-auto max-w-3xl space-y-8 p-8">
         <p className="text-sm text-red-700">
           “{course}” is not a course code. Codes match {COURSE_RE.source}.
         </p>
-      ) : (
-        <Outlet />
-      )}
-    </main>
-  )
+      </main>
+    )
+  }
+
+  return <Outlet />
 }
