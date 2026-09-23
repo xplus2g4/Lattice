@@ -230,6 +230,38 @@ function positive(value: unknown): number | null {
     ? value
     : null
 }
+const EVIDENCE_BLOCK = /\n\nEvidence:\n((?:- chunk [^\n]*(?:\n|$))+)$/
+const EVIDENCE_LINE =
+  /^- chunk (\d+|unknown) of document (.+?)(?: \(([^)]*)\))?(?:: "(.*)")?$/
+
+/** Cognee can end an answer with a text Evidence block naming chunk ids. Lift it into
+ * Citations so the reader sees Page badges instead of ids. */
+function liftEvidence(answer: string | null): {
+  answer: string | null
+  citations: Array<Citation>
+} {
+  const block = answer?.match(EVIDENCE_BLOCK)
+  if (!answer || !block) return { answer, citations: [] }
+  const citations: Array<Citation> = []
+  for (const line of block[1].trim().split('\n')) {
+    const m = line.match(EVIDENCE_LINE)
+    if (!m) continue
+    const [, number, filename, ids = '', snippet = ''] = m
+    const page = positive(Number(snippet.match(/^Page (\d+):/)?.[1]))
+    citations.push({
+      kind: 'chunk',
+      filename,
+      chunk_index: number === 'unknown' ? null : Number(number) - 1,
+      relation: null,
+      label: null,
+      chunk_id: ids.match(/chunk_id: ([^,\s]+)/)?.[1] ?? null,
+      page_start: page,
+      page_end: page,
+    })
+  }
+  return { answer: answer.slice(0, block.index), citations }
+}
+
 function turnView(row: TurnOut): Turn {
   const content = row.content_json
   const results: Array<TierResult> = []
@@ -259,10 +291,17 @@ function turnView(row: TurnOut): Turn {
         page_end: positive(e.page_end),
       })
     }
+    const lifted = liftEvidence(string(r.answer))
+    const cited = new Set(citations.map((c) => c.chunk_id).filter(Boolean))
     results.push({
       tier: r.tier === 'course' ? 'global' : 'private',
-      answer: string(r.answer),
-      citations,
+      answer: lifted.answer,
+      citations: [
+        ...citations,
+        ...lifted.citations.filter(
+          (c) => !c.chunk_id || !cited.has(c.chunk_id),
+        ),
+      ],
     })
   }
   return {
