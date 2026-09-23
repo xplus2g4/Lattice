@@ -53,10 +53,29 @@ export function useMaterialFile(course: string, filename: string) {
   return { file, url }
 }
 
-function PdfPages({ blob }: { blob: Blob }) {
+export interface PageRange {
+  page?: number
+  pageEnd?: number
+}
+
+function PdfPages({ blob, page, pageEnd }: { blob: Blob } & PageRange) {
   const [numPages, setNumPages] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState<number>()
+  const [rendered, setRendered] = useState<ReadonlySet<number>>(new Set())
+  const scrolledTo = useRef<number | null>(null)
+  const target = page && numPages ? Math.min(page, numPages) : undefined
+  const last = target ? Math.max(pageEnd ?? target, target) : undefined
+
+  // Pages above the target change height as they render, so wait for all of them.
+  useEffect(() => {
+    if (!target || scrolledTo.current === target) return
+    for (let p = 1; p <= target; p++) if (!rendered.has(p)) return
+    containerRef.current
+      ?.querySelector(`[data-page-number="${target}"]`)
+      ?.scrollIntoView({ block: 'start' })
+    scrolledTo.current = target
+  }, [target, rendered])
 
   useEffect(() => {
     const el = containerRef.current
@@ -92,7 +111,16 @@ function PdfPages({ blob }: { blob: Blob }) {
             key={i + 1}
             pageNumber={i + 1}
             width={width ? Math.min(width - 32, 896) : undefined}
-            className="shadow-lattice"
+            onRenderSuccess={() =>
+              setRendered((prev) =>
+                prev.has(i + 1) ? prev : new Set(prev).add(i + 1),
+              )
+            }
+            className={
+              target && last && i + 1 >= target && i + 1 <= last
+                ? 'shadow-lattice ring-2 ring-primary ring-offset-2 ring-offset-background'
+                : 'shadow-lattice'
+            }
           />
         ))}
       </Document>
@@ -103,10 +131,12 @@ function PdfPages({ blob }: { blob: Blob }) {
 export function MaterialViewer({
   course,
   filename,
+  page,
+  pageEnd,
 }: {
   course: string
   filename: string
-}) {
+} & PageRange) {
   const { file, url } = useMaterialFile(course, filename)
   // react-pdf touches browser APIs; never render it during SSR.
   const [mounted, setMounted] = useState(false)
@@ -125,7 +155,12 @@ export function MaterialViewer({
       )}
       {file.data?.kind === 'pdf' &&
         (mounted ? (
-          <PdfPages blob={file.data.blob} />
+          <PdfPages
+            key={filename}
+            blob={file.data.blob}
+            page={page}
+            pageEnd={pageEnd}
+          />
         ) : (
           <p className="p-6 text-sm text-muted-foreground">Loading…</p>
         ))}

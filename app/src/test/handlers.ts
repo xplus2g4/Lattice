@@ -116,6 +116,8 @@ function turnOut(t: Turn, sessionId: string): TurnOut {
           document_name: c.filename,
           chunk_index: c.chunk_index,
           chunk_id: c.chunk_id ?? null,
+          page_start: c.page_start ?? null,
+          page_end: c.page_end ?? null,
           relationship_name: c.relation,
           label: c.label,
         })),

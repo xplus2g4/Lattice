@@ -5,6 +5,7 @@ Stage 2 (pgvector plus an own concept graph) replaces this module and nothing ab
 
 import asyncio
 import json
+import re
 import secrets
 import tempfile
 from contextvars import Context
@@ -14,6 +15,7 @@ from uuid import UUID, uuid4
 
 import cognee
 from cognee.infrastructure.databases.relational import create_db_and_tables
+from cognee.infrastructure.databases.vector.models.ScoredResult import ScoredResult
 from cognee.infrastructure.llm.LLMGateway import LLMGateway
 from cognee.modules.data.methods import (
     create_authorized_dataset,
@@ -35,6 +37,9 @@ from lattice.page_notes import PageNote
 from lattice.retrieval import Evidence, TierResult
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
+
+# Cognee's PDF loader prefixes each non-empty page with this line; chunking ignores it.
+_PAGE_LABEL = re.compile(r"^[ \t]*Page (\d+):[ \t]*$", re.MULTILINE)
 
 
 class IsolationError(RuntimeError):
@@ -268,8 +273,51 @@ def _tier_result(raw: dict[str, Any], datasets: dict[UUID, str]) -> TierResult:
         tier=datasets[dataset_id],  # type: ignore[arg-type]
         dataset_name=raw.get("dataset_name") or "",
         answer=_answer_text(raw.get("text_result")),
-        evidence=_dedupe_evidence(raw.get("evidence") or [], datasets),
+        evidence=_dedupe_evidence(
+            raw.get("evidence") or [], datasets, _chunk_texts(raw.get("objects_result"))
+        ),
     )
+
+
+def _chunk_texts(objects: Any) -> dict[str, str]:
+    """Chunk text by chunk id, from whatever shape the retriever returned its objects in.
+
+    RAG and CHUNKS give a list of scored chunks; HYBRID nests them under `chunks`. Graph
+    triplets carry no chunk text and are skipped.
+    """
+    texts: dict[str, str] = {}
+    pending = [objects]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, (list, tuple)):
+            pending.extend(item)
+            continue
+        if isinstance(item, ScoredResult):
+            identity, payload = item.id, item.payload
+        elif isinstance(item, dict) and "payload" in item:
+            identity, payload = item.get("id"), item["payload"]
+        elif isinstance(item, dict):
+            pending.extend(item.values())
+            continue
+        else:
+            continue
+        if isinstance(payload, dict) and isinstance(payload.get("text"), str) and identity:
+            texts[str(identity)] = payload["text"]
+    return texts
+
+
+def _page_span(text: str | None) -> dict[str, int]:
+    """The Pages a chunk covers, read from the loader's page labels; approximate (#6).
+
+    A chunk that opens mid-page continues the page before its first label. A chunk with no
+    label at all cannot be placed and gets no span.
+    """
+    pages = [int(m.group(1)) for m in _PAGE_LABEL.finditer(text or "")]
+    if not pages:
+        return {}
+    first = _PAGE_LABEL.search(text.lstrip())
+    start = pages[0] if first and first.start() == 0 else max(pages[0] - 1, 1)
+    return {"page_start": start, "page_end": max(pages)}
 
 
 def _answer_text(text: Any) -> str | None:
@@ -282,7 +330,9 @@ def _answer_text(text: Any) -> str | None:
     return str(text)
 
 
-def _dedupe_evidence(items: list[dict[str, Any]], datasets: dict[UUID, str]) -> list[Evidence]:
+def _dedupe_evidence(
+    items: list[dict[str, Any]], datasets: dict[UUID, str], texts: dict[str, str]
+) -> list[Evidence]:
     """Cognee lists a segment once per graph edge citing it; keep one entry per artifact.
 
     Every citation that names a dataset must name one the caller may read (ADR 0002). Graph
@@ -299,5 +349,6 @@ def _dedupe_evidence(items: list[dict[str, Any]], datasets: dict[UUID, str]) -> 
         if key in seen:
             continue
         seen.add(key)
-        out.append(Evidence.model_validate(item))
+        pages = _page_span(texts.get(str(item.get("chunk_id")))) if item.get("chunk_id") else {}
+        out.append(Evidence.model_validate({**item, **pages}))
     return out

@@ -22,6 +22,24 @@ describe('a course URL', () => {
     expect(await screen.findByText('cs101')).toBeInTheDocument()
   })
 
+  it('keeps a Page range only for an open PDF Material', async () => {
+    const { router } = renderRoute(
+      '/courses/cs101?material=week1.pdf&page=3&pageEnd=2',
+    )
+    await screen.findByText('cs101')
+    expect(router.state.matches.at(-1)?.search).toEqual({
+      material: 'week1.pdf',
+      page: 3,
+    })
+
+    await router.navigate({
+      to: '/courses/$course',
+      params: { course: 'cs101' },
+      search: { page: 3 },
+    })
+    expect(router.state.matches.at(-1)?.search).toEqual({})
+  })
+
   it('refuses a course code the API would reject', async () => {
     renderRoute('/courses/NOT_A_COURSE')
 

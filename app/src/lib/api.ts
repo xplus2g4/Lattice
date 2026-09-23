@@ -75,6 +75,9 @@ export interface Citation {
   relation: string | null
   label: string | null
   chunk_id?: string | null
+  /** Approximate Pages the chunk covers, read from the loader's page labels. */
+  page_start?: number | null
+  page_end?: number | null
 }
 export interface TierResult {
   tier: 'global' | 'private'
@@ -84,12 +87,25 @@ export interface TierResult {
 export function describeCitation(c: Citation): string {
   switch (c.kind) {
     case 'chunk':
-      return `${c.filename ?? '?'}${c.chunk_index !== null ? ` #${c.chunk_index}` : ''}`
+      return `${c.filename ?? '?'}${
+        c.page_start != null
+          ? ` · ${describePages(c)}`
+          : c.chunk_index !== null
+            ? ` #${c.chunk_index}`
+            : ''
+      }`
     case 'relation':
       return `${c.relation ?? '?'} · relation`
     default:
       return `${c.label ?? '?'} · ${c.kind}`
   }
+}
+export function describePages(
+  c: Pick<Citation, 'page_start' | 'page_end'>,
+): string {
+  if (c.page_start == null) return ''
+  const end = c.page_end ?? c.page_start
+  return end > c.page_start ? `p. ${c.page_start}–${end}` : `p. ${c.page_start}`
 }
 export interface Turn {
   id?: string
@@ -206,6 +222,11 @@ function record(value: unknown): Record<string, unknown> {
 function string(value: unknown): string | null {
   return typeof value === 'string' ? value : null
 }
+function positive(value: unknown): number | null {
+  return typeof value === 'number' && Number.isInteger(value) && value > 0
+    ? value
+    : null
+}
 function turnView(row: TurnOut): Turn {
   const content = row.content_json
   const results: Array<TierResult> = []
@@ -231,6 +252,8 @@ function turnView(row: TurnOut): Turn {
         relation,
         label,
         chunk_id: string(e.chunk_id),
+        page_start: positive(e.page_start),
+        page_end: positive(e.page_end),
       })
     }
     results.push({

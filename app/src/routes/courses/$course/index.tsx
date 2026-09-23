@@ -9,6 +9,13 @@ export const Route = createFileRoute('/courses/$course/')({
 
 function Workspace() {
   const { course } = Route.useParams()
-  const { material } = Route.useSearch()
-  return <CourseWorkspace course={course} material={material} />
+  const { material, page, pageEnd } = Route.useSearch()
+  return (
+    <CourseWorkspace
+      course={course}
+      material={material}
+      page={page}
+      pageEnd={pageEnd}
+    />
+  )
 }
