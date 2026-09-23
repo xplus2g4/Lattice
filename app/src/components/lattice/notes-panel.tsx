@@ -64,6 +64,20 @@ export function NotesPanel({ course, user }: Enrolment) {
           <Button
             variant="ghost"
             size="xs"
+            onClick={() =>
+              setEditing({
+                id: `note-${Date.now().toString(36)}`,
+                body: '',
+                isNew: true,
+              })
+            }
+          >
+            <HugeiconsIcon icon={PenIcon} data-icon="inline-start" />
+            Write
+          </Button>
+          <Button
+            variant="ghost"
+            size="xs"
             disabled={upload.isPending}
             onClick={() => inputRef.current?.click()}
           >
@@ -82,20 +96,6 @@ export function NotesPanel({ course, user }: Enrolment) {
               e.target.value = ''
             }}
           />
-          <Button
-            variant="ghost"
-            size="xs"
-            onClick={() =>
-              setEditing({
-                id: `note-${Date.now().toString(36)}`,
-                body: '',
-                isNew: true,
-              })
-            }
-          >
-            <HugeiconsIcon icon={PenIcon} data-icon="inline-start" />
-            Write
-          </Button>
         </div>
       </div>
       {notes.error && (
