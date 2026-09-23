@@ -130,7 +130,7 @@ ask_secret() {
 write_env() {
   local key="$1" value="$2" tmp
   touch "$ENV_FILE"
-  tmp=$(mktemp)
+  tmp=$(mktemp "${TMPDIR:-/tmp}/wizard.XXXXXX")
   grep -vE "^${key}=" "$ENV_FILE" > "$tmp" || true
   printf '%s=%s\n' "$key" "$value" >> "$tmp"
   mv "$tmp" "$ENV_FILE"
@@ -170,8 +170,12 @@ set_var() {
 finish() {
   _clear
   printf '\n%s%s  ✓ Setup complete%s\n' "$BOLD" "$GREEN" "$RESET"
-  (( ${#WRITTEN_ENV[@]} ))    && note "wrote ${#WRITTEN_ENV[@]} value(s) to $ENV_FILE: ${WRITTEN_ENV[*]}"
-  (( ${#WRITTEN_SECRET[@]} )) && note "set ${#WRITTEN_SECRET[@]} GitHub secret(s): ${WRITTEN_SECRET[*]}"
+  if (( ${#WRITTEN_ENV[@]} )); then
+    note "wrote ${#WRITTEN_ENV[@]} value(s) to $ENV_FILE: ${WRITTEN_ENV[*]}"
+  fi
+  if (( ${#WRITTEN_SECRET[@]} )); then
+    note "set ${#WRITTEN_SECRET[@]} GitHub secret(s): ${WRITTEN_SECRET[*]}"
+  fi
   if (( ${#SKIPPED[@]} )); then
     printf '\n'; warn "still to do by hand:"
     for s in "${SKIPPED[@]}"; do note "  - $s"; done
@@ -199,7 +203,7 @@ ask COURSE_CODE "Course code, lowercase letters and digits (e.g. cs4223):"
 COURSE_CODE=${COURSE_CODE:-cs4223}
 ask COURSE_NAME "Course name (e.g. Multi-core Architectures):"
 COURSE_NAME=${COURSE_NAME:-$COURSE_CODE}
-SEED_DIR="$SERVER_DIR/data/seed/${COURSE_CODE^^}"
+SEED_DIR="$SERVER_DIR/data/seed/$(printf '%s' "$COURSE_CODE" | tr '[:lower:]' '[:upper:]')"
 note "slides will be read from $SEED_DIR"
 pause
 
