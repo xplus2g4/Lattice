@@ -4,10 +4,13 @@ import { Document, Page, pdfjs } from 'react-pdf'
 
 import { Button } from '#/components/ui/button'
 import { downloadMaterial } from '#/lib/api'
+import { installReadableStreamAsyncIterator } from '#/lib/readable-stream-async-iterator'
 import { useUser } from '#/lib/user'
 
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
+
+installReadableStreamAsyncIterator()
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.min.mjs',
