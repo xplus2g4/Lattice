@@ -12,8 +12,12 @@ import {
 import { getMe } from '#/lib/api'
 import { useUser } from '#/lib/user'
 
-/** The Lattice glyph: a rounded teal tile with a lattice of crossing lines. */
-export function LogoMark() {
+/**
+ * The Lattice glyph: a rounded tile with a lattice of crossing lines.
+ * `onDark` swaps the tile fill for use on the app's own dark green
+ * backgrounds, where the default fill would otherwise blend in and vanish.
+ */
+export function LogoMark({ onDark = false }: { onDark?: boolean }) {
   return (
     <svg
       width="28"
@@ -23,7 +27,7 @@ export function LogoMark() {
       aria-hidden="true"
       className="shrink-0"
     >
-      <rect width="28" height="28" rx="8" fill="#0E2622" />
+      <rect width="28" height="28" rx="8" fill={onDark ? '#16362F' : '#0E2622'} />
       <g stroke="#5CD1BE" strokeWidth="1.6" strokeLinecap="round">
         <path d="M10 7v14M18 7v14M7 10h14M7 18h14" />
       </g>

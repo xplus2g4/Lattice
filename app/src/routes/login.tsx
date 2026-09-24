@@ -48,14 +48,19 @@ function Login() {
   }
 
   return (
-    <main className="flex min-h-screen bg-background text-foreground">
-      <section className="hidden shrink-0 flex-col justify-between bg-[#0E2622] px-16 py-14 text-white lg:flex lg:w-[560px]">
+    <main className="flex min-h-screen flex-col bg-background text-foreground lg:flex-row">
+      <div className="flex items-center gap-2.5 px-5 pt-6 lg:hidden">
+        <LogoMark />
+        <span className="text-xl font-bold tracking-tight">Lattice</span>
+      </div>
+
+      <section className="hidden shrink-0 flex-col justify-between bg-[#0E2622] px-10 py-12 text-white lg:flex lg:w-2/5 lg:px-16 lg:py-14">
         <div className="flex items-center gap-2.5">
-          <LogoMark />
+          <LogoMark onDark />
           <span className="text-xl font-bold tracking-tight">Lattice</span>
         </div>
         <div className="flex flex-col gap-7">
-          <h1 className="text-5xl font-bold leading-[1.08] tracking-tight">
+          <h1 className="text-4xl font-bold leading-[1.08] tracking-tight xl:text-5xl">
             Your course materials, ready to answer back.
           </h1>
           <ul className="flex flex-col gap-4.5">
@@ -81,7 +86,7 @@ function Login() {
         </p>
       </section>
 
-      <section className="flex flex-1 items-center justify-center px-5 py-16">
+      <section className="flex flex-1 items-center justify-center px-5 py-10 sm:py-16">
         <div className="flex w-full max-w-sm flex-col gap-7">
           <div className="flex flex-col gap-2.5">
             <Badge className="w-fit gap-1.5 bg-[#E6F4F1] px-2.5 py-1 text-[#0F5F53] hover:bg-[#E6F4F1]">
