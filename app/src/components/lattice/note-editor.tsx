@@ -1,8 +1,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { Button } from '#/components/ui/button'
 import { Textarea } from '#/components/ui/textarea'
+import { Markdown } from '#/components/lattice/answer'
 import { FileViewer } from '#/components/lattice/material-viewer'
 import { downloadNote, listNotes, saveNote } from '#/lib/api'
 import { isDraftNote, noteTab } from '#/lib/tabs'
@@ -98,6 +99,11 @@ function NoteEditor({
   const tab = noteTab(id)
   const [body, setBody] = useState(() => drafts.get(tab) ?? saved)
   const dirty = body !== saved
+  // Rendered by default, as VS Code's Markdown preview is; double-click to edit. A new
+  // Note, or one with unsaved text, opens where the writing is.
+  const [editing, setEditing] = useState(
+    () => isDraftNote(id) || drafts.has(tab),
+  )
 
   useEffect(() => {
     onDirtyChange(tab, dirty)
@@ -143,29 +149,79 @@ function NoteEditor({
             'Saved. Notes are private to you and feed your answers.'
           )}
         </p>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => setEditing(!editing)}
+        >
+          {editing ? 'Preview' : 'Edit'}
+        </Button>
         <Button type="submit" size="sm" disabled={!canSave}>
           {save.isPending ? 'Saving…' : 'Save'}
         </Button>
       </div>
-      <Textarea
-        aria-label="Note body"
-        placeholder="Markdown body"
-        value={body}
-        onChange={(e) => {
-          const value = e.target.value
-          setBody(value)
-          if (value === saved) drafts.delete(tab)
-          else drafts.set(tab, value)
-        }}
-        onKeyDown={(e) => {
-          // Save as an editor does.
-          if ((e.metaKey || e.ctrlKey) && e.key === 's') {
-            e.preventDefault()
-            submit()
-          }
-        }}
-        className="min-h-0 flex-1 resize-none rounded-none border-0 p-4 font-mono shadow-none focus-visible:ring-0"
-      />
+      {editing ? (
+        <NoteTextarea
+          body={body}
+          onChange={(value) => {
+            setBody(value)
+            if (value === saved) drafts.delete(tab)
+            else drafts.set(tab, value)
+          }}
+          onSave={submit}
+          onDone={() => setEditing(false)}
+        />
+      ) : (
+        <div
+          title="Double-click to edit"
+          onDoubleClick={() => setEditing(true)}
+          className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
+        >
+          {body.trim() ? (
+            <Markdown>{body}</Markdown>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              Empty note. Double-click to write.
+            </p>
+          )}
+        </div>
+      )}
     </form>
+  )
+}
+
+/** Where a Note is written. Opens focused, since it opens because the student asked. */
+function NoteTextarea({
+  body,
+  onChange,
+  onSave,
+  onDone,
+}: {
+  body: string
+  onChange: (value: string) => void
+  onSave: () => void
+  /** Back to the rendered preview; unsaved text stays. */
+  onDone: () => void
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null)
+  useEffect(() => ref.current?.focus(), [])
+  return (
+    <Textarea
+      ref={ref}
+      aria-label="Note body"
+      placeholder="Markdown body"
+      value={body}
+      onChange={(e) => onChange(e.target.value)}
+      onKeyDown={(e) => {
+        // Save as an editor does; Escape returns to the preview.
+        if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+          e.preventDefault()
+          onSave()
+        }
+        if (e.key === 'Escape') onDone()
+      }}
+      className="min-h-0 flex-1 resize-none rounded-none border-0 p-4 font-mono shadow-none focus-visible:ring-0"
+    />
   )
 }

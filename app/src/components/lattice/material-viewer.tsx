@@ -3,6 +3,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Document, Page, pdfjs } from 'react-pdf'
 
 import { Button } from '#/components/ui/button'
+import { Markdown } from '#/components/lattice/answer'
 import { downloadMaterial } from '#/lib/api'
 import { installReadableStreamAsyncIterator } from '#/lib/readable-stream-async-iterator'
 import { useUser } from '#/lib/user'
@@ -19,12 +20,13 @@ pdfjs.GlobalWorkerOptions.workerSrc = new URL(
   import.meta.url,
 ).toString()
 
-type Kind = 'pdf' | 'text' | 'download'
+type Kind = 'pdf' | 'markdown' | 'text' | 'download'
 
 function kindOf(filename: string): Kind {
   const ext = filename.slice(filename.lastIndexOf('.')).toLowerCase()
   if (ext === '.pdf') return 'pdf'
-  if (ext === '.md' || ext === '.txt') return 'text'
+  if (ext === '.md') return 'markdown'
+  if (ext === '.txt') return 'text'
   return 'download'
 }
 
@@ -57,7 +59,8 @@ function useFile({ queryKey, filename, load }: FileSource) {
     queryFn: async () => {
       const blob = await load()
       const kind = kindOf(filename)
-      return { blob, kind, text: kind === 'text' ? await blob.text() : null }
+      const readable = kind === 'text' || kind === 'markdown'
+      return { blob, kind, text: readable ? await blob.text() : null }
     },
   })
   const url = useObjectUrl(file.data?.blob)
@@ -262,6 +265,12 @@ export function FileViewer({
           <pre className="font-sans text-sm leading-7 whitespace-pre-wrap">
             {file.data.text}
           </pre>
+        </div>
+      )}
+      {/* Rendered, as a Note's preview is; a Material has no editor to switch to. */}
+      {file.data?.kind === 'markdown' && (
+        <div className="mx-auto h-full max-w-3xl overflow-y-auto px-6 py-8">
+          <Markdown>{file.data.text ?? ''}</Markdown>
         </div>
       )}
       {file.data?.kind === 'download' && (

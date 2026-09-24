@@ -195,7 +195,8 @@ export const handlers = [
   http.get(
     '*/materials.download',
     () =>
-      new HttpResponse('sample material', {
+      // Markdown, so a `.md` Material has something to render.
+      new HttpResponse('# Sample memo\n\nsample material', {
         headers: { 'Content-Type': 'text/plain' },
       }),
   ),

@@ -50,14 +50,16 @@ describe('the workspace tabs', () => {
     expect(screen.getByText('MATERIALS').closest('aside')).toBe(sidebar)
   })
 
-  it('opens a text Material in a tab beside the sidebar', async () => {
+  it('renders a Markdown Material in a tab beside the sidebar', async () => {
     seed()
     const { router } = renderRoute('/courses/cs101')
     await screen.findByText('MATERIALS')
 
     await openFromSidebar('memo.md')
 
-    expect(await screen.findByText('sample material')).toBeInTheDocument()
+    expect(
+      await screen.findByRole('heading', { name: 'Sample memo' }),
+    ).toBeInTheDocument()
     expect(screen.getByText('MATERIALS')).toBeInTheDocument()
     expect(router.state.location.search).toEqual({ material: 'memo.md' })
   })
@@ -132,7 +134,7 @@ describe('the workspace tabs', () => {
 describe('Notes in tabs', () => {
   const TYPED = note({
     id: '3f1c2b4a-0000-4000-8000-000000000001',
-    body_md: 'Hash tables\nare week 3',
+    body_md: '# Hash tables\n\nare **week 3**',
   })
 
   async function openNote(text: string) {
@@ -161,12 +163,36 @@ describe('Notes in tabs', () => {
     )
   })
 
+  it('renders a Note until it is double-clicked, and again on Escape', async () => {
+    resetStore({ notes: [TYPED] })
+    renderRoute('/courses/cs101')
+    await openNote(TYPED.id)
+
+    const heading = await screen.findByRole('heading', { name: 'Hash tables' })
+    expect(screen.getByText('week 3').tagName).toBe('STRONG')
+    expect(screen.queryByLabelText('Note body')).not.toBeInTheDocument()
+
+    await userEvent.dblClick(heading)
+    const body = screen.getByLabelText('Note body')
+    expect(body).toHaveValue(TYPED.body_md)
+    expect(body).toHaveFocus()
+
+    await userEvent.keyboard('{Escape}')
+    expect(
+      await screen.findByRole('heading', { name: 'Hash tables' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByLabelText('Note body')).not.toBeInTheDocument()
+  })
+
   it('asks before closing a Note with unsaved edits', async () => {
     resetStore({ notes: [TYPED] })
     renderRoute('/courses/cs101')
     await openNote(TYPED.id)
-    const body = await screen.findByLabelText('Note body')
-    expect(body).toHaveValue('Hash tables\nare week 3')
+    await userEvent.dblClick(
+      await screen.findByRole('heading', { name: 'Hash tables' }),
+    )
+    const body = screen.getByLabelText('Note body')
+    expect(body).toHaveValue(TYPED.body_md)
     await userEvent.type(body, ', probably')
     const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
 
