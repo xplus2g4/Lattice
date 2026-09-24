@@ -30,7 +30,7 @@ function AuthedLayout() {
   })
   if (isWorkspace) return <Outlet />
   return (
-    <div className="flex min-h-screen flex-col bg-[#F6F8F7]">
+    <div className="fieldnotes-canvas flex min-h-screen flex-col">
       <TopBar />
       <Outlet />
     </div>

@@ -58,24 +58,27 @@ function Home() {
   const [gridRef] = useAutoAnimate<HTMLDivElement>()
 
   return (
-    <main className="flex-1 px-5 py-10 sm:px-8 sm:py-12">
-      <div className="mx-auto max-w-[1120px] space-y-10">
+    <main className="flex-1 px-5 py-10 sm:px-10 sm:py-16">
+      <div className="mx-auto max-w-[1200px] space-y-12 sm:space-y-16">
         {firstRun ? (
           <FirstRun />
         ) : (
           <>
             <Hero />
             {lastOpened && <ResumeCard lastOpened={lastOpened} user={user} />}
-            <section className="space-y-5">
-              <div className="flex items-baseline gap-3">
-                <h2 className="text-[26px] font-bold tracking-tight text-[#0E2622]">
+            <section className="space-y-0">
+              <div className="flex items-baseline justify-between gap-3 border-b-2 border-foreground pb-4">
+                <h2 className="text-2xl font-semibold tracking-tight">
                   Your courses
+                  {!courses.isPending && (
+                    <span className="ml-3 align-top font-mono text-xs text-primary">
+                      {String(merged.length).padStart(2, '0')}
+                    </span>
+                  )}
                 </h2>
-                {!courses.isPending && (
-                  <span className="text-[15px] text-[#5B6B67]">
-                    {merged.length}
-                  </span>
-                )}
+                <span className="fieldnotes-kicker hidden text-muted-foreground sm:block">
+                  A place for everything you&apos;re learning
+                </span>
               </div>
               {courses.error && (
                 <p className="text-sm text-destructive">
@@ -84,13 +87,10 @@ function Home() {
                     : 'Could not reach the API — is the server running?'}
                 </p>
               )}
-              <div
-                ref={gridRef}
-                className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
-              >
+              <div ref={gridRef} className="divide-y divide-border">
                 {courses.isPending ? (
                   [0, 1, 2].map((i) => (
-                    <Skeleton key={i} className="h-[236px] rounded-[18px]" />
+                    <Skeleton key={i} className="my-4 h-24 rounded-none" />
                   ))
                 ) : (
                   <>
@@ -102,7 +102,7 @@ function Home() {
                         transition={{
                           duration: 0.2,
                           ease: 'easeOut',
-                          delay: i * 0.04,
+                          delay: Math.min(i, 5) * 0.04,
                         }}
                       >
                         <CourseCard
@@ -138,13 +138,22 @@ function Hero() {
   const [seed] = useState(() => Math.random())
   useEffect(() => setHour(new Date().getHours()), [])
   return (
-    <header>
-      <p className="text-[15px] font-semibold text-[#0F7F6E]">
-        {hour === null ? '\u00a0' : greeting(hour, name, seed)}
+    <header className="grid gap-6 border-l-2 border-primary pl-5 sm:pl-8 lg:grid-cols-[1fr_240px] lg:items-end">
+      <div>
+        <p className="fieldnotes-kicker mb-5 text-primary">
+          {hour === null ? '\u00a0' : greeting(hour, name, seed)}
+        </p>
+        <h1 className="fieldnotes-display max-w-3xl">
+          <span className="fieldnotes-reveal block">Make room for</span>
+          <span className="fieldnotes-reveal fieldnotes-reveal-late block italic">
+            a good question.
+          </span>
+        </h1>
+      </div>
+      <p className="max-w-sm text-base leading-7 text-muted-foreground lg:pb-2">
+        Your Materials. Your Notes. A little more understanding, one course at a
+        time.
       </p>
-      <h1 className="mt-2 text-[52px] font-bold leading-[1.05] tracking-[-0.02em] text-[#0E2622]">
-        What are you studying today?
-      </h1>
     </header>
   )
 }
@@ -173,48 +182,53 @@ function ResumeCard({
   const showProgress = !!(current && total)
 
   return (
-    <section className="space-y-3">
-      <h2 className="text-[14px] font-semibold uppercase tracking-[0.08em] text-[#5B6B67]">
-        Pick up where you left off
+    <section className="border-y border-border bg-card">
+      <h2 className="fieldnotes-kicker px-5 pt-5 text-primary sm:px-6">
+        Back to where you left off
       </h2>
       <Link
         to="/courses/$course"
         params={{ course }}
         search={{ material: filename }}
         aria-label={`Resume reading ${title}`}
-        className="group flex items-center gap-5 rounded-[18px] border border-[#E3E8E6] bg-white p-4 shadow-[0_1px_2px_rgba(14,38,34,0.04)] outline-none transition-all hover:border-[#C4D3CF] hover:shadow-[0_6px_20px_rgba(14,38,34,0.08)] focus-visible:ring-2 focus-visible:ring-[#0F7F6E]/40"
+        className="group flex items-center gap-4 p-5 transition-colors hover:bg-accent/40 focus-visible:outline-offset-[-3px] sm:gap-6 sm:p-6"
       >
         <Thumbnail filename={filename} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center rounded-full bg-[#E6F5F1] px-2.5 py-1 font-mono text-xs font-semibold uppercase text-[#0F7F6E]">
+            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
               {course}
             </span>
             {opened && (
-              <span className="text-xs text-[#5B6B67]">Opened {opened}</span>
+              <span className="text-xs text-muted-foreground">
+                Opened {opened}
+              </span>
             )}
           </div>
-          <p className="mt-1.5 truncate text-[18px] font-semibold text-[#0E2622]">
+          <p className="mt-1.5 truncate text-[18px] font-semibold text-foreground">
             {title}
           </p>
           {showProgress && (
             <div className="mt-2.5 flex items-center gap-3">
-              <span className="h-1.5 w-[240px] max-w-full overflow-hidden rounded-full bg-[#E3E8E6]">
+              <span className="h-1.5 w-[240px] max-w-full overflow-hidden rounded-none bg-muted">
                 <span
-                  className="block h-full rounded-full bg-[#0F7F6E]"
+                  className="block h-full rounded-none bg-primary"
                   style={{
                     width: `${Math.min(100, (current / total) * 100)}%`,
                   }}
                 />
               </span>
-              <span className="shrink-0 text-xs text-[#5B6B67]">
+              <span className="shrink-0 text-xs text-muted-foreground">
                 Page {current} of {total}
               </span>
             </div>
           )}
         </div>
-        <span className="hidden shrink-0 rounded-4xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors group-hover:bg-primary/80 sm:inline">
-          Resume reading →
+        <span className="hidden shrink-0 border-l border-border pl-6 text-sm font-semibold text-primary sm:inline">
+          Resume reading{' '}
+          <span aria-hidden="true" className="fieldnotes-arrow ml-2">
+            →
+          </span>
         </span>
       </Link>
     </section>
@@ -223,12 +237,12 @@ function ResumeCard({
 
 function Thumbnail({ filename }: { filename: string }) {
   return (
-    <span className="relative flex h-20 w-16 shrink-0 items-center justify-center rounded-md border border-[#E3E8E6] bg-[#F6F8F7]">
+    <span className="relative flex h-20 w-16 shrink-0 items-center justify-center rounded-md border border-border bg-muted">
       <span
         aria-hidden="true"
-        className="absolute right-0 top-0 h-0 w-0 border-l-[14px] border-b-[14px] border-l-transparent border-b-[#E3E8E6]"
+        className="absolute right-0 top-0 h-0 w-0 border-l-[14px] border-b-[14px] border-l-transparent border-b-border"
       />
-      <span className="rounded bg-[#0E2622] px-1.5 py-0.5 text-[10px] font-bold text-white">
+      <span className="rounded bg-foreground px-1.5 py-0.5 text-[10px] font-bold text-background">
         {fileExtLabel(filename)}
       </span>
     </span>
@@ -265,22 +279,25 @@ function AddCourseTile() {
   return (
     <form
       onSubmit={onSubmit}
-      className="flex min-h-[236px] flex-col rounded-[18px] border-[1.5px] border-dashed border-[#C4D3CF] bg-transparent p-5 transition-colors focus-within:border-[#0F7F6E]"
+      className="grid gap-4 border-b border-border py-6 sm:grid-cols-[1fr_minmax(260px,420px)] sm:items-center sm:gap-8"
     >
-      <span className="flex size-9 items-center justify-center rounded-lg bg-[#E6F5F1] text-[#0F7F6E]">
+      <div className="flex items-start gap-4 sm:px-6">
         <HugeiconsIcon
           icon={PlusSignIcon}
-          className="size-5"
-          strokeWidth={2.5}
+          className="mt-1 size-5 shrink-0 text-primary"
+          strokeWidth={1.5}
         />
-      </span>
-      <h3 className="mt-3 text-[18px] font-semibold text-[#0E2622]">
-        Add a course
-      </h3>
-      <label htmlFor="add-course" className="mt-1 text-sm text-[#5B6B67]">
-        Enter the module code, then upload its materials.
-      </label>
-      <div className="mt-auto space-y-2 pt-4">
+        <div>
+          <h3 className="text-lg font-semibold">Add a course</h3>
+          <label
+            htmlFor="add-course"
+            className="mt-1 block text-sm text-muted-foreground"
+          >
+            Enter the course code. Bring your Materials.
+          </label>
+        </div>
+      </div>
+      <div className="space-y-2">
         <div className="flex gap-2">
           <input
             id="add-course"
@@ -289,12 +306,12 @@ function AddCourseTile() {
             placeholder="e.g. CS2040"
             aria-invalid={invalid}
             disabled={join.isPending}
-            className="min-w-0 flex-1 rounded-lg border border-[#CFE0DC] bg-white px-3 py-2 font-mono text-sm uppercase text-[#0E2622] outline-none placeholder:normal-case placeholder:text-[#5B6B67] focus:border-[#0F7F6E] aria-invalid:border-destructive"
+            className="min-w-0 flex-1 min-h-11 rounded-sm border border-input bg-card px-3 py-2 font-mono text-base uppercase text-foreground outline-none placeholder:normal-case placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus:border-ring aria-invalid:border-destructive"
           />
           <button
             type="submit"
             disabled={!COURSE_RE.test(code) || join.isPending}
-            className="shrink-0 rounded-lg bg-[#0E2622] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0E2622]/90 disabled:opacity-50"
+            className="min-h-11 shrink-0 rounded-sm bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
           >
             Create
           </button>
@@ -318,25 +335,25 @@ function FirstRun() {
   const { value, setValue, code, invalid, join, onSubmit } = useCreateCourse()
   return (
     <div className="space-y-10">
-      <header className="max-w-[640px]">
-        <p className="text-[15px] font-semibold text-[#0F7F6E]">
+      <header className="max-w-3xl border-l-2 border-primary pl-5 sm:pl-8">
+        <p className="fieldnotes-kicker mb-5 text-primary">
           Welcome to Lattice
         </p>
-        <h1 className="mt-2 text-[52px] font-bold leading-[1.05] tracking-[-0.02em] text-[#0E2622]">
-          Let&apos;s set up your first course.
+        <h1 className="fieldnotes-display fieldnotes-reveal">
+          Every good question <span className="italic">starts somewhere.</span>
         </h1>
-        <p className="mt-4 text-[19px] leading-relaxed text-[#5B6B67]">
-          Add a module, drop in its slides and readings, and you can start
-          asking questions about them in a minute or two.
+        <p className="fieldnotes-reveal fieldnotes-reveal-late mt-6 max-w-xl text-lg leading-8 text-muted-foreground">
+          Let&apos;s set up your first course. Add your Materials, let Lattice
+          Cognify them, and bring your questions.
         </p>
       </header>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      <div className="grid border-y-2 border-foreground lg:grid-cols-3">
         <StepCard n={1} title="Create a course" highlighted badge="START HERE">
           <form onSubmit={onSubmit} className="mt-3 space-y-2">
             <div className="flex gap-2">
               <label htmlFor="firstrun-course" className="sr-only">
-                Module code
+                Course code
               </label>
               <input
                 id="firstrun-course"
@@ -346,12 +363,12 @@ function FirstRun() {
                 placeholder="e.g. CS3216"
                 aria-invalid={invalid}
                 disabled={join.isPending}
-                className="min-w-0 flex-1 rounded-lg border border-[#CFE0DC] bg-white px-3 py-2 font-mono text-sm uppercase text-[#0E2622] outline-none placeholder:normal-case placeholder:text-[#5B6B67] focus:border-[#0F7F6E] aria-invalid:border-destructive"
+                className="min-w-0 flex-1 min-h-11 rounded-sm border border-input bg-card px-3 py-2 font-mono text-base uppercase text-foreground outline-none placeholder:normal-case placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus:border-ring aria-invalid:border-destructive"
               />
               <button
                 type="submit"
                 disabled={!COURSE_RE.test(code) || join.isPending}
-                className="shrink-0 rounded-lg bg-[#0E2622] px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-[#0E2622]/90 disabled:opacity-50"
+                className="min-h-11 shrink-0 rounded-sm bg-foreground px-4 py-2 text-sm font-semibold text-background transition-colors hover:bg-primary hover:text-primary-foreground disabled:opacity-50"
               >
                 Create
               </button>
@@ -367,15 +384,15 @@ function FirstRun() {
           </form>
         </StepCard>
 
-        <StepCard n={2} title="Upload materials">
-          <p className="mt-2 text-sm leading-6 text-[#5B6B67]">
+        <StepCard n={2} title="Add Materials">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Lecture slides, readings, past papers. PDFs work best.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {UPLOAD_TYPES.map((t) => (
               <span
                 key={t}
-                className="rounded-full bg-[#E6F5F1] px-2.5 py-1 text-xs font-medium text-[#0F7F6E]"
+                className="border border-border px-2 py-1 font-mono text-xs text-muted-foreground"
               >
                 {t}
               </span>
@@ -384,11 +401,11 @@ function FirstRun() {
         </StepCard>
 
         <StepCard n={3} title="Ask questions">
-          <p className="mt-2 text-sm leading-6 text-[#5B6B67]">
+          <p className="mt-2 text-sm leading-6 text-muted-foreground">
             Get answers grounded in your own materials, with the page they came
             from.
           </p>
-          <p className="mt-3 rounded-lg bg-[#F6F8F7] px-3 py-2 text-sm italic text-[#5B6B67]">
+          <p className="mt-3 rounded-lg bg-muted px-3 py-2 text-sm italic text-muted-foreground">
             “What&apos;s the difference between a process and a thread?”
           </p>
         </StepCard>
@@ -412,23 +429,23 @@ function StepCard({
 }) {
   return (
     <div
-      className={`flex flex-col rounded-[18px] border bg-white p-5 ${
-        highlighted
-          ? 'border-primary shadow-[0_8px_24px_rgba(14,38,34,0.08)]'
-          : 'border-[#E3E8E6] shadow-[0_1px_2px_rgba(14,38,34,0.04)]'
+      className={`flex flex-col border-border p-6 not-last:border-b lg:not-last:border-r lg:not-last:border-b-0 sm:p-8 ${
+        highlighted ? 'bg-card' : ''
       }`}
     >
       <div className="flex items-center justify-between">
-        <span className="flex size-8 items-center justify-center rounded-full bg-[#0E2622] text-sm font-semibold text-white">
-          {n}
+        <span className="font-editorial text-4xl text-primary">
+          {String(n).padStart(2, '0')}
         </span>
         {badge && (
-          <span className="rounded-full bg-primary/20 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.06em] text-[#0F7F6E]">
+          <span className="fieldnotes-kicker border-b border-primary pb-1 text-primary">
             {badge}
           </span>
         )}
       </div>
-      <h3 className="mt-3 text-[18px] font-semibold text-[#0E2622]">{title}</h3>
+      <h3 className="mt-3 text-[18px] font-semibold text-foreground">
+        {title}
+      </h3>
       {children}
     </div>
   )
