@@ -166,6 +166,47 @@ def test_provider_redirects_cannot_hide_another_billable_request(tmp_path):
     assert ledger.report()["unresolved_reservations"] == 1
 
 
+def test_openai_embeddings_are_priced_and_other_openai_endpoints_blocked(tmp_path):
+    from scripts.probe_runtime import BudgetExceeded, budgeted_requests
+
+    sent = []
+
+    def respond(request):
+        sent.append(request)
+        return httpx.Response(
+            200,
+            json={
+                "model": "text-embedding-3-small",
+                "usage": {"prompt_tokens": 5, "total_tokens": 5},
+            },
+        )
+
+    with budgeted_requests(tmp_path / "budget.sqlite3", Decimal("0.35")) as ledger:
+        with httpx.Client(transport=httpx.MockTransport(respond)) as client:
+            client.post(
+                "https://api.openai.com/v1/embeddings",
+                json={"model": "text-embedding-3-small", "input": ["a", "b"]},
+            )
+            for url, body in [
+                ("https://api.openai.com/v1/chat/completions", {"model": "gpt-6-sol"}),
+                (
+                    "https://api.openai.com/v1/embeddings",
+                    {"model": "text-embedding-3-large", "input": "a"},
+                ),
+                (
+                    "https://api.openai.com/v1/embeddings",
+                    {"model": "text-embedding-3-small", "input": ["a"] * 37},
+                ),
+            ]:
+                with pytest.raises(BudgetExceeded):
+                    client.post(url, json=body)
+    assert len(sent) == 1
+    report = ledger.report()
+    assert report["unresolved_reservations"] == 0
+    assert report["requests"][0]["charge_micro"] == 1
+    assert report["requests"][0]["completion_tokens"] == 0
+
+
 def test_preflight_never_prints_credentials(tmp_path, monkeypatch, capsys):
     from scripts import probe_runtime
 

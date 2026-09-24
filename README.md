@@ -22,7 +22,7 @@ This runnable cut uses Cognee's embedded SQLite, LanceDB and Ladybug stores for 
 
 ## Local development
 
-You need `uv` and Node 26 or newer; uv installs Python 3.14 itself. The API also needs Postgres; `server/compose.yaml` provides a local instance. DeepSeek supplies the LLM. Embeddings run on your CPU through fastembed, so there is no second key.
+You need `uv` and Node 26 or newer; uv installs Python 3.14 itself. The API also needs Postgres; `server/compose.yaml` provides a local instance. DeepSeek supplies the LLM and OpenAI the embeddings (`text-embedding-3-small`, cents per course), so two keys.
 
 The short way:
 
@@ -30,7 +30,7 @@ The short way:
 scripts/dev-setup.sh
 ```
 
-It checks the tools, installs both sides, asks for a DeepSeek key and tests it with one request, picks ports, and downloads the embedding model. Re-running it keeps values already saved.
+It checks the tools, installs both sides, asks for a DeepSeek key and an OpenAI key and tests each with one request, and picks ports. Re-running it keeps values already saved.
 
 The long way, if you would rather see each step:
 
@@ -38,7 +38,7 @@ The long way, if you would rather see each step:
 cd server
 uv sync
 docker compose up -d postgres
-cp .env.example .env         # set LLM_API_KEY; everything else has a working default
+cp .env.example .env         # set LLM_API_KEY and EMBEDDING_API_KEY; everything else has a working default
 uv run alembic upgrade head
 uv run uvicorn lattice.main:app --reload    # http://localhost:8000, docs at /docs
 
