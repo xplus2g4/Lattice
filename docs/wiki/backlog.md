@@ -22,6 +22,10 @@ Current stance: Prometheus and Grafana run as the `observability` compose profil
 
 Current stance: GA4 receives page views by route id only, no user id, no custom events, and loads only when `VITE_GA_MEASUREMENT_ID` is set ([security.md](./security.md#egress)). No consent banner exists, so the measurement id stays unset on any deployment real students reach. Decide the banner's shape (and whether route-id-only page views need one under the deployment's jurisdiction) before switching GA4 on for students.
 
+### Batched ingest per Dataset
+
+Measured in [BENCH-0001](../benchmarks/0001-batched-cognify.md) on 2026-09-24: ten files in one Cognify call took 398 s against 945 s one file per call, 10 of 10 ready, no rate limiting at 28 requests in flight. Adopted with a hard cap of 10 files per call; ADR 0007 records it with the implementation. Until that lands, ingest is one file per Cognify call.
+
 ## Open backlog issues
 
 These gate launch. Each is tracked in GitHub. The [first-cut findings](../research/cognee-1.5.4-first-cut-findings.md) resolved #4 and #5; they can be closed on GitHub with the finding quoted.
