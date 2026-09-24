@@ -18,14 +18,7 @@ import {
 import { groupReferences } from '#/lib/references'
 import { useStored } from '#/lib/user'
 
-import type {
-  Enrolment,
-  Material,
-  Note,
-  Session,
-  TierResult,
-  Turn,
-} from '#/lib/api'
+import type { Enrolment, Material, Note, Session, Turn } from '#/lib/api'
 
 export function AskPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
@@ -102,10 +95,26 @@ export function AskPanel({ course, user }: Enrolment) {
         }),
       )
       setSessionId(res.session_id)
-      setQuestion('')
       void sessions.refetch()
     },
+    // A failed ask goes back into the field, so the question is not lost.
+    onError: (_, q) => setQuestion(q),
   })
+  const send = () => {
+    const q = question.trim()
+    if (!q || submit.isPending) return
+    // Cleared at once; the pending echo reads the in-flight question from the mutation.
+    setQuestion('')
+    submit.mutate(q)
+  }
+
+  // Disabling the field while asking drops focus; hand it back once the answer is in.
+  const fieldRef = useRef<HTMLTextAreaElement>(null)
+  const wasAsking = useRef(false)
+  useEffect(() => {
+    if (wasAsking.current && !submit.isPending) fieldRef.current?.focus()
+    wasAsking.current = submit.isPending
+  }, [submit.isPending])
 
   const turns = session.data?.turns ?? []
   const scrollRef = useRef<HTMLDivElement>(null)
@@ -167,7 +176,7 @@ export function AskPanel({ course, user }: Enrolment) {
             ))}
             {submit.isPending && (
               <li>
-                <PendingTurn question={question} />
+                <PendingTurn question={submit.variables} />
               </li>
             )}
           </ol>
@@ -176,20 +185,21 @@ export function AskPanel({ course, user }: Enrolment) {
           className="space-y-2 border-t border-border p-4"
           onSubmit={(e) => {
             e.preventDefault()
-            if (question.trim()) submit.mutate(question.trim())
+            send()
           }}
         >
           <Textarea
+            ref={fieldRef}
             value={question}
             maxLength={2000}
+            disabled={submit.isPending}
             placeholder={`Ask about ${course.toUpperCase()} materials or your notes…`}
             className="min-h-20 bg-background"
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
                 e.preventDefault()
-                if (question.trim() && !submit.isPending)
-                  submit.mutate(question.trim())
+                send()
               }
             }}
           />
@@ -288,49 +298,27 @@ function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
           again.
         </p>
       ) : (
-        turn.results.map((r) => (
-          <TierView key={r.tier} result={r} sources={sources} />
-        ))
+        <>
+          {/* The server composes one answer across tiers (study.py); the references
+              it drew on are listed once too, Materials and Notes alike. */}
+          {turn.content ? (
+            <Markdown>{turn.content}</Markdown>
+          ) : (
+            <p className="text-sm italic text-muted-foreground">no answer</p>
+          )}
+          <ReferenceList
+            course={sources.course}
+            references={groupReferences(
+              turn.results.flatMap((r) => r.citations),
+              sources.materials,
+              sources.notes,
+            )}
+          />
+        </>
       )}
       <p className="text-lattice-meta text-muted-foreground">
         {turn.latency_ms ?? '?'} ms
       </p>
-    </div>
-  )
-}
-
-const tierLabel: Record<TierResult['tier'], string> = {
-  global: 'Course materials',
-  private: 'Your notes',
-}
-
-function TierView({
-  result,
-  sources,
-}: {
-  result: TierResult
-  sources: Sources
-}) {
-  return (
-    <div>
-      <p className="text-lattice-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-        {tierLabel[result.tier]}
-      </p>
-      <div className="mt-1.5">
-        {result.answer ? (
-          <Markdown>{result.answer}</Markdown>
-        ) : (
-          <p className="text-sm italic text-muted-foreground">no answer</p>
-        )}
-      </div>
-      <ReferenceList
-        course={sources.course}
-        references={groupReferences(
-          result.citations,
-          sources.materials,
-          sources.notes,
-        )}
-      />
     </div>
   )
 }
