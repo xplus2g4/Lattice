@@ -208,13 +208,13 @@ export function MaterialViewer({
   filename: string
 } & PageRange &
   ReadingPosition) {
-  const [user] = useUser()
+  const user = useUser()
   return (
     <FileViewer
       source={{
         queryKey: ['material-file', course, filename, user],
         filename,
-        load: () => downloadMaterial(user, course, filename),
+        load: () => downloadMaterial(course, filename),
       }}
       {...rest}
     />

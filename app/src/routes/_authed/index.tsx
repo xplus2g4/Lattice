@@ -10,22 +10,28 @@ import { Card, CardContent } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { Skeleton } from '#/components/ui/skeleton'
 import { CourseCard } from '#/components/lattice/course-card'
-import { ApiError, joinCourse, listCourses } from '#/lib/api'
+import {
+  ApiError,
+  createInvite,
+  getMe,
+  joinCourse,
+  listCourses,
+} from '#/lib/api'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
 import type { CourseSummary } from '#/lib/api'
 
-export const Route = createFileRoute('/')({ component: Home })
+export const Route = createFileRoute('/_authed/')({ component: Home })
 
 const COURSE_RE = /^[a-z][a-z0-9]{1,15}$/
 
 function Home() {
-  const [user, setUser] = useUser()
+  const user = useUser()
   const { courses: added, lastOpened } = useLibrary()
   const courses = useQuery({
     queryKey: ['courses', user],
-    queryFn: () => listCourses(user),
+    queryFn: () => listCourses(),
     retry: false,
   })
 
@@ -58,14 +64,18 @@ function Home() {
               Pick a course, or create one and upload its materials.
             </p>
           </div>
-          <label className="flex flex-col gap-1.5 text-lattice-meta font-medium text-muted-foreground">
+          <div className="flex flex-col gap-1.5 text-lattice-meta font-medium text-muted-foreground">
             Signed in as
-            <Input
-              type="email"
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-            />
-          </label>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-foreground">{user}</span>
+              <a
+                href="/auth/logout"
+                className="text-sm underline underline-offset-2 hover:text-foreground"
+              >
+                Sign out
+              </a>
+            </div>
+          </div>
         </header>
 
         {lastOpened && (
@@ -105,8 +115,57 @@ function Home() {
             </div>
           )}
         </section>
+
+        <InvitePanel />
       </div>
     </main>
+  )
+}
+
+/** Instructors and admins mint invite links here; everyone else never sees this. */
+function InvitePanel() {
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: () => getMe(),
+    retry: false,
+  })
+  const [link, setLink] = useState('')
+  const invite = useMutation({
+    mutationFn: () => createInvite(),
+    onSuccess: (data) =>
+      setLink(`${window.location.origin}/invite/${data.token}`),
+  })
+  if (!['instructor', 'admin'].includes(me.data?.user.role ?? '')) return null
+  return (
+    <section className="max-w-md">
+      <h2 className="text-lattice-heading font-semibold tracking-tight">
+        Invite someone
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Sign-up is invite-only. Each link works once and expires in 7 days.
+      </p>
+      <div className="mt-3 flex items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={invite.isPending}
+          onClick={() => invite.mutate()}
+        >
+          Create invite link
+        </Button>
+        {invite.error && (
+          <p className="text-xs text-destructive">{invite.error.message}</p>
+        )}
+      </div>
+      {link && (
+        <Input
+          className="mt-3 font-mono text-xs"
+          readOnly
+          value={link}
+          onFocus={(e) => e.target.select()}
+        />
+      )}
+    </section>
   )
 }
 
@@ -157,9 +216,8 @@ function AddCourse() {
   const [value, setValue] = useState('')
   const code = value.trim().toLowerCase()
   const invalid = value.trim() !== '' && !COURSE_RE.test(code)
-  const [user] = useUser()
   const join = useMutation({
-    mutationFn: () => joinCourse(user, code),
+    mutationFn: () => joinCourse(code),
     onSuccess: () => {
       addCourse(code)
       void navigate({

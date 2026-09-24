@@ -3,7 +3,7 @@ import { createFileRoute, useLocation } from '@tanstack/react-router'
 import { CourseWorkspace } from '#/components/lattice/course-workspace'
 
 // The bare course URL opens the reader workspace: open tabs, with Ask beside them.
-export const Route = createFileRoute('/courses/$course/')({
+export const Route = createFileRoute('/_authed/courses/$course/')({
   component: Workspace,
 })
 

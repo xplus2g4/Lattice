@@ -47,7 +47,7 @@ export function NoteTab({
   ReadingPosition) {
   const notes = useQuery({
     queryKey: ['notes', course, user],
-    queryFn: () => listNotes(user, course),
+    queryFn: () => listNotes(course),
   })
   const note = notes.data?.find((n) => n.id === id)
   if (!note && !isDraftNote(id)) {
@@ -63,7 +63,7 @@ export function NoteTab({
         source={{
           queryKey: ['note-file', course, id, user],
           filename: note.filename,
-          load: () => downloadNote(user, id),
+          load: () => downloadNote(id),
         }}
         {...reading}
       />
@@ -110,7 +110,7 @@ function NoteEditor({
   }, [tab, dirty, onDirtyChange])
 
   const save = useMutation({
-    mutationFn: (text: string) => saveNote(user, course, id, text),
+    mutationFn: (text: string) => saveNote(course, id, text),
     onSuccess: (note: Note, text) => {
       // Into the cache at once, so the editor sees its text as saved without a refetch.
       queryClient.setQueryData<Array<Note>>(['notes', course, user], (old) => [

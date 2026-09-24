@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Boolean, Enum, ForeignKey, String
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lattice.db.base import Base, created_at, updated_at, uuid_pk
@@ -64,4 +64,20 @@ class Enrolment(Base):
     course: Mapped[Course] = relationship(back_populates="enrolments", lazy="selectin")
 
 
-__all__ = ["Course", "Enrolment", "User"]
+class Invite(Base):
+    """An app-access ticket: signup is closed, so no `users` row exists without one.
+    The raw token is shown once at creation; only its hash is stored."""
+
+    __tablename__ = "invites"
+
+    id: Mapped[UUID] = uuid_pk()
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    role: Mapped[str] = mapped_column(Role, default="student")
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    created_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    used_by: Mapped[UUID | None] = mapped_column(ForeignKey("users.id", ondelete="SET NULL"))
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = created_at()
+
+
+__all__ = ["Course", "Enrolment", "Invite", "User"]

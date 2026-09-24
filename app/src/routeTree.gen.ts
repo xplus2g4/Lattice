@@ -9,138 +9,276 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as DevRouteImport } from './routes/dev'
-import { Route as FoundationRouteImport } from './routes/foundation'
-import { Route as CoursesCourseRouteImport } from './routes/courses/$course'
-import { Route as CoursesCourseIndexRouteImport } from './routes/courses/$course/index'
+import { Route as AuthedRouteImport } from './routes/_authed'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
+import { Route as AuthedDevRouteImport } from './routes/_authed/dev'
+import { Route as AuthedFoundationRouteImport } from './routes/_authed/foundation'
+import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
+import { Route as InviteTokenRouteImport } from './routes/invite/$token'
+import { Route as AuthedCoursesCourseRouteImport } from './routes/_authed/courses/$course'
+import { Route as AuthGoogleIndexRouteImport } from './routes/auth/google/index'
+import { Route as AuthGoogleCallbackRouteImport } from './routes/auth/google/callback'
+import { Route as AuthedCoursesCourseIndexRouteImport } from './routes/_authed/courses/$course/index'
 
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const AuthedRoute = AuthedRouteImport.update({
+  id: '/_authed',
   getParentRoute: () => rootRouteImport,
 } as any)
-const DevRoute = DevRouteImport.update({
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedIndexRoute = AuthedIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedDevRoute = AuthedDevRouteImport.update({
   id: '/dev',
   path: '/dev',
-  getParentRoute: () => rootRouteImport,
+  getParentRoute: () => AuthedRoute,
 } as any)
-const FoundationRoute = FoundationRouteImport.update({
+const AuthedFoundationRoute = AuthedFoundationRouteImport.update({
   id: '/foundation',
   path: '/foundation',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthLogoutRoute = AuthLogoutRouteImport.update({
+  id: '/auth/logout',
+  path: '/auth/logout',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CoursesCourseRoute = CoursesCourseRouteImport.update({
+const InviteTokenRoute = InviteTokenRouteImport.update({
+  id: '/invite/$token',
+  path: '/invite/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthedCoursesCourseRoute = AuthedCoursesCourseRouteImport.update({
   id: '/courses/$course',
   path: '/courses/$course',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthGoogleIndexRoute = AuthGoogleIndexRouteImport.update({
+  id: '/auth/google/',
+  path: '/auth/google/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CoursesCourseIndexRoute = CoursesCourseIndexRouteImport.update({
-  id: '/',
-  path: '/',
-  getParentRoute: () => CoursesCourseRoute,
+const AuthGoogleCallbackRoute = AuthGoogleCallbackRouteImport.update({
+  id: '/auth/google/callback',
+  path: '/auth/google/callback',
+  getParentRoute: () => rootRouteImport,
 } as any)
+const AuthedCoursesCourseIndexRoute =
+  AuthedCoursesCourseIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthedCoursesCourseRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/dev': typeof DevRoute
-  '/foundation': typeof FoundationRoute
-  '/courses/$course': typeof CoursesCourseRouteWithChildren
-  '/courses/$course/': typeof CoursesCourseIndexRoute
+  '/': typeof AuthedIndexRoute
+  '/login': typeof LoginRoute
+  '/dev': typeof AuthedDevRoute
+  '/foundation': typeof AuthedFoundationRoute
+  '/auth/logout': typeof AuthLogoutRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/courses/$course': typeof AuthedCoursesCourseRouteWithChildren
+  '/auth/google/callback': typeof AuthGoogleCallbackRoute
+  '/auth/google/': typeof AuthGoogleIndexRoute
+  '/courses/$course/': typeof AuthedCoursesCourseIndexRoute
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/dev': typeof DevRoute
-  '/foundation': typeof FoundationRoute
-  '/courses/$course': typeof CoursesCourseIndexRoute
+  '/login': typeof LoginRoute
+  '/dev': typeof AuthedDevRoute
+  '/foundation': typeof AuthedFoundationRoute
+  '/auth/logout': typeof AuthLogoutRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/': typeof AuthedIndexRoute
+  '/auth/google/callback': typeof AuthGoogleCallbackRoute
+  '/auth/google': typeof AuthGoogleIndexRoute
+  '/courses/$course': typeof AuthedCoursesCourseIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/dev': typeof DevRoute
-  '/foundation': typeof FoundationRoute
-  '/courses/$course': typeof CoursesCourseRouteWithChildren
-  '/courses/$course/': typeof CoursesCourseIndexRoute
+  '/_authed': typeof AuthedRouteWithChildren
+  '/login': typeof LoginRoute
+  '/_authed/dev': typeof AuthedDevRoute
+  '/_authed/foundation': typeof AuthedFoundationRoute
+  '/auth/logout': typeof AuthLogoutRoute
+  '/invite/$token': typeof InviteTokenRoute
+  '/_authed/': typeof AuthedIndexRoute
+  '/_authed/courses/$course': typeof AuthedCoursesCourseRouteWithChildren
+  '/auth/google/callback': typeof AuthGoogleCallbackRoute
+  '/auth/google/': typeof AuthGoogleIndexRoute
+  '/_authed/courses/$course/': typeof AuthedCoursesCourseIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    '/' | '/dev' | '/foundation' | '/courses/$course' | '/courses/$course/'
-  fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/dev' | '/foundation' | '/courses/$course'
-  id:
-    | '__root__'
     | '/'
+    | '/login'
     | '/dev'
     | '/foundation'
+    | '/auth/logout'
+    | '/invite/$token'
     | '/courses/$course'
+    | '/auth/google/callback'
+    | '/auth/google/'
     | '/courses/$course/'
+  fileRoutesByTo: FileRoutesByTo
+  to:
+    | '/login'
+    | '/dev'
+    | '/foundation'
+    | '/auth/logout'
+    | '/invite/$token'
+    | '/'
+    | '/auth/google/callback'
+    | '/auth/google'
+    | '/courses/$course'
+  id:
+    | '__root__'
+    | '/_authed'
+    | '/login'
+    | '/_authed/dev'
+    | '/_authed/foundation'
+    | '/auth/logout'
+    | '/invite/$token'
+    | '/_authed/'
+    | '/_authed/courses/$course'
+    | '/auth/google/callback'
+    | '/auth/google/'
+    | '/_authed/courses/$course/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  DevRoute: typeof DevRoute
-  FoundationRoute: typeof FoundationRoute
-  CoursesCourseRoute: typeof CoursesCourseRouteWithChildren
+  AuthedRoute: typeof AuthedRouteWithChildren
+  LoginRoute: typeof LoginRoute
+  AuthLogoutRoute: typeof AuthLogoutRoute
+  InviteTokenRoute: typeof InviteTokenRoute
+  AuthGoogleCallbackRoute: typeof AuthGoogleCallbackRoute
+  AuthGoogleIndexRoute: typeof AuthGoogleIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/': {
-      id: '/'
+    '/_authed': {
+      id: '/_authed'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/': {
+      id: '/_authed/'
       path: '/'
       fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedIndexRouteImport
+      parentRoute: typeof AuthedRoute
     }
-    '/dev': {
-      id: '/dev'
+    '/_authed/dev': {
+      id: '/_authed/dev'
       path: '/dev'
       fullPath: '/dev'
-      preLoaderRoute: typeof DevRouteImport
-      parentRoute: typeof rootRouteImport
+      preLoaderRoute: typeof AuthedDevRouteImport
+      parentRoute: typeof AuthedRoute
     }
-    '/foundation': {
-      id: '/foundation'
+    '/_authed/foundation': {
+      id: '/_authed/foundation'
       path: '/foundation'
       fullPath: '/foundation'
-      preLoaderRoute: typeof FoundationRouteImport
+      preLoaderRoute: typeof AuthedFoundationRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/auth/logout': {
+      id: '/auth/logout'
+      path: '/auth/logout'
+      fullPath: '/auth/logout'
+      preLoaderRoute: typeof AuthLogoutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/courses/$course': {
-      id: '/courses/$course'
+    '/invite/$token': {
+      id: '/invite/$token'
+      path: '/invite/$token'
+      fullPath: '/invite/$token'
+      preLoaderRoute: typeof InviteTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/courses/$course': {
+      id: '/_authed/courses/$course'
       path: '/courses/$course'
       fullPath: '/courses/$course'
-      preLoaderRoute: typeof CoursesCourseRouteImport
+      preLoaderRoute: typeof AuthedCoursesCourseRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/auth/google/': {
+      id: '/auth/google/'
+      path: '/auth/google'
+      fullPath: '/auth/google/'
+      preLoaderRoute: typeof AuthGoogleIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/courses/$course/': {
-      id: '/courses/$course/'
+    '/auth/google/callback': {
+      id: '/auth/google/callback'
+      path: '/auth/google/callback'
+      fullPath: '/auth/google/callback'
+      preLoaderRoute: typeof AuthGoogleCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authed/courses/$course/': {
+      id: '/_authed/courses/$course/'
       path: '/'
       fullPath: '/courses/$course/'
-      preLoaderRoute: typeof CoursesCourseIndexRouteImport
-      parentRoute: typeof CoursesCourseRoute
+      preLoaderRoute: typeof AuthedCoursesCourseIndexRouteImport
+      parentRoute: typeof AuthedCoursesCourseRoute
     }
   }
 }
 
-interface CoursesCourseRouteChildren {
-  CoursesCourseIndexRoute: typeof CoursesCourseIndexRoute
+interface AuthedCoursesCourseRouteChildren {
+  AuthedCoursesCourseIndexRoute: typeof AuthedCoursesCourseIndexRoute
 }
 
-const CoursesCourseRouteChildren: CoursesCourseRouteChildren = {
-  CoursesCourseIndexRoute: CoursesCourseIndexRoute,
+const AuthedCoursesCourseRouteChildren: AuthedCoursesCourseRouteChildren = {
+  AuthedCoursesCourseIndexRoute: AuthedCoursesCourseIndexRoute,
 }
 
-const CoursesCourseRouteWithChildren = CoursesCourseRoute._addFileChildren(
-  CoursesCourseRouteChildren,
-)
+const AuthedCoursesCourseRouteWithChildren =
+  AuthedCoursesCourseRoute._addFileChildren(AuthedCoursesCourseRouteChildren)
+
+interface AuthedRouteChildren {
+  AuthedDevRoute: typeof AuthedDevRoute
+  AuthedFoundationRoute: typeof AuthedFoundationRoute
+  AuthedIndexRoute: typeof AuthedIndexRoute
+  AuthedCoursesCourseRoute: typeof AuthedCoursesCourseRouteWithChildren
+}
+
+const AuthedRouteChildren: AuthedRouteChildren = {
+  AuthedDevRoute: AuthedDevRoute,
+  AuthedFoundationRoute: AuthedFoundationRoute,
+  AuthedIndexRoute: AuthedIndexRoute,
+  AuthedCoursesCourseRoute: AuthedCoursesCourseRouteWithChildren,
+}
+
+const AuthedRouteWithChildren =
+  AuthedRoute._addFileChildren(AuthedRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
-  IndexRoute: IndexRoute,
-  DevRoute: DevRoute,
-  FoundationRoute: FoundationRoute,
-  CoursesCourseRoute: CoursesCourseRouteWithChildren,
+  AuthedRoute: AuthedRouteWithChildren,
+  LoginRoute: LoginRoute,
+  AuthLogoutRoute: AuthLogoutRoute,
+  InviteTokenRoute: InviteTokenRoute,
+  AuthGoogleCallbackRoute: AuthGoogleCallbackRoute,
+  AuthGoogleIndexRoute: AuthGoogleIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

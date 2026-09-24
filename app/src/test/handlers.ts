@@ -13,7 +13,7 @@ import type {
 import { assistantTurn, session, userTurn } from './fixtures'
 
 // Mocking happens at the HTTP boundary, never at `src/lib/api.ts`: the transport, the
-// `X-User` header and the error flattening are behaviour under test, not scaffolding.
+// `Authorization` header and the error flattening are behaviour under test, not scaffolding.
 //
 // The store is small but real, so a test can say "upload, then the list shows it" through
 // the UI instead of asserting that a request was made.
@@ -148,6 +148,13 @@ function sessionOut(s: Session): SessionOut {
 function scope(request: Request) {
   return new URL(request.url).searchParams.get('course') ?? ''
 }
+// The stubbed session mints Bearer test-token (see setup.ts); anything else is a
+// stranger, so the per-user filters still have something real to check.
+function who(request: Request): string {
+  return request.headers.get('Authorization') === 'Bearer test-token'
+    ? 'alice@example.com'
+    : ''
+}
 
 // Paths are matched without an origin so a developer's VITE_API_URL cannot break the run.
 export const handlers = [
@@ -207,18 +214,14 @@ export const handlers = [
   http.get('*/notes.list', ({ request }) =>
     HttpResponse.json(
       store.notes
-        .filter(
-          (n) =>
-            n.course === scope(request) &&
-            n.owner === request.headers.get('X-User'),
-        )
+        .filter((n) => n.course === scope(request) && n.owner === who(request))
         .map(noteOut),
     ),
   ),
   http.get('*/notes.download', ({ request }) => {
     const id = new URL(request.url).searchParams.get('note')
     const found = store.notes.find(
-      (n) => n.id === id && n.owner === request.headers.get('X-User'),
+      (n) => n.id === id && n.owner === who(request),
     )
     return found?.filename
       ? new HttpResponse('sample note', {
@@ -234,7 +237,7 @@ export const handlers = [
     }
     const saved: Note = {
       course: body.course,
-      owner: request.headers.get('X-User') ?? '',
+      owner: who(request),
       id: body.note ?? idFor(`note-${nextNote++}`),
       body_md: body.body_md,
       filename: null,
@@ -264,7 +267,7 @@ export const handlers = [
     const course = /name="course"\r?\n\r?\n([^\r\n]+)/.exec(body)?.[1] ?? ''
     const saved: Note = {
       course,
-      owner: request.headers.get('X-User') ?? '',
+      owner: who(request),
       id: idFor(`note-${nextNote++}`),
       body_md: '',
       filename,
@@ -284,7 +287,7 @@ export const handlers = [
       query_type?: string
       session?: string | null
     }
-    const owner = request.headers.get('X-User') ?? ''
+    const owner = who(request)
     const existing = body.session ? store.sessions[body.session] : undefined
     if (
       existing &&
@@ -319,9 +322,7 @@ export const handlers = [
       Object.values(store.sessions)
         .filter(
           (s): s is Session =>
-            !!s &&
-            s.course === scope(request) &&
-            s.owner === request.headers.get('X-User'),
+            !!s && s.course === scope(request) && s.owner === who(request),
         )
         .map(sessionOut),
     ),
@@ -330,7 +331,7 @@ export const handlers = [
     const found =
       store.sessions[new URL(request.url).searchParams.get('session') ?? '']
     // A session belonging to another course or user is a 404, not someone else's history.
-    if (!found || found.owner !== request.headers.get('X-User')) {
+    if (!found || found.owner !== who(request)) {
       return HttpResponse.json({ detail: 'no such session' }, { status: 404 })
     }
     return HttpResponse.json(sessionOut(found))

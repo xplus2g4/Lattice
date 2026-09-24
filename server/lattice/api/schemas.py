@@ -168,6 +168,15 @@ class TopicStat(BaseModel):
     misses: int
 
 
+class InviteOut(BaseModel):
+    """Returned once at creation: `token` is the only copy of the invite secret."""
+
+    token: str
+    role: str
+    expires_at: datetime
+    created_at: datetime
+
+
 class MeOut(BaseModel):
     user: UserOut
     courses: list[CourseOut]

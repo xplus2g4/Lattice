@@ -13,15 +13,6 @@ function subscribe(cb: () => void) {
   }
 }
 
-const USER_KEY = 'lattice.user'
-const DEFAULT_USER = 'alice@example.com'
-
-/** The dev-only identity, until OAuth replaces it. Backed by the same external store the
- * header edits, so a section reads the current email without it being passed down. */
-export function useUser() {
-  return useStored(USER_KEY, DEFAULT_USER)
-}
-
 export function useStored(key: string, fallback: string) {
   const value = useSyncExternalStore(
     subscribe,

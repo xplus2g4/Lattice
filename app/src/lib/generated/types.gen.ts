@@ -150,6 +150,20 @@ export type CreateCourse = {
 }
 
 /**
+ * CreateInvite
+ */
+export type CreateInvite = {
+  /**
+   * Expires In Days
+   */
+  expires_in_days?: number
+  /**
+   * Role
+   */
+  role?: 'student' | 'instructor' | 'admin'
+}
+
+/**
  * EnrolmentOut
  */
 export type EnrolmentOut = {
@@ -179,6 +193,30 @@ export type HttpValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * InviteOut
+ *
+ * Returned once at creation: `token` is the only copy of the invite secret.
+ */
+export type InviteOut = {
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Expires At
+   */
+  expires_at: string
+  /**
+   * Role
+   */
+  role: string
+  /**
+   * Token
+   */
+  token: string
 }
 
 /**
@@ -610,6 +648,16 @@ export type RecordAnswer = {
 }
 
 /**
+ * RedeemInvite
+ */
+export type RedeemInvite = {
+  /**
+   * Token
+   */
+  token: string
+}
+
+/**
  * ReplaceTopics
  */
 export type ReplaceTopics = {
@@ -951,6 +999,10 @@ export type AskAskPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -982,6 +1034,10 @@ export type CreateCourseCoursesCreatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1015,6 +1071,10 @@ export type GetCourseCoursesGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1053,6 +1113,10 @@ export type ListCoursesCoursesListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1088,6 +1152,10 @@ export type SearchCoursesCoursesSearchGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: {
@@ -1126,6 +1194,10 @@ export type UpdateCourseCoursesUpdatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1159,6 +1231,10 @@ export type JoinCourseEnrolmentsJoinPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1192,6 +1268,10 @@ export type LeaveCourseEnrolmentsLeavePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1229,6 +1309,10 @@ export type ListEnrolmentsEnrolmentsListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1269,6 +1353,10 @@ export type RecordFeedbackFeedbackRecordPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1320,6 +1408,80 @@ export type HealthHealthGetResponses = {
 export type HealthHealthGetResponse =
   HealthHealthGetResponses[keyof HealthHealthGetResponses]
 
+export type CreateInviteInvitesCreatePostData = {
+  body: CreateInvite
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/invites.create'
+}
+
+export type CreateInviteInvitesCreatePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type CreateInviteInvitesCreatePostError =
+  CreateInviteInvitesCreatePostErrors[keyof CreateInviteInvitesCreatePostErrors]
+
+export type CreateInviteInvitesCreatePostResponses = {
+  /**
+   * Successful Response
+   */
+  201: InviteOut
+}
+
+export type CreateInviteInvitesCreatePostResponse =
+  CreateInviteInvitesCreatePostResponses[keyof CreateInviteInvitesCreatePostResponses]
+
+export type RedeemInviteInvitesRedeemPostData = {
+  body: RedeemInvite
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/invites.redeem'
+}
+
+export type RedeemInviteInvitesRedeemPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type RedeemInviteInvitesRedeemPostError =
+  RedeemInviteInvitesRedeemPostErrors[keyof RedeemInviteInvitesRedeemPostErrors]
+
+export type RedeemInviteInvitesRedeemPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserOut
+}
+
+export type RedeemInviteInvitesRedeemPostResponse =
+  RedeemInviteInvitesRedeemPostResponses[keyof RedeemInviteInvitesRedeemPostResponses]
+
 export type DeleteMaterialMaterialsDeletePostData = {
   body: MaterialRef
   headers?: {
@@ -1327,6 +1489,10 @@ export type DeleteMaterialMaterialsDeletePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1364,6 +1530,10 @@ export type DownloadMaterialMaterialsDownloadGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1399,6 +1569,10 @@ export type GetMaterialMaterialsGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1437,6 +1611,10 @@ export type ListMaterialsMaterialsListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1477,6 +1655,10 @@ export type RetryMaterialMaterialsRetryPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1510,6 +1692,10 @@ export type UpdateMaterialMaterialsUpdatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1543,6 +1729,10 @@ export type UploadMaterialMaterialsUploadPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1576,6 +1766,10 @@ export type GetMeMeGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1608,6 +1802,10 @@ export type UpdateMeMeUpdatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1641,6 +1839,10 @@ export type DeleteNoteNotesDeletePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1678,6 +1880,10 @@ export type DownloadNoteNotesDownloadGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1713,6 +1919,10 @@ export type GetNoteNotesGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: {
@@ -1761,6 +1971,10 @@ export type ListNotesNotesListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1805,6 +2019,10 @@ export type SaveNoteNotesSavePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1838,6 +2056,10 @@ export type UploadNoteNotesUploadPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1871,6 +2093,10 @@ export type RecordAnswerQuizAnswersRecordPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1904,6 +2130,10 @@ export type StatsByTopicQuizStatsByTopicGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1944,6 +2174,10 @@ export type AbandonQuizQuizzesAbandonPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1977,6 +2211,10 @@ export type CreateQuizQuizzesCreatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -2010,6 +2248,10 @@ export type DeleteQuizQuizzesDeletePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -2047,6 +2289,10 @@ export type GetQuizQuizzesGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2085,6 +2331,10 @@ export type ListQuizzesQuizzesListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2137,6 +2387,10 @@ export type SubmitQuizQuizzesSubmitPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -2170,6 +2424,10 @@ export type GetReadingPositionReadingPositionGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2210,6 +2468,10 @@ export type SetReadingPositionReadingPositionSetPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -2243,6 +2505,10 @@ export type GetSessionSessionsGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2281,6 +2547,10 @@ export type ListSessionsSessionsListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2321,6 +2591,10 @@ export type ListTopicsTopicsListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2361,6 +2635,10 @@ export type ReplaceTopicsTopicsReplacePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never

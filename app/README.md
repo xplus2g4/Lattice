@@ -19,15 +19,20 @@ Other scripts: `typecheck`, `lint`, `format`, `check` (prettier), `test` (vitest
 
 | Path                                                   | What it holds                                                                                                                 |
 | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------- |
-| `src/routes/index.tsx`                                 | Course picker at `/`.                                                                                                         |
-| `src/routes/courses/$course.tsx`                       | Per-course layout: course-code guard, user email, tab bar, `<Outlet/>`.                                                       |
-| `src/routes/courses/$course/`                          | One route per section: `materials`, `notes`, `ask.index`, `ask.$sessionId`, and an `index` that renders the reader workspace. |
+| `src/routes/_authed.tsx`                               | The gate: redirects to `/login` without a session. Every app route lives under it.                                            |
+| `src/routes/_authed/index.tsx`                         | Course picker at `/`, plus the invite-minting panel for instructors.                                                          |
+| `src/routes/_authed/courses/$course.tsx`               | Per-course layout: course-code guard, tab bar, `<Outlet/>`.                                                                   |
+| `src/routes/_authed/courses/$course/`                  | The reader workspace `index` (Materials, Notes, Ask sections).                                                                |
+| `src/routes/login.tsx`, `invite/$token.tsx`            | Public pages: Google sign-in, and the invite landing that stashes the token before OAuth.                                     |
+| `src/routes/auth/`                                     | Server routes for the OAuth round trip: `google` (start), `google/callback`, `logout`.                                        |
 | `src/routes/__root.tsx`                                | The document shell.                                                                                                           |
 | `src/components/materials.tsx`, `notes.tsx`, `ask.tsx` | One section each. Each takes `{ course, user }` and owns its own queries.                                                     |
 | `src/components/common.tsx`                            | `ErrorLine`, `StatusBadge`, `pollWhilePending`, shared class strings, the `Scope` prop type.                                  |
+| `src/lib/auth.ts`, `auth.server.ts`                    | Session server functions (`getSessionUser`, `getApiToken`, `redeemInvite`) and the server-only OAuth/session/token machinery. |
 | `src/lib/generated/`                                   | Types generated from the contract. Committed, never hand-edited.                                                              |
-| `src/lib/api.ts`                                       | The transport: base URL, the `X-User` header, `ApiError`, one function per endpoint.                                          |
+| `src/lib/api.ts`                                       | The transport: base URL, the `Bearer` header, `ApiError`, one function per endpoint.                                          |
 | `src/lib/storage.ts`                                   | `useStored`, localStorage as an external store so SSR renders the fallback.                                                   |
+| `src/lib/user.ts`                                      | `useUser`: the session email via `getSessionUser`, replacing the old `lattice.user` key.                                      |
 | `src/lib/course.ts`                                    | Course-code regex and the recent-courses list.                                                                                |
 | `src/router.tsx`                                       | Router construction and the Query/SSR integration.                                                                            |
 | `src/integrations/tanstack-query/`                     | `QueryClient` context and devtools panel.                                                                                     |
@@ -48,10 +53,10 @@ retains a local Session pointer and history picker. `Ask` therefore takes
 `sessionId` plus `onSessionStarted` and `onLeaveSession`, and the route decides where
 those go; the component never navigates and never touches storage.
 
-What is still stored is the user email (`lattice.user`) and the recent-course list
-(`lattice.courses`). Read and write both through `useStored` so the SSR fallback and the
-cross-tab `storage` event keep working. The email has its own hook, `useUser`, which is
-also how a section route reads it without the layout passing it down.
+Identity is server-owned now: `useUser()` reads the session email through the
+`getSessionUser` server function, so there is no `lattice.user` key and nothing for a
+route to write. The recent-course list (`lattice.courses`) stays in localStorage through
+`useStored` so the SSR fallback and the cross-tab `storage` event keep working.
 
 ## Tests
 
@@ -69,7 +74,8 @@ Three rules keep the harness honest:
   RPC shapes in `src/test/handlers.ts`, so a changed wire model fails typecheck rather
   than drifting into a hand-written parallel response shape.
 - **Mock only at the HTTP boundary.** Never mock `src/lib/api.ts` or a component; the
-  transport, the `X-User` header and the error flattening are behaviour under test.
+  transport, the `Bearer` header and the error flattening are behaviour under test.
+  (`#/lib/auth` itself is stubbed in `src/test/setup.ts` so tests run as a fixed user.)
 - **An unmocked request fails the run** (`onUnhandledRequest: 'error'`). Reach for
   `answerNextAskWith` rather than replacing the `/ask` handler, which would skip the
   session bookkeeping and hand the client an id nothing can read back.

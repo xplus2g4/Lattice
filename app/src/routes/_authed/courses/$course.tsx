@@ -3,7 +3,7 @@ import { useEffect } from 'react'
 
 import { COURSE_RE, recordRecentCourse } from '#/lib/course'
 
-export const Route = createFileRoute('/courses/$course')({
+export const Route = createFileRoute('/_authed/courses/$course')({
   validateSearch: (
     search: Record<string, unknown>,
   ): {

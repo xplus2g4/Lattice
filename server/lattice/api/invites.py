@@ -1,0 +1,55 @@
+from datetime import timedelta
+from typing import Literal
+
+from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel, Field
+
+from lattice.api.deps import CurrentIdentity, CurrentUser, SessionDep
+from lattice.api.schemas import InviteOut, UserOut
+from lattice.db.repo import invites, users
+
+router = APIRouter(tags=["invites"])
+
+
+class CreateInvite(BaseModel):
+    role: Literal["student", "instructor", "admin"] = "student"
+    expires_in_days: int = Field(default=7, ge=1, le=90)
+
+
+class RedeemInvite(BaseModel):
+    token: str = Field(min_length=16, max_length=256)
+
+
+@router.post("/invites.create", status_code=201)
+async def create_invite(user: CurrentUser, body: CreateInvite, session: SessionDep) -> InviteOut:
+    """Mint an access ticket. The raw token is returned once; only its hash is stored."""
+    if user.role not in ("instructor", "admin"):
+        raise HTTPException(403, "only instructors and admins may create invites")
+    invite, token = await invites.create(
+        session,
+        role=body.role,
+        ttl=timedelta(days=body.expires_in_days),
+        created_by=user.id,
+    )
+    return InviteOut(
+        token=token,
+        role=invite.role,
+        expires_at=invite.expires_at,
+        created_at=invite.created_at,
+    )
+
+
+@router.post("/invites.redeem")
+async def redeem_invite(
+    identity: CurrentIdentity, body: RedeemInvite, session: SessionDep
+) -> UserOut:
+    """First-sight account creation: the invite is the only way in, and it burns on use."""
+    invite = await invites.by_token(session, body.token)
+    if not invites.usable(invite):
+        raise HTTPException(403, "invite is invalid, expired or already used")
+    user = await users.by_email(session, identity.email)
+    if user is not None:
+        return UserOut.model_validate(user)
+    user = await users.create(session, identity.email, role=invite.role)
+    await invites.burn(session, invite, user)
+    return UserOut.model_validate(user)

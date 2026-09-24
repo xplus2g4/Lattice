@@ -4,7 +4,7 @@ A per-course knowledge store. Students ask a question inside one course and get 
 
 The backend is a thin FastAPI service in front of [Cognee](https://github.com/topoteretes/cognee), which does the chunking, entity extraction, embeddings and graph storage. Each course is one Cognee dataset that every enrolled principal can read; each student gets a second, private dataset per course. One `/ask` call searches both. The web app is TanStack Start and talks to the API directly.
 
-This runnable cut uses Cognee's embedded SQLite, LanceDB and Ladybug stores for knowledge, and a separate Postgres database for application records. Identity still uses a development-only `X-User` header; Enrolment and ownership are checked against the persistent records. The API runs background ingest while the dedicated Worker queue and OAuth remain future work; see [docs/wiki/backlog.md](docs/wiki/backlog.md).
+This runnable cut uses Cognee's embedded SQLite, LanceDB and Ladybug stores for knowledge, and a separate Postgres database for application records. Sign-in is Google OAuth in the web app behind single-use Invites; API calls carry a Lattice-minted `Bearer` token, with the `X-User` header kept for tests and local dev (`DEV_HEADER_AUTH`). Enrolment and ownership are checked against the persistent records. The API runs background ingest while the dedicated Worker queue remains future work; see [docs/wiki/backlog.md](docs/wiki/backlog.md).
 
 ## Repository
 
@@ -79,7 +79,7 @@ cd app && npm run generate-api                         # app/src/lib/generated/
 
 The web app is scoped by URL. `/` is a course picker: type a code matching `^[a-z][a-z0-9]{1,15}$` and it opens `/courses/{code}`. Codes you have opened before are listed as links, kept in `localStorage` under `lattice.courses`. The home screen combines enrolled courses from the API with the browser's course library.
 
-`/courses/{code}` opens the reader workspace with Materials, Notes and Ask. The existing `/materials`, `/notes` and `/ask` study routes remain available, including direct Session URLs. The email goes out as the `X-User` header, which is the dev-only identity the API accepts while OAuth is unbuilt. Layout and conventions are in [app/README.md](app/README.md).
+`/courses/{code}` opens the reader workspace with Materials, Notes and Ask. The existing `/materials`, `/notes` and `/ask` study routes remain available, including direct Session URLs. Routes sit behind `/login`: sign in with Google through an invite link (instructors mint them from the home page), and the app sends the session's Lattice token as `Bearer` on every API call. Layout and conventions are in [app/README.md](app/README.md).
 
 Two things worth knowing before editing it:
 

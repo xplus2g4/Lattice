@@ -22,9 +22,13 @@ class Settings(BaseSettings):
     # Run `alembic upgrade head` on start-up. Convenient in dev; deploys run it explicitly.
     database_auto_migrate: bool = False
 
-    # Honour the `X-User` header as the caller's identity. Dev only; there is no OAuth yet.
+    # Honour the `X-User` header as the caller's identity. Dev only; Bearer replaces it.
     dev_header_auth: bool = False
     mcp_enabled: bool = False
+
+    # HS256 key for the tokens the web app mints after Google sign-in. Shared with the
+    # web app; empty disables Bearer verification so tests and MCP dev stay header-only.
+    token_secret: str = ""
 
     # Principal that owns every course's global dataset and runs material ingest.
     instructor_email: str = "instructor@lattice.example"

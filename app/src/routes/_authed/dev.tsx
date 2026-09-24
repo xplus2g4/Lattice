@@ -29,7 +29,7 @@ import type {
   Turn,
 } from '#/lib/api'
 
-export const Route = createFileRoute('/dev')({ component: Home })
+export const Route = createFileRoute('/_authed/dev')({ component: Home })
 
 const COURSE_RE = /^[a-z][a-z0-9]{1,15}$/
 
@@ -86,12 +86,12 @@ function Materials({ course, user }: Enrolment) {
   const key = ['materials', course, user]
   const materials = useQuery({
     queryKey: key,
-    queryFn: () => listMaterials(user, course),
+    queryFn: () => listMaterials(course),
     refetchInterval: (q) => pollWhilePending<Material>(q.state.data),
   })
   const [file, setFile] = useState<File | null>(null)
   const upload = useMutation({
-    mutationFn: (f: File) => uploadMaterial(user, course, f),
+    mutationFn: (f: File) => uploadMaterial(course, f),
     onSuccess: () => {
       setFile(null)
       return queryClient.invalidateQueries({ queryKey: key })
@@ -146,13 +146,13 @@ function Notes({ course, user }: Enrolment) {
   const key = ['notes', course, user]
   const notes = useQuery({
     queryKey: key,
-    queryFn: () => listNotes(user, course),
+    queryFn: () => listNotes(course),
     refetchInterval: (q) => pollWhilePending<Note>(q.state.data),
   })
   const [noteId, setNoteId] = useState('n1')
   const [body, setBody] = useState('')
   const save = useMutation({
-    mutationFn: () => saveNote(user, course, noteId, body),
+    mutationFn: () => saveNote(course, noteId, body),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
   })
 
@@ -219,7 +219,7 @@ function Ask({ course, user }: Enrolment) {
   const sessionKey = ['session', course, user, sessionId]
   const session = useQuery({
     queryKey: sessionKey,
-    queryFn: () => getSession(user, course, sessionId),
+    queryFn: () => getSession(course, sessionId),
     enabled: sessionId !== '',
     retry: false,
   })
@@ -235,7 +235,7 @@ function Ask({ course, user }: Enrolment) {
   const [queryType, setQueryType] = useState<QueryType>('GRAPH_COMPLETION')
   const submit = useMutation({
     mutationFn: (req: { question: string; query_type: QueryType }) =>
-      ask(user, course, { ...req, session_id: sessionId || null }),
+      ask(course, { ...req, session_id: sessionId || null }),
     onSuccess: (res, req) => {
       const userTurn: Turn = {
         role: 'user',
