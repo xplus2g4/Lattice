@@ -77,12 +77,12 @@ function Login() {
           <p className="fieldnotes-kicker mb-7 text-[#ED977E]">
             A little more understanding
           </p>
-          <h1 className="fieldnotes-display">
+          <p className="fieldnotes-display">
             <span className="fieldnotes-reveal block">Stay curious.</span>
             <span className="fieldnotes-reveal fieldnotes-reveal-late mt-2 block italic">
               Go a little deeper.
             </span>
-          </h1>
+          </p>
           <ul className="mt-12 border-t border-[#555044]">
             {FEATURES.map(({ icon, label }, i) => (
               <li
@@ -154,9 +154,9 @@ function Login() {
               />
               Private beta
             </Badge>
-            <h2 className="font-editorial text-4xl leading-tight tracking-tight sm:text-5xl">
+            <h1 className="font-editorial text-4xl leading-tight tracking-tight sm:text-5xl">
               {invite ? 'You have been invited' : 'Sign in to Lattice'}
-            </h2>
+            </h1>
             <p className="mt-2 text-base leading-7 text-muted-foreground">
               {invite
                 ? 'Continue with the Google account you were invited with.'

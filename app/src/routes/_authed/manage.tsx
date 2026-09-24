@@ -132,6 +132,7 @@ function CreateInvite() {
       <div className="flex flex-wrap items-center gap-2">
         <select
           className="h-11 rounded-sm border border-input bg-card px-3 text-base sm:text-sm"
+          aria-label="Invite role"
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
         >
@@ -140,6 +141,7 @@ function CreateInvite() {
         </select>
         <select
           className="h-11 rounded-sm border border-input bg-card px-3 text-base sm:text-sm"
+          aria-label="Invite expiry"
           value={expiresInDays}
           onChange={(e) => setExpiresInDays(Number(e.target.value))}
         >

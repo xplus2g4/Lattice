@@ -215,7 +215,7 @@ export function CourseWorkspace({
         <div className="space-y-5 border-b border-border px-5 py-5">
           <Link
             to="/"
-            className="fieldnotes-action inline-flex min-h-8 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            className="fieldnotes-action inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
             Home
@@ -226,7 +226,7 @@ export function CourseWorkspace({
             </p>
             <Badge
               variant="secondary"
-              className="h-auto border-0 bg-transparent p-0 font-mono text-2xl font-medium uppercase tracking-tight text-foreground"
+              className="h-auto border-0 bg-transparent p-0 font-mono text-xl font-medium uppercase tracking-tight text-foreground"
             >
               {course}
             </Badge>

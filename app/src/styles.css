@@ -27,7 +27,7 @@
   --destructive: #a52e2e;
   --destructive-foreground: #fffcf5;
   --border: #cbc3b5;
-  --input: #b5ac9c;
+  --input: #8d8270;
   --ring: #b6402c;
   --chart-1: #b6402c;
   --chart-2: #596044;
@@ -224,8 +224,15 @@ body {
   outline-offset: 3px;
 }
 
+.prose .katex-display {
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding-block: 0.25rem;
+}
+
 .fieldnotes-canvas {
   background-color: var(--background);
+  background-size: 180px 180px;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.86' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Cpath fill='%23000' opacity='.035' filter='url(%23grain)' d='M0 0h180v180H0z'/%3E%3C/svg%3E");
 }
 

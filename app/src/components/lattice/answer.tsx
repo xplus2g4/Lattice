@@ -163,7 +163,7 @@ export function ReferenceList({
                         material={s.filename}
                         span={span}
                         newTab={newTab}
-                        className="inline-flex min-h-8 items-center rounded-xs border border-border bg-citation-context px-2 py-1 font-mono text-xs text-citation-context-text transition-colors hover:border-primary"
+                        className="inline-flex min-h-8 items-center rounded-xs [@media(pointer:coarse)]:min-h-11 border border-border bg-citation-context px-2 py-1 font-mono text-xs text-citation-context-text transition-colors hover:border-primary"
                         label={`${s.label}, ${pages(span)}`}
                       >
                         {pages(span)}
