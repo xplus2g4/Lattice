@@ -9,6 +9,7 @@ import {
   StickyNote01Icon,
 } from '@hugeicons/core-free-icons'
 
+import { LoginGrid } from '#/components/lattice/login-grid'
 import { LogoMark } from '#/components/lattice/top-bar'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -61,8 +62,9 @@ function Login() {
         </span>
       </div>
 
-      <section className="fieldnotes-grid hidden min-h-dvh shrink-0 flex-col justify-between gap-16 bg-[#0E2622] px-10 py-12 text-white lg:flex lg:w-1/2 xl:px-16">
-        <div className="flex items-center justify-between gap-4">
+      <section className="relative isolate hidden min-h-dvh shrink-0 flex-col justify-between gap-16 overflow-hidden bg-[#0E2622] px-10 py-12 text-white lg:flex lg:w-1/2 xl:px-16">
+        <LoginGrid />
+        <div className="relative z-10 flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <LogoMark onDark />
             <span className="text-2xl font-semibold tracking-[-0.05em]">
@@ -73,7 +75,7 @@ function Login() {
             For the curious mind
           </span>
         </div>
-        <div>
+        <div className="relative z-10">
           <p className="fieldnotes-kicker mb-7 text-[#5CD1BE]">
             A little more understanding
           </p>
@@ -105,7 +107,7 @@ function Login() {
             ))}
           </ul>
         </div>
-        <div className="flex items-end justify-between gap-6">
+        <div className="relative z-10 flex items-end justify-between gap-6">
           <p className="max-w-56 text-sm leading-6 text-[#8FA7A2]">
             Built for students.
             <br />
