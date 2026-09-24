@@ -124,10 +124,13 @@ export function AskPanel({ course, user }: Enrolment) {
   }, [submit.isPending])
 
   const turns = session.data?.turns ?? []
+  // Scroll to the bottom when a question is sent, so its echo and the pending mark are in
+  // view; not when the answer lands, so a student reading further up is not pulled down.
   const scrollRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
-  }, [turns.length, submit.isPending])
+    if (submit.isPending)
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
+  }, [submit.isPending])
 
   return (
     <Tabs

@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HttpResponse, http } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   assistantTurn,
@@ -216,6 +216,30 @@ describe('the ask bar', () => {
     await waitFor(() => expect(field).toBeEnabled())
     expect(field).toHaveValue('')
     expect(field).toHaveFocus()
+  })
+
+  it('scrolls to the bottom when a question is sent, not when the answer lands', async () => {
+    resetStore({ materials: [material()] })
+    answerNextAskWith(
+      assistantTurn({ results: [tierResult({ answer: 'Buckets.' })] }),
+      { after: 150 },
+    )
+    const scrolls = () =>
+      vi.mocked(HTMLElement.prototype.scrollTo).mock.calls.length
+    const user = userEvent.setup()
+    renderRoute('/courses/cs101')
+
+    const field = await screen.findByPlaceholderText(/Ask about CS101/)
+    const before = scrolls()
+    await user.type(field, 'what is a bucket?')
+    await user.keyboard('{Control>}{Enter}{/Control}')
+    expect(screen.getByText('Thinking…')).toBeInTheDocument()
+    const onSend = scrolls()
+    expect(onSend).toBeGreaterThan(before)
+
+    expect(await screen.findByText('Buckets.')).toBeInTheDocument()
+    await waitFor(() => expect(field).toBeEnabled())
+    expect(scrolls()).toBe(onSend)
   })
 
   it('puts the question back when the ask fails', async () => {
