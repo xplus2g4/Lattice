@@ -8,6 +8,7 @@ import {
   materialTab,
   moveTab,
   noteTab,
+  nudgeTab,
   openTab,
   parseLayout,
   parseTab,
@@ -126,6 +127,33 @@ describe('dragging a tab', () => {
 
     expect(bars(layout)).toEqual([[`*${b}`, a]])
     expect(layout.focused).toBe(0)
+  })
+})
+
+describe('moving a tab from the keyboard', () => {
+  it('moves it one place within its group', () => {
+    const layout = nudgeTab(opened(a, b, c), a, 1)
+
+    expect(bars(layout)).toEqual([[b, `*${a}`, c]])
+  })
+
+  it('moves it into a split past the end of the left group', () => {
+    const layout = nudgeTab(opened(a, b), b, 1)
+
+    expect(bars(layout)).toEqual([[`*${a}`], [`*${b}`]])
+  })
+
+  it('moves it back past the start of the right group', () => {
+    const split = moveTab(opened(a, b, c), c, 1, 0)
+
+    expect(bars(nudgeTab(split, c, -1))).toEqual([[a, b, `*${c}`]])
+  })
+
+  it('stays put at an edge with nowhere to go', () => {
+    const layout = opened(a)
+
+    expect(nudgeTab(layout, a, -1)).toBe(layout)
+    expect(nudgeTab(layout, a, 1)).toBe(layout)
   })
 })
 

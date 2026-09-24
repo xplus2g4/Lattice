@@ -8,6 +8,7 @@ import { Badge } from '#/components/ui/badge'
 import { AskPanel } from '#/components/lattice/ask-panel'
 import { MaterialsPanel } from '#/components/lattice/materials-panel'
 import { NotesPanel } from '#/components/lattice/notes-panel'
+import { EditorArea } from '#/components/lattice/editor-area'
 import { discardDraft } from '#/components/lattice/note-editor'
 import { TabGroupView } from '#/components/lattice/tab-group'
 import { listMaterials, listNotes } from '#/lib/api'
@@ -20,10 +21,13 @@ import {
   isOpen,
   loadedTabs,
   materialTab,
+  moveTab,
   noteTab,
+  nudgeTab,
   openTab,
   parseTab,
   renameTab,
+  resizeSplit,
   retainTabs,
   useTabLayout,
 } from '#/lib/tabs'
@@ -31,7 +35,7 @@ import { useUser } from '#/lib/user'
 import { cn } from '#/lib/utils'
 
 import type { PageRange } from '#/components/lattice/material-viewer'
-import type { TabKey } from '#/lib/tabs'
+import type { TabKey, TabLayout } from '#/lib/tabs'
 
 type View = 'course' | 'reader' | 'ask'
 
@@ -166,6 +170,12 @@ export function CourseWorkspace({
     [requested, updateTabs, onDirtyChange, show],
   )
 
+  // After a move the moved tab is in front of the focused group, so the URL names it.
+  const follow = (next: TabLayout) => {
+    const tab = focusedTab(next)
+    if (tab !== requested) show(tab)
+  }
+
   const loaded = useMemo(() => loadedTabs(layout, dirty), [layout, dirty])
   const pane = (v: View) => (view === v ? 'flex' : 'hidden')
 
@@ -220,23 +230,39 @@ export function CourseWorkspace({
             Open a Material or Note from the sidebar to read it here.
           </div>
         ) : (
-          layout.groups.map((group, i) => (
-            <TabGroupView
-              key={i}
-              user={user}
-              course={course}
-              group={group}
-              loaded={loaded}
-              focused={i === layout.focused}
-              request={{ tab: requested, page, pageEnd, jump }}
-              label={label}
-              dirty={dirty}
-              onSelect={(tab) => show(tab)}
-              onClose={close}
-              onDirtyChange={onDirtyChange}
-              onSaved={onSaved}
-            />
-          ))
+          <EditorArea
+            layout={layout}
+            label={label}
+            onMove={(tab, to, index) =>
+              follow(updateTabs((l) => moveTab(l, tab, to, index)))
+            }
+            onResize={(split) => updateTabs((l) => resizeSplit(l, split))}
+            onFocusGroup={(i) => {
+              const active = layout.groups[i]?.active
+              if (i !== layout.focused && active) show(active)
+            }}
+          >
+            {(group, i) => (
+              <TabGroupView
+                index={i}
+                user={user}
+                course={course}
+                group={group}
+                loaded={loaded}
+                focused={i === layout.focused}
+                request={{ tab: requested, page, pageEnd, jump }}
+                label={label}
+                dirty={dirty}
+                onSelect={(tab) => show(tab)}
+                onClose={close}
+                onNudge={(tab, step) =>
+                  follow(updateTabs((l) => nudgeTab(l, tab, step)))
+                }
+                onDirtyChange={onDirtyChange}
+                onSaved={onSaved}
+              />
+            )}
+          </EditorArea>
         )}
       </main>
       <div

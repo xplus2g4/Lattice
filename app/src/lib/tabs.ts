@@ -168,6 +168,27 @@ export function moveTab(
   })
 }
 
+/** The keyboard's drag: one place left or right. Past the left group's end a tab moves
+ * into the right group (opening a split), and past the right group's start, back. */
+export function nudgeTab(
+  layout: TabLayout,
+  key: TabKey,
+  step: -1 | 1,
+): TabLayout {
+  const from = groupOf(layout, key)
+  if (from === -1) return layout
+  const index = layout.groups[from].tabs.indexOf(key) + step
+  if (index >= layout.groups[from].tabs.length && from === 0) {
+    return moveTab(layout, key, 1, 0)
+  }
+  if (index < 0 && from === 1) {
+    return moveTab(layout, key, 0, layout.groups[0].tabs.length)
+  }
+  return index < 0 || index >= layout.groups[from].tabs.length
+    ? layout
+    : moveTab(layout, key, from, index)
+}
+
 /** Swaps one key for another in place, as when a draft Note's first save names it. */
 export function renameTab(
   layout: TabLayout,

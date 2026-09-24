@@ -1,6 +1,6 @@
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { beforeAll, describe, expect, it, vi } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { KEEP_LOADED } from '#/lib/tabs'
 import { material, note } from '#/test/fixtures'
@@ -13,13 +13,6 @@ vi.mock('react-pdf', () => ({
   Page: () => null,
   pdfjs: { GlobalWorkerOptions: {} },
 }))
-beforeAll(() => {
-  globalThis.ResizeObserver = class {
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  }
-})
 
 const FILES = ['week1.pdf', 'week2.pdf', 'week3.pdf', 'memo.md']
 
@@ -202,5 +195,37 @@ describe('Notes in tabs', () => {
       await screen.findByRole('tab', { name: 'summary.pdf' }),
     ).toBeInTheDocument()
     expect(await screen.findByText('rendered pdf')).toBeInTheDocument()
+  })
+})
+
+describe('splitting the tabs', () => {
+  /** Each group's tabs, left then right. */
+  function groups() {
+    return screen.getAllByRole('tablist', { name: 'Open tabs' }).map((bar) =>
+      within(bar)
+        .getAllByRole('tab')
+        .map((t) => t.textContent),
+    )
+  }
+
+  it('moves a tab into a split from the keyboard, and back', async () => {
+    seed()
+    const { router } = renderRoute('/courses/cs101')
+    await screen.findByText('MATERIALS')
+    await openFromSidebar('week1.pdf')
+    await openFromSidebar('week2.pdf')
+
+    screen.getByRole('tab', { name: 'week2.pdf' }).focus()
+    await userEvent.keyboard('{Alt>}{Shift>}{ArrowRight}{/Shift}{/Alt}')
+
+    await waitFor(() =>
+      expect(groups()).toEqual([['week1.pdf'], ['week2.pdf']]),
+    )
+    expect(router.state.location.search).toEqual({ material: 'week2.pdf' })
+
+    screen.getByRole('tab', { name: 'week2.pdf' }).focus()
+    await userEvent.keyboard('{Alt>}{Shift>}{ArrowLeft}{/Shift}{/Alt}')
+
+    await waitFor(() => expect(groups()).toEqual([['week1.pdf', 'week2.pdf']]))
   })
 })
