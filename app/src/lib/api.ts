@@ -470,6 +470,10 @@ export async function uploadNote(
   })
   return noteView(user, course, saved.note)
 }
+/** A PDF Note's bytes. Unlike a Material, a Note is fetched by id: only its author has it. */
+export async function downloadNote(user: string, note: string): Promise<Blob> {
+  return (await fetchResponse(user, query('/notes.download', { note }))).blob()
+}
 
 export interface UploadResult {
   file: File

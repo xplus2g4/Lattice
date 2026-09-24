@@ -101,28 +101,17 @@ export function MaterialsPanel({ course, user }: Enrolment) {
               )}
             </>
           )
-          const className =
-            'block rounded-lg px-2 py-1.5 transition-colors hover:bg-accent'
           return (
             <li key={m.filename}>
-              {m.filename.toLowerCase().endsWith('.pdf') ? (
-                <Link
-                  to="/courses/$course"
-                  params={{ course: course }}
-                  search={{ material: m.filename }}
-                  className={className}
-                >
-                  {row}
-                </Link>
-              ) : (
-                <Link
-                  to="/courses/$course/materials/$filename"
-                  params={{ course: course, filename: m.filename }}
-                  className={className}
-                >
-                  {row}
-                </Link>
-              )}
+              {/* Every Material opens as a tab; the viewer handles each kind. */}
+              <Link
+                to="/courses/$course"
+                params={{ course: course }}
+                search={{ material: m.filename }}
+                className="block rounded-lg px-2 py-1.5 transition-colors hover:bg-accent"
+              >
+                {row}
+              </Link>
             </li>
           )
         })}

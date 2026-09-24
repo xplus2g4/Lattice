@@ -16,6 +16,24 @@ const NodeFormData = (await new Response(new URLSearchParams()).formData())
   .constructor as typeof FormData
 Object.assign(globalThis, { File, FormData: NodeFormData })
 
+// jsdom has no layout, so no ResizeObserver; the PDF reader and the split's panels
+// both observe their size. Nothing is ever reported, which suits a layout-free test.
+globalThis.ResizeObserver = class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+// Nor media queries: every query matches, so tests see the wide layout.
+Object.defineProperty(window, 'matchMedia', {
+  configurable: true,
+  value: (query: string) => ({
+    matches: true,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  }),
+})
+
 Object.defineProperty(window, 'scrollTo', {
   configurable: true,
   value: vi.fn(),

@@ -186,6 +186,27 @@ async def test_a_file_note_is_private_to_its_author(student: AsyncClient) -> Non
     assert theirs.json() == []
 
 
+async def test_a_file_note_downloads_only_for_its_author(student: AsyncClient) -> None:
+    await join(student)
+    note = (await upload_note(student, content=b"my summary", filename="summary.pdf"))["note"]
+    await student.post("/enrolments.join", json={"course": "cs3216"}, headers=BOB)
+
+    downloaded = await student.get("/notes.download", params={"note": note["id"]})
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"my summary"
+    assert "summary.pdf" in downloaded.headers["content-disposition"]
+    stolen = await student.get("/notes.download", params={"note": note["id"]}, headers=BOB)
+    assert stolen.status_code == 404
+
+
+async def test_a_typed_note_has_nothing_to_download(student: AsyncClient) -> None:
+    await join(student)
+    note = await save(student, body_md="hash tables")
+
+    response = await student.get("/notes.download", params={"note": note["id"]})
+    assert response.status_code == 404
+
+
 async def test_a_file_note_has_no_editable_body(student: AsyncClient) -> None:
     await join(student)
     note = (await upload_note(student))["note"]

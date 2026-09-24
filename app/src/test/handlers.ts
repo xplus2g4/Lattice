@@ -199,7 +199,8 @@ export const handlers = [
   http.get(
     '*/materials.download',
     () =>
-      new HttpResponse('sample material', {
+      // Markdown, so a `.md` Material has something to render.
+      new HttpResponse('# Sample memo\n\nsample material', {
         headers: { 'Content-Type': 'text/plain' },
       }),
   ),
@@ -214,6 +215,17 @@ export const handlers = [
         .map(noteOut),
     ),
   ),
+  http.get('*/notes.download', ({ request }) => {
+    const id = new URL(request.url).searchParams.get('note')
+    const found = store.notes.find(
+      (n) => n.id === id && n.owner === request.headers.get('X-User'),
+    )
+    return found?.filename
+      ? new HttpResponse('sample note', {
+          headers: { 'Content-Type': 'application/pdf' },
+        })
+      : HttpResponse.json({ detail: 'no such note' }, { status: 404 })
+  }),
   http.post('*/notes.save', async ({ request }) => {
     const body = (await request.json()) as {
       course: string

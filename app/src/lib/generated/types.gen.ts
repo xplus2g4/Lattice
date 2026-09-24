@@ -1671,6 +1671,41 @@ export type DeleteNoteNotesDeletePostResponses = {
 export type DeleteNoteNotesDeletePostResponse =
   DeleteNoteNotesDeletePostResponses[keyof DeleteNoteNotesDeletePostResponses]
 
+export type DownloadNoteNotesDownloadGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Note
+     */
+    note: string
+  }
+  url: '/notes.download'
+}
+
+export type DownloadNoteNotesDownloadGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type DownloadNoteNotesDownloadGetError =
+  DownloadNoteNotesDownloadGetErrors[keyof DownloadNoteNotesDownloadGetErrors]
+
+export type DownloadNoteNotesDownloadGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown
+}
+
 export type GetNoteNotesGetGetData = {
   body?: never
   headers?: {

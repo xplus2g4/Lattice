@@ -2866,6 +2866,59 @@
         ]
       }
     },
+    "/notes.download": {
+      "get": {
+        "description": "A PDF Note's bytes, so the reader can open it; only its author may read them.",
+        "operationId": "download_note_notes_download_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "note",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Note",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Download Note",
+        "tags": [
+          "notes"
+        ]
+      }
+    },
     "/notes.get": {
       "get": {
         "description": "By id, or by the page it is anchored to: the reader asks before it has one.",

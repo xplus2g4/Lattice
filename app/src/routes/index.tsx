@@ -138,8 +138,9 @@ function ContinueCard({
         </div>
         <Button asChild size="lg" className="shrink-0">
           <Link
-            to="/courses/$course/materials/$filename"
-            params={{ course: course, filename }}
+            to="/courses/$course"
+            params={{ course: course }}
+            search={{ material: filename }}
           >
             Open material
             <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" />

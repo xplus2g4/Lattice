@@ -22,8 +22,8 @@ const components: Components = {
   ),
 }
 
-/** An answer's Markdown, with GFM and KaTeX math. Raw HTML is not rendered: answers
- * are built from retrieved text, which is untrusted. */
+/** Markdown with GFM and KaTeX math: answers, Notes and `.md` Materials. Raw HTML is
+ * not rendered: all three are untrusted text. */
 export function Markdown({ children }: { children: string }) {
   return (
     <div className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:text-foreground prose-strong:text-foreground prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:text-foreground">
