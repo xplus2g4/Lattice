@@ -8,17 +8,22 @@ import { Badge } from '#/components/ui/badge'
 import { AskPanel } from '#/components/lattice/ask-panel'
 import { MaterialsPanel } from '#/components/lattice/materials-panel'
 import { NotesPanel } from '#/components/lattice/notes-panel'
+import { discardDraft } from '#/components/lattice/note-editor'
 import { TabGroupView } from '#/components/lattice/tab-group'
-import { listMaterials } from '#/lib/api'
+import { listMaterials, listNotes } from '#/lib/api'
 import { useLibrary } from '#/lib/library'
+import { noteLabel } from '#/lib/references'
 import {
   closeTab,
   focusedTab,
+  isDraftNote,
   isOpen,
   loadedTabs,
   materialTab,
+  noteTab,
   openTab,
   parseTab,
+  renameTab,
   retainTabs,
   useTabLayout,
 } from '#/lib/tabs'
@@ -38,28 +43,36 @@ const VIEWS: Array<[View, string]> = [
 
 function tabSearch(tab: TabKey) {
   const parsed = parseTab(tab)
-  return parsed.kind === 'material' ? { material: parsed.filename } : {}
+  return parsed.kind === 'material'
+    ? { material: parsed.filename }
+    : { note: parsed.id }
 }
 
 export function CourseWorkspace({
   course,
   material,
+  note,
   page,
   pageEnd,
   jump,
 }: {
   course: string
   material?: string
+  note?: string
 } & PageRange) {
   const [user] = useUser()
   const { markOpened } = useLibrary()
   const navigate = useNavigate()
   const [layout, updateTabs] = useTabLayout(user, course)
-  const requested = material ? materialTab(material) : null
+  const requested = material
+    ? materialTab(material)
+    : note
+      ? noteTab(note)
+      : null
   const front = focusedTab(layout)
   // Below lg one column shows at a time. The columns never change with what is open,
   // so opening a tab leaves the sidebar and Ask where they are.
-  const [view, setView] = useState<View>(material ? 'reader' : 'course')
+  const [view, setView] = useState<View>(requested ? 'reader' : 'course')
 
   const show = useCallback(
     (tab: TabKey | null, replace = false) =>
@@ -89,29 +102,71 @@ export function CourseWorkspace({
     if (!requested && front) show(front, true)
   }, [requested, front, show])
 
-  // A deleted Material's tab closes; if the URL named it, the URL moves on.
+  // A deleted Material's or Note's tab closes; if the URL named it, the URL moves on.
   const materials = useQuery({
     queryKey: ['materials', course, user],
     queryFn: () => listMaterials(user, course),
   })
+  const notes = useQuery({
+    queryKey: ['notes', course, user],
+    queryFn: () => listNotes(user, course),
+  })
   useEffect(() => {
-    if (!materials.data) return
+    if (!materials.data || !notes.data) return
     const names = new Set(materials.data.map((m) => m.filename))
+    const ids = new Set(notes.data.map((n) => n.id))
     const next = updateTabs((l) =>
       retainTabs(l, (key) => {
         const tab = parseTab(key)
-        return tab.kind !== 'material' || names.has(tab.filename)
+        return tab.kind === 'material'
+          ? names.has(tab.filename)
+          : ids.has(tab.id) || isDraftNote(tab.id)
       }),
     )
     if (requested && !isOpen(next, requested)) show(focusedTab(next), true)
-  }, [materials.data, requested, updateTabs, show])
+  }, [materials.data, notes.data, requested, updateTabs, show])
+
+  const label = (tab: TabKey) => {
+    const parsed = parseTab(tab)
+    if (parsed.kind === 'material') return parsed.filename
+    if (isDraftNote(parsed.id)) return 'Untitled'
+    const found = notes.data?.find((n) => n.id === parsed.id)
+    return found ? noteLabel(found) : 'Note'
+  }
+
+  // Note tabs with unsaved edits: they are never unloaded, and closing one asks first.
+  const [dirty, setDirty] = useState<ReadonlySet<TabKey>>(new Set())
+  const onDirtyChange = useCallback((tab: TabKey, isDirty: boolean) => {
+    setDirty((prev) => {
+      if (prev.has(tab) === isDirty) return prev
+      const next = new Set(prev)
+      if (isDirty) next.add(tab)
+      else next.delete(tab)
+      return next
+    })
+  }, [])
 
   const close = (tab: TabKey) => {
+    if (dirty.has(tab)) {
+      if (!window.confirm(`Discard unsaved changes to ${label(tab)}?`)) return
+      discardDraft(tab)
+      onDirtyChange(tab, false)
+    }
     const next = updateTabs((l) => closeTab(l, tab))
     if (tab === requested) show(focusedTab(next))
   }
 
-  const loaded = useMemo(() => loadedTabs(layout), [layout])
+  // A draft Note's first save names it: its tab, and the URL if it was in front, follow.
+  const onSaved = useCallback(
+    (from: TabKey, to: TabKey) => {
+      updateTabs((l) => renameTab(l, from, to))
+      onDirtyChange(from, false)
+      if (from === requested) show(to, true)
+    },
+    [requested, updateTabs, onDirtyChange, show],
+  )
+
+  const loaded = useMemo(() => loadedTabs(layout, dirty), [layout, dirty])
   const pane = (v: View) => (view === v ? 'flex' : 'hidden')
 
   return (
@@ -120,7 +175,7 @@ export function CourseWorkspace({
         aria-label="Workspace"
         className="flex items-center gap-1 border-b border-border p-1.5 lg:hidden"
       >
-        {VIEWS.map(([v, label]) => (
+        {VIEWS.map(([v, title]) => (
           <button
             key={v}
             type="button"
@@ -133,7 +188,7 @@ export function CourseWorkspace({
                 : 'text-muted-foreground hover:text-foreground',
             )}
           >
-            {label}
+            {title}
           </button>
         ))}
       </nav>
@@ -162,7 +217,7 @@ export function CourseWorkspace({
       <main className={`${pane('reader')} min-h-0 min-w-0 flex-1 lg:flex`}>
         {layout.groups[0].tabs.length === 0 ? (
           <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            Open a Material from the sidebar to read it here.
+            Open a Material or Note from the sidebar to read it here.
           </div>
         ) : (
           layout.groups.map((group, i) => (
@@ -174,8 +229,12 @@ export function CourseWorkspace({
               loaded={loaded}
               focused={i === layout.focused}
               request={{ tab: requested, page, pageEnd, jump }}
+              label={label}
+              dirty={dirty}
               onSelect={(tab) => show(tab)}
               onClose={close}
+              onDirtyChange={onDirtyChange}
+              onSaved={onSaved}
             />
           ))
         )}

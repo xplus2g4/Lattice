@@ -1,29 +1,15 @@
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { PenIcon, PlusSignIcon } from '@hugeicons/core-free-icons'
-import { useRef, useState } from 'react'
+import { useRef } from 'react'
 
 import { Button } from '#/components/ui/button'
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '#/components/ui/dialog'
-import { Textarea } from '#/components/ui/textarea'
-import {
-  listNotes,
-  pollWhilePending,
-  saveNote,
-  uploadEach,
-  uploadNote,
-} from '#/lib/api'
+import { listNotes, pollWhilePending, uploadEach, uploadNote } from '#/lib/api'
+import { draftNoteId } from '#/lib/tabs'
 import { StatusBadge } from './status-badge'
 
 import type { Enrolment } from '#/lib/api'
-
-const NOTE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/
 
 export function NotesPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
@@ -33,19 +19,7 @@ export function NotesPanel({ course, user }: Enrolment) {
     queryFn: () => listNotes(user, course),
     refetchInterval: (q) => pollWhilePending(q.state.data),
   })
-  const [editing, setEditing] = useState<{
-    id: string
-    body: string
-    isNew: boolean
-  } | null>(null)
-  const save = useMutation({
-    mutationFn: (note: { id: string; body: string }) =>
-      saveNote(user, course, note.id, note.body),
-    onSuccess: () => {
-      setEditing(null)
-      return queryClient.invalidateQueries({ queryKey: key })
-    },
-  })
+  const navigate = useNavigate()
   // PDF Notes: every selected file becomes its own Note; failures are reported per file.
   const inputRef = useRef<HTMLInputElement>(null)
   const upload = useMutation({
@@ -64,11 +38,12 @@ export function NotesPanel({ course, user }: Enrolment) {
           <Button
             variant="ghost"
             size="xs"
+            // A new Note is written in its own tab; its first save gives it an id.
             onClick={() =>
-              setEditing({
-                id: `note-${Date.now().toString(36)}`,
-                body: '',
-                isNew: true,
+              void navigate({
+                to: '/courses/$course',
+                params: { course },
+                search: { note: draftNoteId() },
               })
             }
           >
@@ -137,23 +112,17 @@ export function NotesPanel({ course, user }: Enrolment) {
               )}
             </>
           )
-          const className = 'block w-full rounded-lg px-2 py-1.5 text-left'
           return (
             <li key={n.id}>
-              {n.filename ? (
-                // A PDF Note has no body to edit, so its row does not open the editor.
-                <div className={className}>{row}</div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() =>
-                    setEditing({ id: n.id, body: n.body_md, isNew: false })
-                  }
-                  className={`${className} transition-colors hover:bg-accent`}
-                >
-                  {row}
-                </button>
-              )}
+              {/* Every Note opens as a tab: an editor, or the reader for a PDF. */}
+              <Link
+                to="/courses/$course"
+                params={{ course }}
+                search={{ note: n.id }}
+                className="block rounded-lg px-2 py-1.5 transition-colors hover:bg-accent"
+              >
+                {row}
+              </Link>
             </li>
           )
         })}
@@ -163,54 +132,6 @@ export function NotesPanel({ course, user }: Enrolment) {
           </li>
         )}
       </ul>
-
-      <Dialog
-        open={editing !== null}
-        onOpenChange={(open) => !open && setEditing(null)}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editing?.isNew ? 'New note' : 'Edit note'}
-            </DialogTitle>
-          </DialogHeader>
-          {editing && (
-            <form
-              className="space-y-3"
-              onSubmit={(e) => {
-                e.preventDefault()
-                if (NOTE_ID_RE.test(editing.id) && editing.body.trim()) {
-                  save.mutate({ id: editing.id, body: editing.body })
-                }
-              }}
-            >
-              <Textarea
-                className="min-h-40"
-                placeholder="Markdown body"
-                value={editing.body}
-                onChange={(e) =>
-                  setEditing({ ...editing, body: e.target.value })
-                }
-              />
-              {save.error && (
-                <p className="text-xs text-destructive">{save.error.message}</p>
-              )}
-              <DialogFooter>
-                <Button
-                  type="submit"
-                  disabled={
-                    !NOTE_ID_RE.test(editing.id) ||
-                    !editing.body.trim() ||
-                    save.isPending
-                  }
-                >
-                  {save.isPending ? 'Saving…' : 'Save note'}
-                </Button>
-              </DialogFooter>
-            </form>
-          )}
-        </DialogContent>
-      </Dialog>
     </section>
   )
 }

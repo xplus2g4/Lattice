@@ -4,32 +4,30 @@ import { Tabs as TabsPrimitive } from 'radix-ui'
 import { useCallback, useState } from 'react'
 
 import { MaterialViewer } from '#/components/lattice/material-viewer'
+import { NoteTab } from '#/components/lattice/note-editor'
 import { readingPosition, saveReadingPosition } from '#/lib/reading-position'
 import { parseTab } from '#/lib/tabs'
 import { cn } from '#/lib/utils'
 
 import type { PageRange } from '#/components/lattice/material-viewer'
+import type { NoteTabEvents } from '#/components/lattice/note-editor'
 import type { TabGroup, TabKey } from '#/lib/tabs'
 
 /** The tab the URL names and the Page it asks for; only that tab receives the Page. */
 export type TabRequest = { tab: TabKey | null } & PageRange
-
-function tabLabel(tab: TabKey): string {
-  const parsed = parseTab(tab)
-  return parsed.kind === 'material' ? parsed.filename : parsed.id
-}
 
 function TabBody({
   user,
   course,
   tab,
   range,
+  ...events
 }: {
   user: string
   course: string
   tab: TabKey
   range: PageRange
-}) {
+} & NoteTabEvents) {
   const parsed = parseTab(tab)
   // Read once: a tab that was unloaded returns to where the reader left it.
   const [resume] = useState(() => readingPosition(user, course, tab))
@@ -37,7 +35,19 @@ function TabBody({
     (page: number) => saveReadingPosition(user, course, tab, page),
     [user, course, tab],
   )
-  if (parsed.kind !== 'material') return null
+  if (parsed.kind === 'note') {
+    return (
+      <NoteTab
+        user={user}
+        course={course}
+        id={parsed.id}
+        {...range}
+        resume={resume}
+        onPage={onPage}
+        {...events}
+      />
+    )
+  }
   return (
     <MaterialViewer
       course={course}
@@ -58,8 +68,11 @@ export function TabGroupView({
   loaded,
   focused,
   request,
+  label,
+  dirty,
   onSelect,
   onClose,
+  ...events
 }: {
   user: string
   course: string
@@ -69,9 +82,12 @@ export function TabGroupView({
   /** Whether this is the group new tabs open in. */
   focused: boolean
   request: TabRequest
+  label: (tab: TabKey) => string
+  /** Note tabs with unsaved edits, marked ● in the bar. */
+  dirty: ReadonlySet<TabKey>
   onSelect: (tab: TabKey) => void
   onClose: (tab: TabKey) => void
-}) {
+} & NoteTabEvents) {
   return (
     <TabsPrimitive.Root
       value={group.active ?? ''}
@@ -83,7 +99,7 @@ export function TabGroupView({
         className="flex shrink-0 overflow-x-auto border-b border-border bg-muted/40"
       >
         {group.tabs.map((tab) => {
-          const label = tabLabel(tab)
+          const name = label(tab)
           const active = tab === group.active
           return (
             <div
@@ -103,20 +119,25 @@ export function TabGroupView({
             >
               <TabsPrimitive.Trigger
                 value={tab}
-                title={label}
+                title={name}
                 aria-keyshortcuts="Delete"
                 onKeyDown={(e) => {
                   if (e.key === 'Delete') onClose(tab)
                 }}
                 className="max-w-56 truncate py-1.5 pl-3 pr-1 text-sm text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:text-foreground"
               >
-                {label}
+                {dirty.has(tab) && (
+                  <span aria-label="unsaved" className="mr-1">
+                    ●
+                  </span>
+                )}
+                {name}
               </TabsPrimitive.Trigger>
               <button
                 type="button"
                 // Out of the Tab order: Delete on the tab closes it from the keyboard.
                 tabIndex={-1}
-                aria-label={`Close ${label}`}
+                aria-label={`Close ${name}`}
                 onClick={() => onClose(tab)}
                 className="mr-1 rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
               >
@@ -150,6 +171,7 @@ export function TabGroupView({
                       }
                     : {}
                 }
+                {...events}
               />
             </TabsPrimitive.Content>
           ))}

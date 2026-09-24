@@ -7,6 +7,8 @@ import { downloadMaterial } from '#/lib/api'
 import { installReadableStreamAsyncIterator } from '#/lib/readable-stream-async-iterator'
 import { useUser } from '#/lib/user'
 
+import type { QueryKey } from '@tanstack/react-query'
+
 import 'react-pdf/dist/Page/AnnotationLayer.css'
 import 'react-pdf/dist/Page/TextLayer.css'
 
@@ -40,14 +42,20 @@ function useObjectUrl(blob: Blob | undefined): string | null {
   return url
 }
 
-export function useMaterialFile(course: string, filename: string) {
-  const [user] = useUser()
+/** Where a viewer's bytes come from: a Material, or a PDF Note. */
+export interface FileSource {
+  queryKey: QueryKey
+  filename: string
+  load: () => Promise<Blob>
+}
+
+function useFile({ queryKey, filename, load }: FileSource) {
   const file = useQuery({
-    queryKey: ['material-file', course, filename, user],
+    queryKey,
     staleTime: Infinity,
     retry: false,
     queryFn: async () => {
-      const blob = await downloadMaterial(user, course, filename)
+      const blob = await load()
       const kind = kindOf(filename)
       return { blob, kind, text: kind === 'text' ? await blob.text() : null }
     },
@@ -191,17 +199,35 @@ function PdfPages({
 export function MaterialViewer({
   course,
   filename,
-  page,
-  pageEnd,
-  jump,
-  resume,
-  onPage,
+  ...rest
 }: {
   course: string
   filename: string
 } & PageRange &
   ReadingPosition) {
-  const { file, url } = useMaterialFile(course, filename)
+  const [user] = useUser()
+  return (
+    <FileViewer
+      source={{
+        queryKey: ['material-file', course, filename, user],
+        filename,
+        load: () => downloadMaterial(user, course, filename),
+      }}
+      {...rest}
+    />
+  )
+}
+
+export function FileViewer({
+  source,
+  page,
+  pageEnd,
+  jump,
+  resume,
+  onPage,
+}: { source: FileSource } & PageRange & ReadingPosition) {
+  const { filename } = source
+  const { file, url } = useFile(source)
   // react-pdf touches browser APIs; never render it during SSR.
   const [mounted, setMounted] = useState(false)
   useEffect(() => setMounted(true), [])
@@ -213,7 +239,7 @@ export function MaterialViewer({
       )}
       {file.error && (
         <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
-          <p className="font-semibold">Could not load this material</p>
+          <p className="font-semibold">Could not load {filename}</p>
           <p className="text-sm text-destructive">{file.error.message}</p>
         </div>
       )}

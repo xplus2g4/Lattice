@@ -3,8 +3,8 @@ import userEvent from '@testing-library/user-event'
 import { beforeAll, describe, expect, it, vi } from 'vitest'
 
 import { KEEP_LOADED } from '#/lib/tabs'
-import { material } from '#/test/fixtures'
-import { resetStore } from '#/test/handlers'
+import { material, note } from '#/test/fixtures'
+import { resetStore, store } from '#/test/handlers'
 import { renderRoute } from '#/test/render'
 
 // jsdom can run neither pdf.js nor layout; what is under test is the tabs around the viewer.
@@ -130,6 +130,77 @@ describe('the workspace tabs', () => {
 
     await waitFor(() => expect(router.state.location.search).toEqual({}))
     expect(openTabs()).toEqual([])
-    expect(screen.getByText(/Open a Material from the sidebar/)).toBeVisible()
+    expect(
+      screen.getByText(/Open a Material or Note from the sidebar/),
+    ).toBeVisible()
+  })
+})
+
+describe('Notes in tabs', () => {
+  const TYPED = note({
+    id: '3f1c2b4a-0000-4000-8000-000000000001',
+    body_md: 'Hash tables\nare week 3',
+  })
+
+  async function openNote(text: string) {
+    const panel = (await screen.findByText('NOTES')).closest('section')
+    if (!panel) throw new Error('no Notes panel')
+    await userEvent.click(await within(panel).findByText(text))
+  }
+
+  it('writes a new Note in an Untitled tab and names it on its first save', async () => {
+    resetStore()
+    const { router } = renderRoute('/courses/cs101')
+    await userEvent.click(await screen.findByRole('button', { name: 'Write' }))
+
+    await screen.findByRole('tab', { name: 'Untitled' })
+    await userEvent.type(screen.getByLabelText('Note body'), 'Graph walks')
+    expect(screen.getByRole('tab', { name: /unsaved.*Untitled/ })).toBeVisible()
+    await userEvent.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(
+      await screen.findByRole('tab', { name: 'Graph walks' }),
+    ).toBeInTheDocument()
+    expect(openTabs()).toEqual(['Graph walks'])
+    const saved = store.notes.find((n) => n.body_md === 'Graph walks')
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ note: saved?.id }),
+    )
+  })
+
+  it('asks before closing a Note with unsaved edits', async () => {
+    resetStore({ notes: [TYPED] })
+    renderRoute('/courses/cs101')
+    await openNote(TYPED.id)
+    const body = await screen.findByLabelText('Note body')
+    expect(body).toHaveValue('Hash tables\nare week 3')
+    await userEvent.type(body, ', probably')
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Close Hash tables' }),
+    )
+    expect(confirm).toHaveBeenCalledOnce()
+    expect(openTabs()).toHaveLength(1)
+
+    confirm.mockReturnValueOnce(true)
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Close Hash tables' }),
+    )
+    await waitFor(() => expect(openTabs()).toEqual([]))
+  })
+
+  it('opens a PDF Note in the reader', async () => {
+    resetStore({
+      notes: [note({ id: 'pdf-1', filename: 'summary.pdf', body_md: '' })],
+    })
+    renderRoute('/courses/cs101')
+
+    await openNote('summary.pdf')
+
+    expect(
+      await screen.findByRole('tab', { name: 'summary.pdf' }),
+    ).toBeInTheDocument()
+    expect(await screen.findByText('rendered pdf')).toBeInTheDocument()
   })
 })

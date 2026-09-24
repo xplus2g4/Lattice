@@ -11,6 +11,7 @@ import {
   openTab,
   parseLayout,
   parseTab,
+  renameTab,
   resizeSplit,
   retainTabs,
 } from '#/lib/tabs'
@@ -180,6 +181,14 @@ describe('a stored layout', () => {
       recent: [b],
     })
   })
+})
+
+it('renames a draft Note’s tab in place once it is saved', () => {
+  const draft = noteTab('new-1')
+  const layout = renameTab(opened(a, draft, b), draft, n)
+
+  expect(bars(layout)).toEqual([[a, n, `*${b}`]])
+  expect(layout.recent).toEqual([b, n, a])
 })
 
 it('closes the tabs of deleted Materials and Notes', () => {

@@ -35,7 +35,7 @@ export function materialFor(
   )
 }
 
-function noteLabel(note: Note): string {
+export function noteLabel(note: Note): string {
   if (note.filename) return note.filename
   const line = note.body_md
     .split('\n')

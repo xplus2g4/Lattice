@@ -50,6 +50,15 @@ export function noteTab(id: string): TabKey {
   return `note:${id}`
 }
 
+/** A Note being written that the server has not seen; its first save gives it an id. */
+export function draftNoteId(): string {
+  return `new-${Date.now().toString(36)}`
+}
+
+export function isDraftNote(id: string): boolean {
+  return id.startsWith('new-')
+}
+
 export function parseTab(key: TabKey): Tab {
   const at = key.indexOf(':')
   const value = key.slice(at + 1)
@@ -157,6 +166,24 @@ export function moveTab(
     focused: target,
     recent: touch(layout.recent, key),
   })
+}
+
+/** Swaps one key for another in place, as when a draft Note's first save names it. */
+export function renameTab(
+  layout: TabLayout,
+  from: TabKey,
+  to: TabKey,
+): TabLayout {
+  if (groupOf(layout, from) === -1) return layout
+  const swap = (k: TabKey) => (k === from ? to : k)
+  return {
+    ...layout,
+    groups: layout.groups.map((g) => ({
+      tabs: g.tabs.map(swap),
+      active: g.active && swap(g.active),
+    })),
+    recent: layout.recent.map(swap),
+  }
 }
 
 export function resizeSplit(layout: TabLayout, split: number): TabLayout {
