@@ -1,10 +1,13 @@
 // Client-side library state: course codes the user has added (the server only
 // knows a course once it holds something) and the last material opened, which
-// drives the home screen's continue card.
+// drives the home screen's continue card. Keyed per signed-in user so a
+// shared browser doesn't leak one account's "continue reading" into another's.
 
 import { useCallback, useSyncExternalStore } from 'react'
 
-const KEY = 'lattice.library'
+import { useUser } from './user'
+
+const KEY_PREFIX = 'lattice.library'
 
 interface Library {
   courses: Array<string>
@@ -37,37 +40,53 @@ function parse(raw: string | null): Library {
   }
 }
 
-// useSyncExternalStore requires a stable snapshot per raw value.
-let cache: { raw: string | null; value: Library } = { raw: null, value: EMPTY }
+// useSyncExternalStore requires a stable snapshot per (key, raw) pair.
+let cache: { key: string; raw: string | null; value: Library } = {
+  key: '',
+  raw: null,
+  value: EMPTY,
+}
 
-function getSnapshot(): Library {
-  const raw = localStorage.getItem(KEY)
-  if (raw !== cache.raw) cache = { raw, value: parse(raw) }
+function getSnapshot(key: string): Library {
+  if (!key) return EMPTY
+  const raw = localStorage.getItem(key)
+  if (key !== cache.key || raw !== cache.raw) {
+    cache = { key, raw, value: parse(raw) }
+  }
   return cache.value
 }
 
-function write(next: Library) {
-  localStorage.setItem(KEY, JSON.stringify(next))
+function write(key: string, next: Library) {
+  if (!key) return
+  localStorage.setItem(key, JSON.stringify(next))
   listeners.forEach((l) => l())
 }
 
+/** Empty until the session query resolves; nothing is read or written for
+ * an unknown user, so no history is ever attributed to the wrong account. */
 export function useLibrary() {
-  const library = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY)
+  const user = useUser()
+  const key = user ? `${KEY_PREFIX}:${user}` : ''
+  const library = useSyncExternalStore(
+    subscribe,
+    () => getSnapshot(key),
+    () => EMPTY,
+  )
 
   const addCourse = useCallback(
     (code: string) => {
       if (!library.courses.includes(code)) {
-        write({ ...library, courses: [...library.courses, code] })
+        write(key, { ...library, courses: [...library.courses, code] })
       }
     },
-    [library],
+    [key, library],
   )
 
   const markOpened = useCallback(
     (course: string, filename: string) => {
-      write({ ...library, lastOpened: { course, filename } })
+      write(key, { ...library, lastOpened: { course, filename } })
     },
-    [library],
+    [key, library],
   )
 
   return {
