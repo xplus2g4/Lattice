@@ -1,6 +1,6 @@
 # Course knowledge store
 
-Per-course knowledge store: students ask questions scoped to a course and get cited answers from official materials plus their own notes. `server/` (FastAPI + Cognee) and `app/` (TanStack Start) hold a first runnable cut; the wiki describes the target Stage 1 system, and the code is catching up to it.
+Per-course knowledge store: students ask questions scoped to a course and get cited answers from official materials plus their own notes. `server/` (FastAPI + Cognee) and `app/` (TanStack Start) hold a first runnable cut. Cognee is the knowledge engine ([ADR 0006](./docs/adr/0006-cognee-go-for-phase-1.md)); application records use Postgres, and the concept graph remains outside the current feature scope.
 
 ## Vocabulary
 
@@ -37,3 +37,11 @@ Default vocabulary: the five canonical labels, unchanged. See `docs/agents/triag
 ### Domain docs
 
 Single-context: `CONTEXT.md` at the root plus `docs/adr/`. See `docs/agents/domain.md`.
+
+## Backend verification
+
+- Use `uv run --locked pytest -m "not canary"` in `server/` for checks without paid LLM calls. Persistence tests need Postgres via `TEST_DATABASE_URL`; use a dedicated test database. A local key makes plain `pytest` eligible to spend real LLM calls.
+- Cognee can populate process environment variables when imported. In isolated tests, `_env_file=None` alone is insufficient: pass identity/MCP flags and temporary storage paths explicitly to `Settings`.
+- MCP is opt-in (`MCP_ENABLED=true`, `DEV_HEADER_AUTH=true`) at `/mcp/`, for loopback development only. It shares Postgres records, Enrolment and opt-out checks with RPC. Run one API process per Cognee root. Legacy `UPLOADS_DIR/.page-notes` data is left untouched, not automatically migrated.
+- The additional paid synthetic study evaluation needs `LATTICE_RUN_STUDY_EVAL=1` and an LLM key; run `uv run --locked pytest tests/test_study_evaluation.py -v`. It records Q&A outputs for review and does not substitute for real-course quality evaluation.
+- When relocating existing Cognee storage, stop the API first and check persisted `dataset_database.vector_database_url` values: Cognee 1.5.4 stores absolute LanceDB paths, so changing `COGNEE_ROOT` alone does not rebase existing Datasets. Preserve old content references and record a reversible path mapping.

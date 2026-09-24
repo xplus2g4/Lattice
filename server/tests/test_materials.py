@@ -37,6 +37,24 @@ async def test_upload_persists_a_queued_material(student: AsyncClient, ingest) -
     assert [str(queued) for queued in ingest.queued] == [material["id"]]
 
 
+async def test_download_returns_only_the_enrolled_material_bytes(student: AsyncClient) -> None:
+    await join(student)
+    material = (await upload(student, content=b"course memo", filename="memo.txt"))["material"]
+    downloaded = await student.get("/materials.download", params={"material": material["id"]})
+    assert downloaded.status_code == 200
+    assert downloaded.content == b"course memo"
+    assert "memo.txt" in downloaded.headers["content-disposition"]
+
+
+async def test_download_rejects_an_unenrolled_caller(student: AsyncClient) -> None:
+    await join(student)
+    material = (await upload(student))["material"]
+    response = await student.get(
+        "/materials.download", params={"material": material["id"]}, headers=BOB
+    )
+    assert response.status_code == 403
+
+
 async def test_material_survives_the_request(student: AsyncClient) -> None:
     await join(student)
     material = (await upload(student))["material"]

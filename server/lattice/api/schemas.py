@@ -81,6 +81,8 @@ class ReadingPositionOut(Record):
 
 class NoteOut(Record):
     id: UUID
+    revision: int
+    cognified_revision: int
     course_id: UUID
     material_id: UUID | None
     page: int | None

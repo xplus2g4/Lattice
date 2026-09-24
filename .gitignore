@@ -17,6 +17,9 @@ Thumbs.db
 .env.*
 !.env.example
 
+# Devin local config
+.devin/*.local.json
+
 # Logs
 *.log
 

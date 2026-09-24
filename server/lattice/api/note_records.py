@@ -16,7 +16,8 @@ router = APIRouter(tags=["notes"])
 
 class SaveNote(BaseModel):
     course: str = Field(pattern=COURSE_CODE.pattern)
-    body_md: str = Field(min_length=1, max_length=50_000)
+    body_md: str = Field(max_length=50_000)
+    expected_revision: int | None = Field(default=None, ge=0)
     note: UUID | None = None
     material: UUID | None = None
     page: int | None = Field(default=None, ge=1)
@@ -66,15 +67,21 @@ async def save_note(
     if await courses.enrolment(session, user.id, course.id) is None:
         raise HTTPException(403, "not enrolled in this course")
 
-    note = await notes.save(
-        session,
-        user=user,
-        course=course,
-        body_md=body.body_md,
-        material=await _material(session, user, body.material),
-        page=body.page,
-        note=None if body.note is None else await _own_note(session, user, body.note),
-    )
+    try:
+        note = await notes.save(
+            session,
+            user=user,
+            course=course,
+            body_md=body.body_md,
+            material=await _material(session, user, body.material),
+            page=body.page,
+            note=None if body.note is None else await _own_note(session, user, body.note),
+            expected_revision=body.expected_revision,
+        )
+    except notes.RevisionConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
     if not user.notes_opt_out:
         background.add_task(ingest.note, note.id)
     return NoteOut.model_validate(note)

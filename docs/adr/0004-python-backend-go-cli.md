@@ -4,5 +4,5 @@ The Stage 1 backend is Python: Cognee is a Python library and the hot query path
 
 ## Consequences
 
-- The `/ask` and ingest contracts must be frozen as an OpenAPI spec in-repo before Stage 2 work starts, so a rewrite is mechanical. The spec does not exist yet.
+- The `/ask` and ingest contracts must be frozen as an OpenAPI spec in-repo before Stage 2 work starts, so a rewrite is mechanical. Done: `contracts/openapi.json`, generated and CI-enforced ([ADR 0005](./0005-generated-openapi-contract.md)).
 - Canary and eval tests target the contract, not the implementation.

@@ -1,7 +1,7 @@
 // localStorage as an external store so SSR renders the fallback and the
 // client re-renders with the stored value after hydration.
 
-import { useCallback, useSyncExternalStore } from 'react'
+import { useStored } from './storage'
 
 import { MOCK_API, useMe } from './auth'
 

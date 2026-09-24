@@ -143,6 +143,17 @@ async def get_material(material: UUID, user: CurrentUser, session: SessionDep) -
     return MaterialOut.model_validate(await _readable(session, user, material))
 
 
+@router.get("/materials.download", response_class=FileResponse)
+async def download_material(
+    material: UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> FileResponse:
+    row = await _readable(session, user, material)
+    path = Path(row.storage_uri).resolve()
+    if path.parent != (settings.uploads_dir / row.course.code).resolve() or not path.is_file():
+        raise HTTPException(404, "material bytes are unavailable")
+    return FileResponse(path, filename=row.filename)
+
+
 @router.post("/materials.update")
 async def update_material(
     body: UpdateMaterial, user: CurrentUser, session: SessionDep

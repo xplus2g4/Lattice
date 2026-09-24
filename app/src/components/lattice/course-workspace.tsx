@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { ArrowLeft01Icon, Cancel01Icon } from '@hugeicons/core-free-icons'
 import { useEffect, useState } from 'react'
@@ -43,8 +43,8 @@ function CourseWorkspace() {
 
   useEffect(() => {
     setMobileView('material')
-    if (material) markOpened(courseId, material)
-  }, [courseId, material, markOpened])
+    if (material) markOpened(course, material)
+  }, [course, material, page, jump, markOpened])
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background md:flex-row">
@@ -65,13 +65,13 @@ function CourseWorkspace() {
           </Link>
           <div className="px-1">
             <Badge variant="secondary" className="font-mono uppercase">
-              {courseId}
+              {course}
             </Badge>
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto">
-          <MaterialsPanel course={courseId} user={user} />
-          <NotesPanel course={courseId} user={user} />
+          <MaterialsPanel course={course} user={user} />
+          <NotesPanel course={course} user={user} />
         </div>
       </aside>
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -101,8 +101,8 @@ function CourseWorkspace() {
             </button>
             <Button asChild variant="ghost" size="icon-xs">
               <Link
-                to="/courses/$courseId"
-                params={{ courseId }}
+                to="/courses/$course"
+                params={{ course }}
                 search={{ material: undefined }}
                 aria-label="Close material"
               >
@@ -124,8 +124,8 @@ function CourseWorkspace() {
                 </p>
                 <Button asChild variant="ghost" size="icon-xs">
                   <Link
-                    to="/courses/$courseId"
-                    params={{ courseId }}
+                    to="/courses/$course"
+                    params={{ course }}
                     search={{ material: undefined }}
                     aria-label="Close material"
                   >
@@ -134,7 +134,13 @@ function CourseWorkspace() {
                 </Button>
               </div>
               <div className="min-h-0 flex-1">
-                <MaterialViewer course={courseId} filename={material} />
+                <MaterialViewer
+                  course={course}
+                  filename={material}
+                  page={page}
+                  pageEnd={pageEnd}
+                  jump={jump}
+                />
               </div>
             </section>
           )}
@@ -147,7 +153,7 @@ function CourseWorkspace() {
                 : 'flex min-h-0 min-w-0 flex-1 flex-col'
             }
           >
-            <AskPanel course={courseId} user={user} />
+            <AskPanel course={course} user={user} />
           </div>
         </div>
       </main>

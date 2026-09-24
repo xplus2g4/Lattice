@@ -34,7 +34,7 @@ async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
 
 EngineDep = Annotated[Engine, Depends(get_engine)]
 IngestDep = Annotated[Ingest, Depends(get_ingest)]
-SessionDep = Annotated[AsyncSession, Depends(get_session)]
+SessionDep = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
 def current_email(

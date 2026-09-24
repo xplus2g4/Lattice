@@ -1,6 +1,5 @@
 """Asking a course a question, and the Session it accumulates into."""
 
-import time
 from typing import Literal
 from uuid import UUID
 
@@ -12,13 +11,10 @@ from lattice.api.deps import COURSE_CODE, CurrentUser, EngineDep, SessionDep
 from lattice.api.schemas import AskOut, SessionOut, TurnOut
 from lattice.db.models import Session, User
 from lattice.db.repo import courses, sessions
-from lattice.engine import QUERY_TYPES
-from lattice.retrieval import TierResult
+from lattice.study import AskRequest as StudyRequest
+from lattice.study import QueryType, SessionAccessError, answer_course
 
 router = APIRouter(tags=["ask"])
-
-QueryType = Literal["GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS"]
-assert set(QueryType.__args__) == set(QUERY_TYPES)
 
 
 class AskRequest(BaseModel):
@@ -41,55 +37,25 @@ async def _own_session(db: DbSession, user: User, session_id: UUID) -> Session:
     return session
 
 
-def _cited_chunk_ids(results: list[TierResult]) -> list[str]:
-    return [e.chunk_id for r in results for e in r.evidence if e.chunk_id is not None]
-
-
 @router.post("/ask")
 async def ask(body: AskRequest, user: CurrentUser, db: SessionDep, engine: EngineDep) -> AskOut:
     """Both Turns are persisted, so a reload replays the conversation the student had."""
-    course = await courses.by_code(db, body.course)
-    if course is None:
-        raise HTTPException(404, "no such course")
-    if await courses.enrolment(db, user.id, course.id) is None:
-        raise HTTPException(403, "not enrolled in this course")
-
-    session = (
-        await sessions.create(db, user=user, course=course)
-        if body.session is None
-        else await _own_session(db, user, body.session)
-    )
-    if session.course_id != course.id:
-        raise HTTPException(403, "session belongs to another course")
-
-    principal = await engine.principal(user.email)
-    global_ds, private_ds = await engine.enrol(course.code, principal)
-    datasets = {global_ds.id: "course"} | ({} if user.notes_opt_out else {private_ds.id: "notes"})
-
-    started = time.monotonic()
     try:
-        results = await engine.search(
-            principal, datasets, body.question, body.query_type, str(session.id)
+        session, answer = await answer_course(
+            engine,
+            db,
+            user,
+            body.course,
+            StudyRequest(
+                question=body.question,
+                query_type=body.query_type,
+                session_id=None if body.session is None else str(body.session),
+            ),
         )
+    except (courses.CourseAccessError, SessionAccessError) as exc:
+        raise HTTPException(exc.status_code, str(exc)) from None
     except Exception as exc:  # noqa: BLE001 - operations.md: search raises -> 502, no partial answer
         raise HTTPException(502, f"{type(exc).__name__}: {exc}") from exc
-
-    await sessions.add_turn(
-        db, session, role="user", content={"text": body.question, "query_type": body.query_type}
-    )
-    answer = await sessions.add_turn(
-        db,
-        session,
-        role="assistant",
-        content={
-            "text": "\n\n".join(r.answer for r in results if r.answer),
-            "query_type": body.query_type,
-            "results": [r.model_dump(mode="json") for r in results],
-        },
-        cited_chunk_ids=_cited_chunk_ids(results),
-        used_notes=any(r.tier == "notes" and r.evidence for r in results),
-        latency_ms=int((time.monotonic() - started) * 1000),
-    )
     return AskOut(session=session.id, turn=TurnOut.model_validate(answer))
 
 

@@ -78,7 +78,7 @@ A Quiz the student initiates over a scope they choose; about ten questions; ends
 
 ### Concept graph (Phase 2)
 
-**Concept**:  
+**Concept**:
 A named idea taught inside a Topic; the node type related concepts are drawn from. This feature is out of scope.
 
 ### System

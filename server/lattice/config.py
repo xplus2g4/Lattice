@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     # Honour the `X-User` header as the caller's identity and enable `/auth/dev`.
     # Dev only; never set this in a deploy — it is an impersonation backdoor.
     dev_header_auth: bool = False
+    mcp_enabled: bool = False
 
     # The Web OAuth client id the sign-in button is configured with.
     # Empty disables `/auth/google` (it answers 501).

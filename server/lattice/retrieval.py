@@ -18,6 +18,8 @@ class Evidence(BaseModel):
     document_name: str | None = None
     label: str | None = None
     relationship_name: str | None = None
+    page_start: int | None = None
+    page_end: int | None = None
 
 
 class TierResult(BaseModel):

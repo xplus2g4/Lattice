@@ -3,21 +3,29 @@ import { HugeiconsIcon } from '@hugeicons/react'
 import { ChatQuestionIcon, HistoryIcon } from '@hugeicons/core-free-icons'
 import { useEffect, useRef, useState } from 'react'
 
-import { Badge } from '#/components/ui/badge'
+import { Markdown, ReferenceList } from '#/components/lattice/answer'
 import { Button } from '#/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { Textarea } from '#/components/ui/textarea'
 import {
   ApiError,
   ask,
-  describeCitation,
   getSession,
   listMaterials,
+  listNotes,
   listSessions,
 } from '#/lib/api'
+import { groupReferences } from '#/lib/references'
 import { useStored } from '#/lib/user'
 
-import type { Enrolment, Session, TierResult, Turn } from '#/lib/api'
+import type {
+  Enrolment,
+  Material,
+  Note,
+  Session,
+  TierResult,
+  Turn,
+} from '#/lib/api'
 
 export function AskPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
@@ -38,7 +46,7 @@ export function AskPanel({ course, user }: Enrolment) {
     queryKey: ['sessions', course, user],
     queryFn: () => listSessions(user, course),
   })
-  // Shares the materials query with the rail; used only for the pending notice.
+  // Shared with the rail; used for the pending notice and to resolve references.
   const materials = useQuery({
     queryKey: ['materials', course, user],
     queryFn: () => listMaterials(user, course),
@@ -47,6 +55,15 @@ export function AskPanel({ course, user }: Enrolment) {
     materials.data?.filter(
       (m) => m.status === 'queued' || m.status === 'cognifying',
     ).length ?? 0
+  const notes = useQuery({
+    queryKey: ['notes', course, user],
+    queryFn: () => listNotes(user, course),
+  })
+  const sources = {
+    course,
+    materials: materials.data ?? [],
+    notes: notes.data ?? [],
+  }
 
   // A stored id the server no longer knows is dropped.
   useEffect(() => {
@@ -145,7 +162,7 @@ export function AskPanel({ course, user }: Enrolment) {
           <ol className="space-y-4">
             {turns.map((t, i) => (
               <li key={t.id ?? i}>
-                <TurnView turn={t} />
+                <TurnView turn={t} sources={sources} />
               </li>
             ))}
             {submit.isPending && (
@@ -247,7 +264,13 @@ function PendingTurn({ question }: { question: string }) {
   )
 }
 
-function TurnView({ turn }: { turn: Turn }) {
+interface Sources {
+  course: string
+  materials: ReadonlyArray<Material>
+  notes: ReadonlyArray<Note>
+}
+
+function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
   if (turn.role === 'user') {
     return (
       <div className="flex justify-end">
@@ -265,7 +288,9 @@ function TurnView({ turn }: { turn: Turn }) {
           again.
         </p>
       ) : (
-        turn.results.map((r) => <TierView key={r.tier} result={r} />)
+        turn.results.map((r) => (
+          <TierView key={r.tier} result={r} sources={sources} />
+        ))
       )}
       <p className="text-lattice-meta text-muted-foreground">
         {turn.latency_ms ?? '?'} ms
@@ -279,31 +304,33 @@ const tierLabel: Record<TierResult['tier'], string> = {
   private: 'Your notes',
 }
 
-function TierView({ result }: { result: TierResult }) {
+function TierView({
+  result,
+  sources,
+}: {
+  result: TierResult
+  sources: Sources
+}) {
   return (
     <div>
       <p className="text-lattice-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
         {tierLabel[result.tier]}
       </p>
-      <p className="mt-1.5 text-sm leading-6 whitespace-pre-wrap">
-        {result.answer ?? (
-          <span className="italic text-muted-foreground">no answer</span>
+      <div className="mt-1.5">
+        {result.answer ? (
+          <Markdown>{result.answer}</Markdown>
+        ) : (
+          <p className="text-sm italic text-muted-foreground">no answer</p>
         )}
-      </p>
-      {result.citations.length > 0 && (
-        <ul className="mt-2 flex flex-wrap gap-1.5">
-          {result.citations.map((c, i) => (
-            <li key={i}>
-              <Badge
-                variant="outline"
-                className="border-0 bg-citation-context text-citation-context-text"
-              >
-                {describeCitation(c)}
-              </Badge>
-            </li>
-          ))}
-        </ul>
-      )}
+      </div>
+      <ReferenceList
+        course={sources.course}
+        references={groupReferences(
+          result.citations,
+          sources.materials,
+          sources.notes,
+        )}
+      />
     </div>
   )
 }

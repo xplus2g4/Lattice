@@ -152,8 +152,8 @@ function ContinueCard({
         </div>
         <Button asChild size="lg" className="shrink-0">
           <Link
-            to="/courses/$courseId/materials/$filename"
-            params={{ courseId: course, filename }}
+            to="/courses/$course/materials/$filename"
+            params={{ course: course, filename }}
           >
             Open material
             <HugeiconsIcon icon={ArrowRight01Icon} data-icon="inline-end" />
@@ -196,6 +196,7 @@ function AddCourse({ user }: { user: string }) {
         value={value}
         placeholder="Course code — e.g. cs3216"
         aria-invalid={invalid}
+        disabled={join.isPending}
         onChange={(e) => setValue(e.target.value)}
       />
       <Button

@@ -36,9 +36,11 @@ Copy `template.sh` to the target path. Replace the example stage with one `stage
 
 Hold the bar the template sets: open the URL before asking for its value, use `ask_secret` for anything secret, `write_env` every persisted value, `set_secret` only the values CI actually needs, and `confirm` before any irreversible action. Each `stage` clears the screen so only the current step is visible: keep a stage to one focused task so nothing the human needs scrolls away. Don't touch the library above the marker.
 
+A wizard runs on whatever bash the human has, and macOS ships bash 3.2. Stick to 3.2 syntax: no `${var^^}` or `${var,,}` (pipe through `tr` instead), no `mapfile`, no associative arrays, and give `mktemp` a template.
+
 ### 4. Verify and hand off
 
-- `bash -n <script>`; run `shellcheck` if available.
+- `bash -n <script>`; run `shellcheck` if available. On bash 4+, `bash -n` accepts syntax bash 3.2 rejects, so reread the stages for the 3.2 rules above.
 - `chmod +x <script>`.
 - Don't run it end-to-end yourself: it opens browsers and blocks on human input. Trace it statically instead: every value from step 1 is captured and lands where step 1 said, and every `set_secret` name exactly matches a `secrets.*` reference in CI.
 - Tell the user how to run it. If it's a repeatable setup path, commit it and link it from the README so the next person runs the script instead of asking an AI.

@@ -16,11 +16,14 @@ export default [
   },
   {
     ignores: [
+      '.output/**',
       'eslint.config.js',
       'prettier.config.js',
       '.output',
       'dist',
       'dist-ssr',
+      'openapi-ts.config.ts',
+      'src/lib/generated/**',
     ],
   },
 ]

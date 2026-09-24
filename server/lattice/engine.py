@@ -3,13 +3,20 @@
 Stage 2 (pgvector plus an own concept graph) replaces this module and nothing above it.
 """
 
+import asyncio
+import json
+import re
 import secrets
+import tempfile
+from contextvars import Context
 from pathlib import Path
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 import cognee
 from cognee.infrastructure.databases.relational import create_db_and_tables
+from cognee.infrastructure.databases.vector.models.ScoredResult import ScoredResult
+from cognee.infrastructure.llm.LLMGateway import LLMGateway
 from cognee.modules.data.methods import (
     create_authorized_dataset,
     get_authorized_dataset_by_name,
@@ -24,14 +31,33 @@ from cognee.modules.users.models import User
 from cognee.modules.users.permissions.methods import give_permission_on_dataset
 
 from lattice.config import Settings
+from lattice.grounding import GROUNDING_POLICY, install_retrievers
+from lattice.note_review import ReviewChunk
+from lattice.page_notes import PageNote
 from lattice.retrieval import Evidence, TierResult
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
+
+# Cognee's PDF loader prefixes each non-empty page with this line; chunking ignores it.
+_PAGE_LABEL = re.compile(r"^[ \t]*Page (\d+):[ \t]*$", re.MULTILINE)
+# Cognee's plain-text restatement of graph Evidence, appended to the answer.
+_EVIDENCE_BLOCK = re.compile(r"\n\nEvidence:\n(?:- chunk \S+ of document [^\n]*(?:\n|\Z))+\Z")
+
+
+class IsolationError(RuntimeError):
+    """A result or citation came from a dataset the caller may not read.
+
+    ADR 0002's second enforcement layer. Cognee's own dataset permissions should make this
+    unreachable; if it fires, something beneath the API is wrong and no part of the answer
+    can be trusted, so `/ask` fails with a 502 rather than returning a filtered version.
+    Exercised by `tests/test_canary.py::test_private_notes_never_leak`.
+    """
 
 
 class Engine:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
+        install_retrievers()
         root = settings.cognee_root.resolve()
         for sub in ("system/databases", "data"):
             (root / sub).mkdir(parents=True, exist_ok=True)
@@ -41,6 +67,7 @@ class Engine:
         self._principals: dict[str, User] = {}
         self._datasets: dict[tuple[str, UUID], Dataset] = {}
         self._enrolled: set[tuple[UUID, str]] = set()
+        self._ingest_lock = asyncio.Lock()
 
     async def start(self) -> None:
         """Create Cognee's relational schema if this is a fresh root. Idempotent."""
@@ -92,11 +119,42 @@ class Engine:
 
     async def replace(self, dataset: Dataset, user: User, path: Path) -> None:
         """Drop any earlier data with this file's name, then add and cognify."""
+        async with self._ingest_lock:
+            await self._remove_named(dataset, user, path.name)
+            await cognee.add(str(path), dataset_id=dataset.id, user=user)
+            await cognee.cognify(datasets=[dataset.id], user=user)
+
+    async def _remove_named(self, dataset: Dataset, user: User, filename: str) -> None:
         for data in await get_dataset_data(dataset.id):
-            if data.name in (path.name, path.stem):
+            if data.name in (filename, Path(filename).stem):
                 await cognee.datasets.delete_data(dataset.id, data.id, user=user, mode="hard")
-        await cognee.add(str(path), dataset_id=dataset.id, user=user)
-        await cognee.cognify(datasets=[dataset.id], user=user)
+
+    async def clear(self, dataset: Dataset, user: User, filename: str) -> None:
+        async with self._ingest_lock:
+            await self._remove_named(dataset, user, filename)
+
+    async def cognify_note(self, note: PageNote) -> None:
+        user = await self.principal(note.owner)
+        _, dataset = await self.enrol(note.anchor.course, user)
+        filename = f"page-note-{note.id}.md"
+        async with self._ingest_lock:
+            await self._remove_named(dataset, user, filename)
+            if not note.body_md.strip():
+                return
+            with tempfile.TemporaryDirectory(prefix="latnote") as directory:
+                path = Path(directory) / filename
+                path.write_text(note.body_md, encoding="utf-8")
+                await cognee.add(
+                    str(path),
+                    dataset_id=dataset.id,
+                    user=user,
+                    node_set=[
+                        f"material-{note.anchor.material_id}",
+                        f"page-{note.anchor.page_number}",
+                        f"note-{note.id}",
+                    ],
+                )
+                await cognee.cognify(datasets=[dataset.id], user=user)
 
     # Retrieval
 
@@ -123,6 +181,7 @@ class Engine:
                 user=user,
                 dataset_ids=searchable,
                 session_id=session_id,
+                system_prompt=GROUNDING_POLICY,
                 verbose=True,
                 include_references=True,
             )
@@ -131,35 +190,169 @@ class Engine:
             return []
         return [_tier_result(r, datasets) for r in raw]
 
+    async def retrieve_official(self, course: str, owner: str, question: str) -> list[ReviewChunk]:
+        user = await self.principal(owner)
+        dataset, _ = await self.enrol(course, user)
+        if not await has_dataset_data(dataset.id):
+            return []
+        try:
+            raw = await cognee.search(
+                question,
+                query_type=SearchType.CHUNKS,
+                user=user,
+                dataset_ids=[dataset.id],
+                session_id=f"review-{uuid4().hex}",
+                top_k=3,
+                verbose=True,
+                include_references=True,
+            )
+        except NoDataError:
+            return []
+        chunks = {}
+        for result in raw:
+            if _dataset_uuid(result.get("dataset_id")) != dataset.id:
+                raise IsolationError("Review retrieval returned an unexpected dataset")
+            for item in result.get("objects_result") or []:
+                payload = item.get("payload") if isinstance(item, dict) else item.payload
+                identity = item.get("id") if isinstance(item, dict) else item.id
+                if (
+                    payload.get("dataset_id") is not None
+                    and _dataset_uuid(payload["dataset_id"]) != dataset.id
+                ):
+                    raise IsolationError("Review Chunk belongs to an unexpected dataset")
+                chunk_id = _dataset_uuid(identity)
+                if not chunk_id or not payload.get("document_name") or not payload.get("text"):
+                    continue
+                chunks[chunk_id] = ReviewChunk(
+                    chunk_id=chunk_id,
+                    dataset_id=dataset.id,
+                    material_name=payload["document_name"],
+                    chunk_index=payload.get("chunk_index"),
+                    text=payload["text"],
+                )
+        return list(chunks.values())[:3]
+
+    async def generate(self, schema, system_prompt: str, data: dict):
+        async def complete():
+            return await LLMGateway.acreate_structured_output(
+                text_input=json.dumps(data, ensure_ascii=False),
+                system_prompt=system_prompt,
+                response_model=schema,
+                max_completion_tokens=2_000,
+            )
+
+        task = asyncio.create_task(complete(), context=Context())
+        return await asyncio.wait_for(task, timeout=30)
+
+
+def _dataset_uuid(value: Any) -> UUID | None:
+    """Cognee gives `dataset_id` as a UUID on results and as a string on evidence."""
+    if isinstance(value, UUID):
+        return value
+    try:
+        return UUID(str(value))
+    except AttributeError, TypeError, ValueError:
+        return None
+
 
 def _tier_result(raw: dict[str, Any], datasets: dict[UUID, str]) -> TierResult:
-    dataset_id = raw.get("dataset_id")
+    """One Cognee per-dataset result, refused unless it came from a dataset the caller read.
+
+    There is deliberately no default tier here: an unrecognised `dataset_id` used to be
+    labelled `course` and passed on, which would launder another principal's answer into
+    the shared tier instead of rejecting it.
+
+    Refusing a missing `dataset_id` is safe rather than brittle because `search` always
+    passes `dataset_ids`, and Cognee fills the field from the dataset it fanned out to
+    (`get_retriever_output`: `dataset.id if dataset else None`). The `None` branch belongs
+    to its no-dataset-context path, which this engine never takes; a result arriving from
+    it could not be attributed to a tier anyway.
+    """
+    dataset_id = _dataset_uuid(raw.get("dataset_id"))
+    if dataset_id not in datasets:
+        raise IsolationError(f"result from dataset {raw.get('dataset_id')!r}, not the caller's")
     return TierResult(
-        tier=datasets.get(dataset_id, "course"),  # type: ignore[arg-type]
+        tier=datasets[dataset_id],  # type: ignore[arg-type]
         dataset_name=raw.get("dataset_name") or "",
         answer=_answer_text(raw.get("text_result")),
-        evidence=_dedupe_evidence(raw.get("evidence") or []),
+        evidence=_dedupe_evidence(
+            raw.get("evidence") or [], datasets, _chunk_texts(raw.get("objects_result"))
+        ),
     )
+
+
+def _chunk_texts(objects: Any) -> dict[str, str]:
+    """Chunk text by chunk id, from whatever shape the retriever returned its objects in.
+
+    RAG and CHUNKS give a list of scored chunks; HYBRID nests them under `chunks`. Graph
+    triplets carry no chunk text and are skipped.
+    """
+    texts: dict[str, str] = {}
+    pending = [objects]
+    while pending:
+        item = pending.pop()
+        if isinstance(item, (list, tuple)):
+            pending.extend(item)
+            continue
+        if isinstance(item, ScoredResult):
+            identity, payload = item.id, item.payload
+        elif isinstance(item, dict) and "payload" in item:
+            identity, payload = item.get("id"), item["payload"]
+        elif isinstance(item, dict):
+            pending.extend(item.values())
+            continue
+        else:
+            continue
+        if isinstance(payload, dict) and isinstance(payload.get("text"), str) and identity:
+            texts[str(identity)] = payload["text"]
+    return texts
+
+
+def _page_span(text: str | None) -> dict[str, int]:
+    """The Pages a chunk covers, read from the loader's page labels; approximate (#6).
+
+    A chunk that opens mid-page continues the page before its first label. A chunk with no
+    label at all cannot be placed and gets no span.
+    """
+    pages = [int(m.group(1)) for m in _PAGE_LABEL.finditer(text or "")]
+    if not pages:
+        return {}
+    first = _PAGE_LABEL.search(text.lstrip())
+    start = pages[0] if first and first.start() == 0 else max(pages[0] - 1, 1)
+    return {"page_start": start, "page_end": max(pages)}
 
 
 def _answer_text(text: Any) -> str | None:
     """Completion types return a string; CHUNKS returns chunk dicts whose `text` is the payload."""
-    if text is None or isinstance(text, str):
+    if text is None:
         return text
+    if isinstance(text, str):
+        return _EVIDENCE_BLOCK.sub("", text)
     if isinstance(text, list):
         parts = [t.get("text", str(t)) if isinstance(t, dict) else str(t) for t in text]
         return "\n\n".join(parts)
     return str(text)
 
 
-def _dedupe_evidence(items: list[dict[str, Any]]) -> list[Evidence]:
-    """Cognee lists a segment once per graph edge citing it; keep one entry per artifact."""
+def _dedupe_evidence(
+    items: list[dict[str, Any]], datasets: dict[UUID, str], texts: dict[str, str]
+) -> list[Evidence]:
+    """Cognee lists a segment once per graph edge citing it; keep one entry per artifact.
+
+    Every citation that names a dataset must name one the caller may read (ADR 0002). Graph
+    nodes and edges carry no `dataset_id`; they are covered by the check on the result they
+    arrived in, whose dataset is verified in `_tier_result`.
+    """
     seen: set[str] = set()
     out: list[Evidence] = []
     for item in items:
+        named = item.get("dataset_id")
+        if named is not None and _dataset_uuid(named) not in datasets:
+            raise IsolationError(f"citation from dataset {named!r}, not the caller's")
         key = f"{item.get('kind')}:{item.get('artifact_id')}"
         if key in seen:
             continue
         seen.add(key)
-        out.append(Evidence.model_validate(item))
+        pages = _page_span(texts.get(str(item.get("chunk_id")))) if item.get("chunk_id") else {}
+        out.append(Evidence.model_validate({**item, **pages}))
     return out

@@ -1,7 +1,9 @@
-from contextlib import asynccontextmanager
+import asyncio
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from filelock import FileLock
 
 from lattice.api import (
     admin,
@@ -23,18 +25,40 @@ from lattice.ingest import Ingest
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
+    if settings.mcp_enabled and not settings.dev_header_auth:
+        raise ValueError(
+            "MCP currently requires development header identity and loopback-only access"
+        )
     engine = Engine(settings)
     database = Database(settings)
 
+    async def ingest_notes():
+        while True:
+            if not await app.state.ingest.cognify_pending():
+                await asyncio.sleep(1)
+
     @asynccontextmanager
     async def lifespan(_: FastAPI):
-        await engine.start()
-        if settings.database_auto_migrate:
-            await upgrade_async(settings.database_url)
-        yield
-        await database.dispose()
+        try:
+            await app.state.engine.start()
+            if settings.database_auto_migrate:
+                await upgrade_async(settings.database_url)
+            with FileLock(settings.cognee_root.resolve() / "note-ingest.lock", timeout=0):
+                await app.state.ingest.recover_notes()
+                async with AsyncExitStack() as stack:
+                    if settings.mcp_enabled:
+                        await stack.enter_async_context(mcp.session_manager.run())
+                    async with asyncio.TaskGroup() as workers:
+                        task = workers.create_task(ingest_notes())
+                        try:
+                            yield
+                        finally:
+                            task.cancel()
+        finally:
+            await database.dispose()
 
     app = FastAPI(title="Lattice API", lifespan=lifespan)
+    app.dependency_overrides[get_settings] = lambda: settings
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -57,6 +81,12 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         quiz_records.router,
     ):
         app.include_router(router)
+    if settings.mcp_enabled:
+        from lattice.mcp import LocalMCP, create_mcp
+
+        mcp = create_mcp(app, settings)
+        app.state.mcp = mcp
+        app.mount("/mcp", LocalMCP(mcp.streamable_http_app(), settings))
     return app
 
 

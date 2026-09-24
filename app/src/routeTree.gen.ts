@@ -41,10 +41,15 @@ const CoursesCourseIdRoute = CoursesCourseIdRouteImport.update({
   path: '/courses/$courseId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const CoursesCourseIdMaterialsFilenameRoute =
-  CoursesCourseIdMaterialsFilenameRouteImport.update({
-    id: '/courses/$courseId_/materials/$filename',
-    path: '/courses/$courseId/materials/$filename',
+const CoursesCourseIndexRoute = CoursesCourseIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => CoursesCourseRoute,
+} as any)
+const CoursesCourseMaterialsFilenameRoute =
+  CoursesCourseMaterialsFilenameRouteImport.update({
+    id: '/courses/$course_/materials/$filename',
+    path: '/courses/$course/materials/$filename',
     getParentRoute: () => rootRouteImport,
   } as any)
 
@@ -146,15 +151,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CoursesCourseIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/courses/$courseId_/materials/$filename': {
-      id: '/courses/$courseId_/materials/$filename'
-      path: '/courses/$courseId/materials/$filename'
-      fullPath: '/courses/$courseId/materials/$filename'
-      preLoaderRoute: typeof CoursesCourseIdMaterialsFilenameRouteImport
+    '/courses/$course/': {
+      id: '/courses/$course/'
+      path: '/'
+      fullPath: '/courses/$course/'
+      preLoaderRoute: typeof CoursesCourseIndexRouteImport
+      parentRoute: typeof CoursesCourseRoute
+    }
+    '/courses/$course_/materials/$filename': {
+      id: '/courses/$course_/materials/$filename'
+      path: '/courses/$course/materials/$filename'
+      fullPath: '/courses/$course/materials/$filename'
+      preLoaderRoute: typeof CoursesCourseMaterialsFilenameRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
 }
+
+interface CoursesCourseRouteChildren {
+  CoursesCourseIndexRoute: typeof CoursesCourseIndexRoute
+}
+
+const CoursesCourseRouteChildren: CoursesCourseRouteChildren = {
+  CoursesCourseIndexRoute: CoursesCourseIndexRoute,
+}
+
+const CoursesCourseRouteWithChildren = CoursesCourseRoute._addFileChildren(
+  CoursesCourseRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,

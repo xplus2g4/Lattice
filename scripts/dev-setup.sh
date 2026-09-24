@@ -208,6 +208,37 @@ banner "Course knowledge store: local development"
 # ── 1. Tooling ────────────────────────────────────────────────────────────
 stage "Tooling: uv, Node 26+, npm"
 say "The backend is Python 3.14 managed by uv; the web app is Node 26+."
+
+# Windows only. Cognee's embedded stores nest about 185 characters below COGNEE_ROOT
+# (system/databases/<uuid>/<uuid>.lance.db/<Table>.lance/_transactions/<uuid>.txn, whose
+# longest table is EdgeType_relationship_name). Past MAX_PATH the cognify dies inside
+# LanceDB with "failed to persist temp file", which names nothing about path length and
+# costs an afternoon to work out. LongPathsEnabled is per-machine and does not travel with
+# a clone, so every Windows teammate meets this separately: hence the check here.
+case "$(uname -s)" in
+  MINGW* | MSYS* | CYGWIN*)
+    _cognee_suffix="/.cognee/system"
+    _cognee_used=$(( ${#SERVER} + ${#_cognee_suffix} ))
+    _cognee_budget=75
+    # Empty when the value is absent, which means the same as 0 here.
+    _longpaths=$(reg query 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' //v LongPathsEnabled 2>/dev/null \
+      | sed -n 's/.*REG_DWORD *0x\([0-9a-fA-F]*\).*/\1/p' | tail -n1)
+    if [[ -n "$_longpaths" ]] && (( 16#$_longpaths != 0 )); then
+      say "Windows long paths are enabled; Cognee's deep store paths are fine."
+    elif (( _cognee_used <= _cognee_budget )); then
+      note "Long paths are off, but server/.cognee/system is $_cognee_used characters, inside the ~$_cognee_budget Cognee leaves. Fine."
+    else
+      warn "Windows long paths are off and this checkout is too deep for Cognee."
+      say "server/.cognee/system is $_cognee_used characters; Cognee needs about $_cognee_budget or fewer."
+      say "Cognify will fail with a LanceDB 'failed to persist temp file' error."
+      step "Either enable long paths in an admin PowerShell, then reboot:"
+      note '    New-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem" \'
+      note '      -Name LongPathsEnabled -Value 1 -PropertyType DWORD -Force'
+      step 'or move this checkout somewhere shorter, such as C:\dev\Lattice.'
+      pause "Press Enter when one of those is done, or to continue and hit this later."
+    fi
+    ;;
+esac
 missing=0
 if command -v uv >/dev/null 2>&1; then
   say "uv $(uv --version | cut -d' ' -f2) found."
