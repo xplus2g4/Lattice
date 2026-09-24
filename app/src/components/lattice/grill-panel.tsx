@@ -1,42 +1,44 @@
 import { Link } from '@tanstack/react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 
 import { bumpJump, pageSearch } from '#/components/lattice/answer'
 import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
 import { RadioGroup, RadioGroupItem } from '#/components/ui/radio-group'
 import { Textarea } from '#/components/ui/textarea'
 import {
   abandonGrill,
+  extendGrill,
   generateGrill,
   gradeGrill,
   listMaterials,
 } from '#/lib/api'
-import { readingPosition } from '#/lib/reading-position'
 import { useStored } from '#/lib/storage'
-import { materialTab, parseTab } from '#/lib/tabs'
+import { parseTab } from '#/lib/tabs'
 import { cn } from '#/lib/utils'
 
 import type {
   Enrolment,
   Grill,
+  GrillBatch,
   GrillQuestion,
   GrillResult,
-  GrillScope,
   Material,
 } from '#/lib/api'
 import type { TabKey } from '#/lib/tabs'
 
-/** The server refuses more than this many pages in one Grill (lattice/quiz.py). */
-const MAX_PAGES = 40
-
-// Three stages, one at a time: choose a scope, answer the questions, read the result.
-// The Grill itself lives on the server from the moment it is written; this state is only
-// which of its views is on screen.
+// Three stages, one at a time: choose a Material, answer the questions, read the result.
+// The Grill itself is on the server from the moment it is planned; this is only which of
+// its views is on screen, which batches are still being written, and what has been typed.
 type Stage =
   | { at: 'pick' }
-  | { at: 'quiz'; grill: Grill }
+  | {
+      at: 'quiz'
+      grill: Grill
+      batches: Array<GrillBatch>
+      pending: Array<number>
+      failed: Array<number>
+    }
   | { at: 'result'; result: GrillResult }
 
 type Answers = Partial<Record<string, string>>
@@ -47,10 +49,10 @@ interface Draft {
 
 const FRESH: Draft = { stage: { at: 'pick' }, answers: {} }
 
-// The panel unmounts whenever Ask or History is in front, so what the student was doing
-// is kept in localStorage, per course and user, and picked up again when the Grill tab
-// returns, or after a reload. The Grill itself is on the server from the moment it is
-// written; this is only which of its views is on screen and what has been typed.
+// The panel unmounts whenever Ask or History is in front, so the draft lives in
+// localStorage per course and user and comes back when the Grill tab returns, or after a
+// reload. Batches still pending then are simply asked for again: the server returns what
+// it already wrote.
 function parseDraft(stored: string): Draft {
   if (!stored) return FRESH
   try {
@@ -68,22 +70,50 @@ function parseDraft(stored: string): Draft {
   return FRESH
 }
 
+function draftKey(course: string, user: string) {
+  return `lattice.grill:${course}:${user}`
+}
+
+function readDraft(key: string): Draft {
+  try {
+    return parseDraft(localStorage.getItem(key) ?? '')
+  } catch {
+    return FRESH
+  }
+}
+
+function byPosition(questions: ReadonlyArray<GrillQuestion>) {
+  return [...questions].sort((a, b) => a.position - b.position)
+}
+
 export function GrillPanel({
   course,
   user,
   front,
 }: Enrolment & { front: TabKey | null }) {
+  const key = draftKey(course, user)
   const materials = useQuery({
     queryKey: ['materials', course, user],
     queryFn: () => listMaterials(user, course),
   })
-  const [stored, setStored] = useStored(`lattice.grill:${course}:${user}`, '')
+  const [stored, setStored] = useStored(key, '')
   const { stage, answers } = useMemo(() => parseDraft(stored), [stored])
-  const update = (next: Draft) => setStored(JSON.stringify(next))
-  const setStage = (next: Stage) => update({ stage: next, answers: {} })
+  // Reads the latest draft rather than the one this render closed over: a batch can land
+  // after other changes, or after the panel has unmounted.
+  const patch = (change: (draft: Draft) => Draft) =>
+    setStored(JSON.stringify(change(readDraft(key))))
+  const setStage = (next: Stage) => patch(() => ({ stage: next, answers: {} }))
+
   const generate = useMutation({
-    mutationFn: (scope: GrillScope) => generateGrill(user, course, scope),
-    onSuccess: (grill) => setStage({ at: 'quiz', grill }),
+    mutationFn: (material: string) => generateGrill(user, course, material),
+    onSuccess: (plan) =>
+      setStage({
+        at: 'quiz',
+        grill: plan.grill,
+        batches: plan.batches,
+        pending: plan.batches.map((b) => b.index),
+        failed: [],
+      }),
   })
   const grade = useMutation({
     mutationFn: (input: {
@@ -95,24 +125,94 @@ export function GrillPanel({
   const abandon = useMutation({
     mutationFn: (grill: string) => abandonGrill(user, grill),
   })
+
+  // Every pending batch is asked for at once; each lands on its own. A batch is in flight
+  // at most once, whatever re-renders happen meanwhile.
+  const inFlight = useRef(new Set<string>())
+  const quiz = stage.at === 'quiz' ? stage : null
+  const grillId = quiz?.grill.id
+  const pending = quiz?.pending.join(',') ?? ''
+  useEffect(() => {
+    if (!grillId || !pending) return
+    for (const index of pending.split(',').map(Number)) {
+      const flight = `${grillId}:${index}`
+      if (inFlight.current.has(flight)) continue
+      inFlight.current.add(flight)
+      extendGrill(user, grillId, index)
+        .then((written) =>
+          patch((draft) => {
+            if (draft.stage.at !== 'quiz' || draft.stage.grill.id !== grillId)
+              return draft
+            const kept = draft.stage.grill.questions.filter(
+              (q) => !written.some((w) => w.id === q.id),
+            )
+            return {
+              ...draft,
+              stage: {
+                ...draft.stage,
+                grill: {
+                  ...draft.stage.grill,
+                  questions: byPosition([...kept, ...written]),
+                },
+                pending: draft.stage.pending.filter((i) => i !== index),
+              },
+            }
+          }),
+        )
+        .catch(() =>
+          patch((draft) => {
+            if (draft.stage.at !== 'quiz' || draft.stage.grill.id !== grillId)
+              return draft
+            return {
+              ...draft,
+              stage: {
+                ...draft.stage,
+                pending: draft.stage.pending.filter((i) => i !== index),
+                failed: [...draft.stage.failed, index],
+              },
+            }
+          }),
+        )
+        .finally(() => inFlight.current.delete(flight))
+    }
+    // `patch` and `user` are stable for the panel's life; the batch list is what changes.
+  }, [grillId, pending])
+
   const byId = (id: string) => materials.data?.find((m) => m.id === id)
 
-  if (stage.at === 'quiz') {
+  if (quiz) {
     return (
       <QuizForm
-        grill={stage.grill}
-        material={byId(stage.grill.material_id)}
+        stage={quiz}
+        material={byId(quiz.grill.material_id)}
         answers={answers}
         onAnswer={(question, text) =>
-          update({ stage, answers: { ...answers, [question]: text } })
+          patch((draft) => ({
+            ...draft,
+            answers: { ...draft.answers, [question]: text },
+          }))
+        }
+        onRetry={(index) =>
+          patch((draft) =>
+            draft.stage.at === 'quiz'
+              ? {
+                  ...draft,
+                  stage: {
+                    ...draft.stage,
+                    failed: draft.stage.failed.filter((i) => i !== index),
+                    pending: [...draft.stage.pending, index],
+                  },
+                }
+              : draft,
+          )
         }
         grading={grade.isPending}
         error={grade.error?.message ?? null}
         onSubmit={(given) =>
-          grade.mutate({ grill: stage.grill.id, answers: given })
+          grade.mutate({ grill: quiz.grill.id, answers: given })
         }
         onCancel={() => {
-          abandon.mutate(stage.grill.id)
+          abandon.mutate(quiz.grill.id)
           setStage({ at: 'pick' })
         }}
       />
@@ -129,69 +229,44 @@ export function GrillPanel({
     )
   }
   return (
-    <ScopePicker
-      course={course}
-      user={user}
+    <MaterialPicker
       front={front}
       materials={materials.data ?? []}
       generating={generate.isPending}
       error={generate.error?.message ?? null}
-      onGrill={(scope) => generate.mutate(scope)}
+      onGrill={(material) => generate.mutate(material)}
     />
   )
 }
 
-function ScopePicker({
-  course,
-  user,
+function MaterialPicker({
   front,
   materials,
   generating,
   error,
   onGrill,
-}: Enrolment & {
+}: {
   front: TabKey | null
   materials: ReadonlyArray<Material>
   generating: boolean
   error: string | null
-  onGrill: (scope: GrillScope) => void
+  onGrill: (material: string) => void
 }) {
-  // Null means "not chosen": the open Material, else the first one. Pages follow the
-  // Material, so choosing another resets them to its defaults.
+  // Null means "not chosen": the Material open in the reader, else the first one.
   const [chosen, setChosen] = useState<string | null>(null)
-  const [pages, setPages] = useState<{ from: string; to: string } | null>(null)
   const open = front ? parseTab(front) : null
   const material =
     (chosen && materials.find((m) => m.id === chosen)) ||
     (open?.kind === 'material' &&
       materials.find((m) => m.filename === open.filename)) ||
     materials.at(0)
-  // Read here rather than during render: where the reader stopped is in localStorage,
-  // which the server render cannot see.
-  useEffect(() => {
-    if (pages !== null || !material) return
-    const at = readingPosition(user, course, materialTab(material.filename))
-    setPages({ from: '1', to: String(at ?? 1) })
-  }, [pages, material, user, course])
-
-  const from = Number(pages?.from)
-  const to = Number(pages?.to)
-  const valid =
-    Number.isInteger(from) &&
-    Number.isInteger(to) &&
-    from >= 1 &&
-    to >= from &&
-    to - from < MAX_PAGES
-  const field =
-    'w-full min-w-0 rounded-lg border border-border bg-input/30 px-3 py-2 text-sm outline-none transition-colors focus:border-ring'
 
   return (
     <form
       className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto px-6 py-5"
       onSubmit={(e) => {
         e.preventDefault()
-        if (material && valid && !generating)
-          onGrill({ material: material.id, page_start: from, page_end: to })
+        if (material && !generating) onGrill(material.id)
       }}
     >
       <div className="space-y-1">
@@ -199,8 +274,8 @@ function ScopePicker({
           Grill me
         </p>
         <p className="text-sm leading-6 text-muted-foreground">
-          Up to ten questions on the pages you choose, graded in one go, with a
-          note on what to re-read.
+          About ten questions on a whole Material, graded in one go, with a note
+          on what to re-read.
         </p>
       </div>
       {materials.length === 0 ? (
@@ -212,12 +287,9 @@ function ScopePicker({
           <label className="block space-y-1.5 text-sm">
             <span className="font-medium">Material</span>
             <select
-              className={field}
+              className="w-full min-w-0 rounded-lg border border-border bg-input/30 px-3 py-2 text-sm outline-none transition-colors focus:border-ring"
               value={material?.id ?? ''}
-              onChange={(e) => {
-                setChosen(e.target.value)
-                setPages(null)
-              }}
+              onChange={(e) => setChosen(e.target.value)}
             >
               {materials.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -226,42 +298,10 @@ function ScopePicker({
               ))}
             </select>
           </label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium">From page</span>
-              <Input
-                type="number"
-                min={1}
-                inputMode="numeric"
-                value={pages?.from ?? ''}
-                onChange={(e) =>
-                  setPages({ from: e.target.value, to: pages?.to ?? '' })
-                }
-              />
-            </label>
-            <label className="block space-y-1.5 text-sm">
-              <span className="font-medium">To page</span>
-              <Input
-                type="number"
-                min={1}
-                inputMode="numeric"
-                value={pages?.to ?? ''}
-                onChange={(e) =>
-                  setPages({ from: pages?.from ?? '', to: e.target.value })
-                }
-              />
-            </label>
-          </div>
-          {pages && !valid && (
-            <p className="text-xs text-destructive">
-              Pages must be whole numbers, in order, and at most {MAX_PAGES} at
-              a time.
-            </p>
-          )}
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <div>
-            <Button type="submit" disabled={!material || !valid || generating}>
-              {generating ? 'Writing questions…' : 'Grill me'}
+          <div className="flex justify-end">
+            <Button type="submit" disabled={!material || generating}>
+              {generating ? 'Planning…' : 'Grill me'}
             </Button>
           </div>
         </>
@@ -272,33 +312,44 @@ function ScopePicker({
 
 function scopeLine(grill: Grill, material: Material | undefined) {
   const pages =
-    grill.page_end > grill.page_start
-      ? `p. ${grill.page_start}–${grill.page_end}`
-      : `p. ${grill.page_start}`
+    grill.page_end > 1 ? `${grill.page_end} pages` : `${grill.page_end} page`
   return [material?.filename, pages].filter(Boolean).join(' · ')
 }
 
+function pagesOf(batch: GrillBatch) {
+  return batch.page_end > batch.page_start
+    ? `pages ${batch.page_start}–${batch.page_end}`
+    : `page ${batch.page_start}`
+}
+
 function QuizForm({
-  grill,
+  stage,
   material,
   answers,
   onAnswer,
+  onRetry,
   grading,
   error,
   onSubmit,
   onCancel,
 }: {
-  grill: Grill
+  stage: Extract<Stage, { at: 'quiz' }>
   material: Material | undefined
   answers: Answers
   onAnswer: (question: string, text: string) => void
+  onRetry: (batch: number) => void
   grading: boolean
   error: string | null
   onSubmit: (answers: Array<{ question: string; answer_text: string }>) => void
   onCancel: () => void
 }) {
+  const { grill, batches, pending, failed } = stage
   const answered = grill.questions.filter((q) => answers[q.id]?.trim()).length
-  const complete = answered === grill.questions.length
+  const complete =
+    pending.length === 0 &&
+    grill.questions.length > 0 &&
+    answered === grill.questions.length
+  const batch = (index: number) => batches.find((b) => b.index === index)
 
   return (
     <form
@@ -314,7 +365,9 @@ function QuizForm({
         )
       }}
     >
-      <div className="flex-1 overflow-y-auto px-6 py-5">
+      {/* `relative`: the radios' hidden native inputs are absolutely positioned, and
+          without a positioned ancestor they anchor to the document and stretch the page. */}
+      <div className="relative flex-1 overflow-y-auto px-6 py-5">
         <p className="text-lattice-heading font-semibold tracking-tight">
           {grill.topic_label}
         </p>
@@ -365,6 +418,39 @@ function QuizForm({
             </li>
           ))}
         </ol>
+        {pending.length > 0 && (
+          <p
+            role="status"
+            className="mt-5 text-sm italic text-muted-foreground"
+          >
+            Writing questions for{' '}
+            {pending
+              .map(batch)
+              .filter((b) => b !== undefined)
+              .map(pagesOf)
+              .join(', ')}
+            …
+          </p>
+        )}
+        {failed.map((index) => {
+          const b = batch(index)
+          return b ? (
+            <p
+              key={index}
+              className="mt-3 flex items-center justify-between gap-2 text-sm text-destructive"
+            >
+              <span>Questions for {pagesOf(b)} could not be written.</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="xs"
+                onClick={() => onRetry(index)}
+              >
+                Retry
+              </Button>
+            </p>
+          ) : null
+        })}
       </div>
       <div className="space-y-2 border-t border-border p-4">
         {error && <p className="text-xs text-destructive">{error}</p>}
@@ -489,7 +575,7 @@ function Result({
   const right = grill.questions.filter((q) => q.given?.correct === true).length
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-5">
+      <div className="relative flex-1 space-y-4 overflow-y-auto px-6 py-5">
         <div>
           <p className="text-lattice-heading font-semibold tracking-tight">
             {right} / {grill.questions.length} correct
@@ -517,7 +603,7 @@ function Result({
           ))}
         </ol>
       </div>
-      <div className="border-t border-border p-4">
+      <div className="flex justify-end border-t border-border p-4">
         <Button onClick={onAgain}>Grill me again</Button>
       </div>
     </div>

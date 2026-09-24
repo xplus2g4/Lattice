@@ -4,11 +4,16 @@ import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 
 import { grill, grillQuestion, material } from '#/test/fixtures'
-import { grillNextWith, resetStore, store } from '#/test/handlers'
+import {
+  failBatch,
+  gradeNextGrillWith,
+  grillNextWith,
+  holdBatch,
+  resetStore,
+  store,
+} from '#/test/handlers'
 import { renderRoute } from '#/test/render'
 import { server } from '#/test/server'
-
-const ALICE = 'alice@example.com'
 
 async function openGrillTab(path = '/courses/cs101?material=week1.pdf') {
   const user = userEvent.setup()
@@ -17,51 +22,48 @@ async function openGrillTab(path = '/courses/cs101?material=week1.pdf') {
   return user
 }
 
+/** Plans a Grill and waits until both batches are on the form. */
+async function startGrill(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Grill me' }))
+  await screen.findByText('What resolves a collision?')
+  await screen.findByText('Define a hash collision.')
+  await waitFor(() =>
+    expect(screen.queryByText(/Writing questions/)).toBeNull(),
+  )
+}
+
 describe('choosing what to be grilled on', () => {
-  it('defaults to the open Material and where the reader stopped', async () => {
+  it('defaults to the Material open in the reader', async () => {
     resetStore({
       materials: [
-        material({ id: 'm1', filename: 'week1.pdf' }),
-        material({ id: 'm2', filename: 'week2.pdf' }),
+        material({ filename: 'week1.pdf' }),
+        material({ filename: 'week2.pdf' }),
       ],
     })
-    localStorage.setItem(
-      `lattice.reading:${ALICE}:cs101`,
-      JSON.stringify({ 'material:week2.pdf': 7 }),
-    )
     await openGrillTab('/courses/cs101?material=week2.pdf')
 
-    const picker = screen.getByRole('combobox', { name: 'Material' })
-    await waitFor(() => expect(picker).toHaveValue('m2'))
-    expect(screen.getByRole('spinbutton', { name: 'From page' })).toHaveValue(1)
-    expect(screen.getByRole('spinbutton', { name: 'To page' })).toHaveValue(7)
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Material' })).toHaveValue(
+        'm-week2.pdf',
+      ),
+    )
+    expect(screen.queryByRole('spinbutton')).toBeNull()
   })
 
-  it('follows the chosen Material and refuses a backwards range', async () => {
+  it('falls back to the first Material when none is open', async () => {
     resetStore({
       materials: [
-        material({ id: 'm1', filename: 'week1.pdf' }),
-        material({ id: 'm2', filename: 'week2.pdf' }),
+        material({ filename: 'week1.pdf' }),
+        material({ filename: 'week2.pdf' }),
       ],
     })
-    localStorage.setItem(
-      `lattice.reading:${ALICE}:cs101`,
-      JSON.stringify({ 'material:week1.pdf': 3, 'material:week2.pdf': 12 }),
-    )
-    const user = await openGrillTab()
-    const to = screen.getByRole('spinbutton', { name: 'To page' })
-    await waitFor(() => expect(to).toHaveValue(3))
+    await openGrillTab('/courses/cs101')
 
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Material' }),
-      'm2',
+    await waitFor(() =>
+      expect(screen.getByRole('combobox', { name: 'Material' })).toHaveValue(
+        'm-week1.pdf',
+      ),
     )
-    await waitFor(() => expect(to).toHaveValue(12))
-
-    await user.clear(screen.getByRole('spinbutton', { name: 'From page' }))
-    await user.type(screen.getByRole('spinbutton', { name: 'From page' }), '20')
-    expect(screen.getByText(/in order/)).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Grill me' })).toBeDisabled()
   })
 
   it('says so when the course has no Materials', async () => {
@@ -74,8 +76,10 @@ describe('choosing what to be grilled on', () => {
 })
 
 describe('a grill', () => {
-  it('asks, waits for every answer, grades, and links each question to its Page', async () => {
-    resetStore({ materials: [material({ id: 'm1', filename: 'week1.pdf' })] })
+  it('shows the first batch while the second is still being written, and waits for both', async () => {
+    resetStore({ materials: [material({ filename: 'week1.pdf' })] })
+    // Long enough that a loaded test runner still sees the form before batch 1 lands.
+    holdBatch(1, 1500)
     const user = await openGrillTab()
 
     await user.click(screen.getByRole('button', { name: 'Grill me' }))
@@ -83,17 +87,30 @@ describe('a grill', () => {
     expect(
       await screen.findByText('What resolves a collision?'),
     ).toBeInTheDocument()
-    expect(screen.getByText('Hash collisions')).toBeInTheDocument()
-    expect(screen.getByText('week1.pdf · p. 1')).toBeInTheDocument()
+    expect(screen.queryByText('Define a hash collision.')).toBeNull()
+    expect(screen.getByText(/Writing questions/)).toHaveTextContent(
+      'Writing questions for pages 13–24…',
+    )
+    expect(screen.getByText('week1.pdf · 24 pages')).toBeInTheDocument()
     // The key never reaches the form.
     expect(document.body).not.toHaveTextContent(
       'Chaining keeps colliding keys in one bucket.',
     )
     const submit = screen.getByRole('button', { name: 'Submit answers' })
+    await user.click(screen.getByRole('radio', { name: 'Chaining' }))
+    expect(screen.getByText('Answered 1 of 1')).toBeInTheDocument()
     expect(submit).toBeDisabled()
-    expect(screen.getByText('Answered 0 of 2')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('radio', { name: 'Sorting' }))
+    expect(
+      await screen.findByText(
+        'Define a hash collision.',
+        {},
+        { timeout: 5000 },
+      ),
+    ).toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByText(/Writing questions/)).toBeNull(),
+    )
     expect(screen.getByText('Answered 1 of 2')).toBeInTheDocument()
     expect(submit).toBeDisabled()
     await user.type(
@@ -101,7 +118,19 @@ describe('a grill', () => {
       'two keys, one bucket',
     )
     expect(submit).toBeEnabled()
-    await user.click(submit)
+  })
+
+  it('grades every answer at once and links each question to its Page', async () => {
+    resetStore({ materials: [material({ filename: 'week1.pdf' })] })
+    const user = await openGrillTab()
+    await startGrill(user)
+
+    await user.click(screen.getByRole('radio', { name: 'Sorting' }))
+    await user.type(
+      screen.getByRole('textbox', { name: 'Answer 2' }),
+      'two keys, one bucket',
+    )
+    await user.click(screen.getByRole('button', { name: 'Submit answers' }))
 
     expect(await screen.findByText('1 / 2 correct')).toBeInTheDocument()
     expect(
@@ -133,83 +162,62 @@ describe('a grill', () => {
     expect(screen.getByRole('button', { name: 'Grill me' })).toBeInTheDocument()
   })
 
+  it('offers a retry for a batch that could not be written', async () => {
+    resetStore({ materials: [material({ filename: 'week1.pdf' })] })
+    failBatch(1)
+    const user = await openGrillTab()
+
+    await user.click(screen.getByRole('button', { name: 'Grill me' }))
+
+    expect(
+      await screen.findByText(/pages 13–24 could not be written/),
+    ).toBeInTheDocument()
+    await screen.findByText('What resolves a collision?')
+    await user.click(screen.getByRole('radio', { name: 'Chaining' }))
+    expect(screen.getByRole('button', { name: 'Submit answers' })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Retry' }))
+
+    expect(
+      await screen.findByText('Define a hash collision.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/could not be written/)).toBeNull()
+    expect(
+      screen.getByRole('button', { name: 'Submit answers' }),
+    ).toBeDisabled()
+  })
+
   it('shows an ungraded short answer as such', async () => {
-    resetStore({ materials: [material({ id: 'm1', filename: 'week1.pdf' })] })
-    grillNextWith(
-      grill({
+    resetStore({ materials: [material({ filename: 'week1.pdf' })] })
+    const only = grillQuestion({
+      id: 'q1',
+      kind: 'short_answer',
+      prompt: 'Why chain?',
+      options: null,
+      page: null,
+    })
+    grillNextWith(grill({ questions: [only] }))
+    gradeNextGrillWith({
+      grill: grill({
+        status: 'submitted',
+        score: 0,
         questions: [
-          grillQuestion({
-            id: 'q1',
-            kind: 'short_answer',
-            prompt: 'Why chain?',
-            options: null,
-          }),
+          {
+            ...only,
+            given: { text: 'hmm', correct: null, reason: 'Not graded.' },
+          },
         ],
       }),
-    )
-    server.use(
-      http.post('*/quizzes.grade', ({ request }) =>
-        (async () => {
-          const body = (await request.json()) as { quiz: string }
-          const found = store.grills[body.quiz]!
-          const graded = {
-            ...found.grill,
-            status: 'submitted' as const,
-            score: 0,
-            questions: found.grill.questions.map((q) => ({
-              ...q,
-              given: { text: 'hmm', correct: null, reason: 'Not graded.' },
-            })),
-          }
-          return HttpResponse.json({
-            quiz: {
-              id: graded.id,
-              course_id: 'c',
-              kind: 'grill',
-              scope_json: {
-                material_id: graded.material_id,
-                page_start: 1,
-                page_end: 1,
-                topic_label: graded.topic_label,
-              },
-              status: 'submitted',
-              score: 0,
-              created_at: '2026-01-01T00:00:00Z',
-              submitted_at: '2026-01-01T00:00:00Z',
-              questions: graded.questions.map((q, position) => ({
-                id: q.id,
-                quiz_id: graded.id,
-                topic_id: null,
-                material_id: graded.material_id,
-                position,
-                kind: q.kind,
-                prompt: q.prompt,
-                options_json: null,
-                expected_json: { answer: q.key?.answer, explanation: null },
-                citation_json: null,
-                answers: [
-                  {
-                    id: 'a',
-                    question_id: q.id,
-                    attempt_no: 1,
-                    answer_text: 'hmm',
-                    correct: null,
-                    feedback_json: { reason: 'Not graded.' },
-                    created_at: '2026-01-01T00:00:00Z',
-                  },
-                ],
-              })),
-            },
-            remark: '',
-          })
-        })(),
-      ),
-    )
+      remark: '',
+    })
     const user = await openGrillTab()
     await user.click(screen.getByRole('button', { name: 'Grill me' }))
     await user.type(
       await screen.findByRole('textbox', { name: 'Answer 1' }),
       'hmm',
+    )
+    await waitFor(() =>
+      expect(screen.queryByText(/Writing questions/)).toBeNull(),
     )
     await user.click(screen.getByRole('button', { name: 'Submit answers' }))
 
@@ -219,7 +227,7 @@ describe('a grill', () => {
   })
 
   it('keeps the form when grading fails, and abandons it on cancel', async () => {
-    resetStore({ materials: [material({ id: 'm1', filename: 'week1.pdf' })] })
+    resetStore({ materials: [material({ filename: 'week1.pdf' })] })
     server.use(
       http.post('*/quizzes.grade', () =>
         HttpResponse.json(
@@ -229,8 +237,8 @@ describe('a grill', () => {
       ),
     )
     const user = await openGrillTab()
-    await user.click(screen.getByRole('button', { name: 'Grill me' }))
-    await user.click(await screen.findByRole('radio', { name: 'Chaining' }))
+    await startGrill(user)
+    await user.click(screen.getByRole('radio', { name: 'Chaining' }))
     await user.type(screen.getByRole('textbox', { name: 'Answer 2' }), 'bucket')
     await user.click(screen.getByRole('button', { name: 'Submit answers' }))
 
@@ -247,28 +255,28 @@ describe('a grill', () => {
     )
   })
 
-  it('reports a failed generation and lets the student try again', async () => {
-    resetStore({ materials: [material({ id: 'm1', filename: 'week1.pdf' })] })
+  it('reports a failed plan and lets the student try again', async () => {
+    resetStore({ materials: [material({ filename: 'week1.pdf' })] })
     server.use(
       http.post('*/quizzes.generate', () =>
         HttpResponse.json(
-          { detail: 'The model wrote no usable questions; please retry' },
-          { status: 502 },
+          { detail: 'material bytes are unavailable' },
+          { status: 404 },
         ),
       ),
     )
     const user = await openGrillTab()
     await user.click(screen.getByRole('button', { name: 'Grill me' }))
 
-    expect(await screen.findByText(/no usable questions/)).toBeInTheDocument()
+    expect(await screen.findByText(/bytes are unavailable/)).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Grill me' })).toBeEnabled()
   })
 
   it('survives a switch to Ask and back', async () => {
-    resetStore({ materials: [material({ id: 'm1', filename: 'week1.pdf' })] })
+    resetStore({ materials: [material({ filename: 'week1.pdf' })] })
     const user = await openGrillTab()
-    await user.click(screen.getByRole('button', { name: 'Grill me' }))
-    await user.click(await screen.findByRole('radio', { name: 'Chaining' }))
+    await startGrill(user)
+    await user.click(screen.getByRole('radio', { name: 'Chaining' }))
 
     await user.click(screen.getByRole('tab', { name: /Ask/ }))
     expect(screen.queryByRole('radio', { name: 'Chaining' })).toBeNull()

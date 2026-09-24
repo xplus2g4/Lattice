@@ -4,9 +4,11 @@ import type {
   AskOut as RpcAskOut,
   AskRequest as RpcAskRequest,
   CourseOut,
+  ExtendGrill,
   GenerateGrill,
   GradeGrill,
   GradedQuizOut,
+  GrillPlanOut,
   MaterialOut,
   NoteOut,
   NoteUploadOut,
@@ -142,6 +144,8 @@ export interface GrillAnswer {
 }
 export interface GrillQuestion {
   id: string
+  /** Page order across batches: each batch's questions take positions from its own block. */
+  position: number
   kind: 'mcq' | 'short_answer'
   prompt: string
   options: Array<string> | null
@@ -166,10 +170,15 @@ export interface GrillResult {
   /** One or two sentences on what to re-read, or "" when there is nothing to say. */
   remark: string
 }
-export interface GrillScope {
-  material: string
+/** One contiguous page range whose questions are written by one `extendGrill` call. */
+export interface GrillBatch {
+  index: number
   page_start: number
   page_end: number
+}
+export interface GrillPlan {
+  grill: Grill
+  batches: Array<GrillBatch>
 }
 export interface Session {
   id: string
@@ -570,6 +579,7 @@ function grillQuestionView(row: QuizQuestionOut): GrillQuestion {
   const last = row.answers.at(-1)
   return {
     id: row.id,
+    position: row.position,
     kind: row.kind === 'mcq' ? 'mcq' : 'short_answer',
     prompt: row.prompt,
     options: row.options_json ?? null,
@@ -603,16 +613,30 @@ function grillView(row: QuizOut): Grill {
     questions: row.questions.map(grillQuestionView),
   }
 }
-/** Up to ten questions written from the pages in scope; the answer key stays on the server. */
+/** Plan a Grill over every page of a Material. No question is written yet: ask for each
+ * batch with `extendGrill`, all at once, and show them as they land. */
 export async function generateGrill(
   user: string,
   course: string,
-  scope: GrillScope,
-): Promise<Grill> {
-  const body: GenerateGrill = { course, ...scope }
-  return grillView(
-    await request<QuizOut>(user, '/quizzes.generate', json(body)),
+  material: string,
+): Promise<GrillPlan> {
+  const body: GenerateGrill = { course, material }
+  const out = await request<GrillPlanOut>(user, '/quizzes.generate', json(body))
+  return { grill: grillView(out.quiz), batches: out.batches }
+}
+/** One batch's questions, answer key withheld. Asking twice returns the same questions. */
+export async function extendGrill(
+  user: string,
+  grill: string,
+  batch: number,
+): Promise<Array<GrillQuestion>> {
+  const body: ExtendGrill = { quiz: grill, batch }
+  const rows = await request<Array<QuizQuestionOut>>(
+    user,
+    '/quizzes.extend',
+    json(body),
   )
+  return rows.map(grillQuestionView)
 }
 /** Every answer at once; the Grill comes back graded, with its key, and a remark. */
 export async function gradeGrill(
