@@ -29,10 +29,13 @@ async def update(
     user: User,
     *,
     name: str | None = None,
+    role: str | None = None,
     notes_opt_out: bool | None = None,
 ) -> User:
     if name is not None:
         user.name = name
+    if role is not None:
+        user.role = role
     if notes_opt_out is not None:
         user.notes_opt_out = notes_opt_out
     await session.flush()

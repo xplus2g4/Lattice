@@ -77,6 +77,16 @@ async def test_instructor_bootstraps_as_instructor(client: AsyncClient) -> None:
     assert r.json()["user"]["role"] == "instructor"
 
 
+async def test_instructor_email_promotes_existing_student(client: AsyncClient) -> None:
+    """A student row for INSTRUCTOR_EMAIL (dev code, invite, header) is promoted back."""
+    r = await client.post(
+        "/invites.redeem", json={"token": "123456"}, headers=bearer("prof@example.com")
+    )
+    assert r.json()["role"] == "student"
+    r = await client.get("/me.get", headers=bearer("prof@example.com"))
+    assert r.json()["user"]["role"] == "instructor"
+
+
 async def test_bad_tokens_rejected(client: AsyncClient) -> None:
     for headers in (
         bearer("a@b.com", secret="wrong"),
@@ -129,9 +139,7 @@ async def test_invite_role_carries_to_new_user(client: AsyncClient) -> None:
 
 async def test_students_cannot_create_invites(client: AsyncClient) -> None:
     token = await mint(client)
-    await client.post(
-        "/invites.redeem", json={"token": token}, headers=bearer("kid@example.com")
-    )
+    await client.post("/invites.redeem", json={"token": token}, headers=bearer("kid@example.com"))
     r = await client.post("/invites.create", json={}, headers=bearer("kid@example.com"))
     assert r.status_code == 403
 
@@ -159,9 +167,7 @@ async def test_invite_via_header(client: AsyncClient) -> None:
 async def test_dev_invite_code_admits_students(client: AsyncClient) -> None:
     """The fixed dev code is reusable and creates students, no invite row needed."""
     for email in ("one@example.com", "two@example.com"):
-        r = await client.post(
-            "/invites.redeem", json={"token": "123456"}, headers=bearer(email)
-        )
+        r = await client.post("/invites.redeem", json={"token": "123456"}, headers=bearer(email))
         assert r.status_code == 200, r.text
         assert r.json()["role"] == "student"
 

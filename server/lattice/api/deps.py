@@ -76,15 +76,21 @@ async def current_user(
     identity: CurrentIdentity, session: SessionDep, settings: SettingsDep
 ) -> User:
     """The caller's `users` row. Strangers need an invite; the configured instructor
-    bootstraps themselves on first sign-in, and dev-header callers self-provision."""
+    bootstraps on sign-in, and dev-header callers self-provision. The instructor
+    check is sticky: a student row matching INSTRUCTOR_EMAIL is promoted back,
+    so configuring the email late or signing in via an invite cannot demote them."""
+    instructor = identity.email == settings.instructor_email.strip().lower()
     user = await users.by_email(session, identity.email)
-    if user is not None:
-        return user
-    if identity.via_header:
-        return await users.get_or_create(session, identity.email)
-    if identity.email == settings.instructor_email:
-        return await users.create(session, email=identity.email, role="instructor")
-    raise HTTPException(403, "an invite is required to join")
+    if user is None:
+        if identity.via_header:
+            user = await users.get_or_create(session, identity.email)
+        elif instructor:
+            user = await users.create(session, email=identity.email, role="instructor")
+        else:
+            raise HTTPException(403, "an invite is required to join")
+    if instructor and user.role == "student":
+        await users.update(session, user, role="instructor")
+    return user
 
 
 CurrentUser = Annotated[User, Depends(current_user)]

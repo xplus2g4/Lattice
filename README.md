@@ -38,18 +38,23 @@ The long way, if you would rather see each step:
 cd server
 uv sync
 docker compose up -d postgres
-cp .env.example .env         # set LLM_API_KEY; everything else has a working default
+cp .env.example .env         # set LLM_API_KEY and TOKEN_SECRET; the rest has working defaults
 uv run alembic upgrade head
 uv run uvicorn lattice.main:app --reload    # http://localhost:8000, docs at /docs
 
 cd ../app
+cp .env.example .env         # GOOGLE_* values, SESSION_SECRET, and the same TOKEN_SECRET
 npm install
 npm run dev                  # http://localhost:3000
 ```
 
 If port 8000 is taken, start uvicorn with `--port 8010` and put `VITE_API_URL=http://localhost:8010` in `app/.env`.
 
-Then open the web app. Enter a course code on the landing page, `cs101` will do, which takes you to `/courses/cs101`; the user email sits in the header there and the default `alice@example.com` is fine. Upload a `.pdf`, `.pptx`, `.md` or `.txt`. Its status goes `queued`, `cognifying`, `ready`. Cognify is the slow, expensive step, where DeepSeek extracts entities and relations; a page of text takes 10 to 50 seconds. Save a note. Ask something. The answer comes back in two labelled blocks, one per tier, each with the chunks and graph nodes it drew on. Change the email to `bob@example.com` and ask again. The notes block is gone.
+Sign-in is Google OAuth. The web app talks to Google directly, so every machine needs `GOOGLE_CLIENT_ID`/`SECRET`/`REDIRECT_URI` in `app/.env` — one GCP client works for everyone on `localhost:3000`, but each signer's Gmail must be a **Test user** on the consent screen while it stays in Testing mode. `TOKEN_SECRET` must match between `app/.env` and `server/.env` on each machine; `SESSION_SECRET` can be anything.
+
+Account creation is invite-gated. In dev, `DEV_INVITE_CODE` (default `123456`) redeems as a reusable student invite — paste it into the code field on `/login`, then sign in with Google. Whoever matches `INSTRUCTOR_EMAIL` bootstraps as instructor and can mint real single-use invite links from the home page instead.
+
+Then: enter a course code on the landing page, `cs101` will do, which takes you to `/courses/cs101`. Upload a `.pdf`, `.pptx`, `.md` or `.txt`. Its status goes `queued`, `cognifying`, `ready`. Cognify is the slow, expensive step, where DeepSeek extracts entities and relations; a page of text takes 10 to 50 seconds. Save a note. Ask something. The answer comes back in two labelled blocks, one per tier, each with the chunks and graph nodes it drew on. Sign in as a second user and ask again — the notes block is gone.
 
 Things that will surprise you the first time:
 
