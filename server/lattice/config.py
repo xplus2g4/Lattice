@@ -35,6 +35,9 @@ class Settings(BaseSettings):
 
     # Principal that owns every course's global dataset and runs material ingest.
     instructor_email: str = "instructor@lattice.example"
+    # Extra emails that bootstrap as instructor on sign-in, alongside instructor_email.
+    # For co-teachers/dev accounts you want privileged without going through an invite.
+    instructor_emails: list[str] = []
 
     # Where Cognee keeps its embedded databases and where uploaded files land.
     cognee_root: Path = Path(".cognee")

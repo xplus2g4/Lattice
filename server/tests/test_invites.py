@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 
 import jwt
 import pytest
+from fastapi import FastAPI
 from httpx import AsyncClient
 
 from lattice.auth import AuthError, verify_token
@@ -75,6 +76,21 @@ async def test_instructor_bootstraps_as_instructor(client: AsyncClient) -> None:
     r = await client.get("/me.get", headers=bearer("prof@example.com"))
     assert r.status_code == 200
     assert r.json()["user"]["role"] == "instructor"
+
+
+async def test_instructor_emails_list_also_bootstraps(
+    client: AsyncClient, app: FastAPI, settings: Settings
+) -> None:
+    from lattice.api.deps import get_settings
+
+    extra = settings.model_copy(
+        update={"instructor_emails": ["friend1@example.com", "  Friend2@Example.com  "]}
+    )
+    app.dependency_overrides[get_settings] = lambda: extra
+    for email in ("friend1@example.com", "friend2@example.com"):
+        r = await client.get("/me.get", headers=bearer(email))
+        assert r.status_code == 200, r.text
+        assert r.json()["user"]["role"] == "instructor"
 
 
 async def test_instructor_email_promotes_existing_student(client: AsyncClient) -> None:
@@ -166,9 +182,7 @@ async def test_invite_via_header(client: AsyncClient) -> None:
 
 async def test_invites_list_shows_status_and_emails(client: AsyncClient) -> None:
     token = await mint(client)
-    await client.post(
-        "/invites.redeem", json={"token": token}, headers=bearer("kid@example.com")
-    )
+    await client.post("/invites.redeem", json={"token": token}, headers=bearer("kid@example.com"))
     r = await client.get("/invites.list", headers=bearer("prof@example.com"))
     assert r.status_code == 200
     row = next(i for i in r.json() if i["used_by_email"] == "kid@example.com")
@@ -179,18 +193,14 @@ async def test_invites_list_shows_status_and_emails(client: AsyncClient) -> None
 
 async def test_invites_list_forbidden_for_students(client: AsyncClient) -> None:
     token = await mint(client)
-    await client.post(
-        "/invites.redeem", json={"token": token}, headers=bearer("kid@example.com")
-    )
+    await client.post("/invites.redeem", json={"token": token}, headers=bearer("kid@example.com"))
     r = await client.get("/invites.list", headers=bearer("kid@example.com"))
     assert r.status_code == 403
 
 
 async def test_users_list_shows_everyone(client: AsyncClient) -> None:
     token = await mint(client)
-    await client.post(
-        "/invites.redeem", json={"token": token}, headers=bearer("kid@example.com")
-    )
+    await client.post("/invites.redeem", json={"token": token}, headers=bearer("kid@example.com"))
     r = await client.get("/users.list", headers=bearer("prof@example.com"))
     assert r.status_code == 200
     emails = {u["email"] for u in r.json()}
@@ -199,9 +209,7 @@ async def test_users_list_shows_everyone(client: AsyncClient) -> None:
 
 async def test_users_list_forbidden_for_students(client: AsyncClient) -> None:
     token = await mint(client)
-    await client.post(
-        "/invites.redeem", json={"token": token}, headers=bearer("kid@example.com")
-    )
+    await client.post("/invites.redeem", json={"token": token}, headers=bearer("kid@example.com"))
     r = await client.get("/users.list", headers=bearer("kid@example.com"))
     assert r.status_code == 403
 

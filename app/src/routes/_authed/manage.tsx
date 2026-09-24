@@ -206,7 +206,7 @@ function InvitesTable() {
             ? invites.error.message
             : 'Could not load invites.'}
         </p>
-      ) : invites.data && invites.data.length > 0 ? (
+      ) : invites.data.length > 0 ? (
         <>
           <p className="mt-2 text-sm text-muted-foreground">
             {counts.pending} pending · {counts.used} joined · {counts.expired}{' '}
@@ -286,7 +286,7 @@ function PeopleTable() {
             ? users.error.message
             : 'Could not load people.'}
         </p>
-      ) : users.data && users.data.length > 0 ? (
+      ) : users.data.length > 0 ? (
         <div className="mt-4 overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">

@@ -75,11 +75,14 @@ CurrentIdentity = Annotated[Identity, Depends(current_identity)]
 async def current_user(
     identity: CurrentIdentity, session: SessionDep, settings: SettingsDep
 ) -> User:
-    """The caller's `users` row. Strangers need an invite; the configured instructor
-    bootstraps on sign-in, and dev-header callers self-provision. The instructor
-    check is sticky: a student row matching INSTRUCTOR_EMAIL is promoted back,
-    so configuring the email late or signing in via an invite cannot demote them."""
-    instructor = identity.email == settings.instructor_email.strip().lower()
+    """The caller's `users` row. Strangers need an invite; a configured instructor
+    email bootstraps on sign-in, and dev-header callers self-provision. The check
+    is sticky: a student row matching an instructor email is promoted back, so
+    configuring the email late or signing in via an invite cannot demote them."""
+    instructor_emails = {settings.instructor_email.strip().lower()} | {
+        e.strip().lower() for e in settings.instructor_emails
+    }
+    instructor = identity.email in instructor_emails
     user = await users.by_email(session, identity.email)
     if user is None:
         if identity.via_header:
