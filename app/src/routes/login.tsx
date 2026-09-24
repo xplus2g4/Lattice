@@ -21,8 +21,14 @@ const ERRORS: Record<string, string> = {
 }
 
 const FEATURES = [
-  { icon: CloudUploadIcon, label: 'Upload slides and readings for each course' },
-  { icon: MessageQuestionIcon, label: 'Ask questions and get answers from your own materials' },
+  {
+    icon: CloudUploadIcon,
+    label: 'Upload slides and readings for each course',
+  },
+  {
+    icon: MessageQuestionIcon,
+    label: 'Ask questions and get answers from your own materials',
+  },
   { icon: StickyNote01Icon, label: 'Keep notes next to what you’re reading' },
 ]
 
@@ -90,7 +96,11 @@ function Login() {
         <div className="flex w-full max-w-sm flex-col gap-7">
           <div className="flex flex-col gap-2.5">
             <Badge className="w-fit gap-1.5 bg-[#E6F4F1] px-2.5 py-1 text-[#0F5F53] hover:bg-[#E6F4F1]">
-              <HugeiconsIcon icon={SquareLock02Icon} className="size-3" strokeWidth={2} />
+              <HugeiconsIcon
+                icon={SquareLock02Icon}
+                className="size-3"
+                strokeWidth={2}
+              />
               Private beta
             </Badge>
             <h2 className="text-3xl font-bold tracking-tight">
@@ -115,7 +125,11 @@ function Login() {
             className="h-13 w-full gap-3 rounded-full border-border text-base font-semibold"
           >
             <a href={href}>
-              <HugeiconsIcon icon={GoogleIcon} className="size-5" strokeWidth={1.8} />
+              <HugeiconsIcon
+                icon={GoogleIcon}
+                className="size-5"
+                strokeWidth={1.8}
+              />
               Continue with Google
             </a>
           </Button>
@@ -135,7 +149,10 @@ function Login() {
                   apply()
                 }}
               >
-                <label htmlFor="invite-code" className="text-base font-semibold">
+                <label
+                  htmlFor="invite-code"
+                  className="text-base font-semibold"
+                >
                   Enter your invite code
                 </label>
                 <div className="flex gap-2">
@@ -155,8 +172,8 @@ function Login() {
                   </Button>
                 </div>
                 <p className="text-sm leading-snug text-muted-foreground">
-                  Paste the code or the whole link from your invite. You’ll sign in
-                  with Google next.
+                  Paste the code or the whole link from your invite. You’ll sign
+                  in with Google next.
                 </p>
               </form>
 

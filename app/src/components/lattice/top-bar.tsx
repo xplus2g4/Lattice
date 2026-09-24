@@ -27,7 +27,12 @@ export function LogoMark({ onDark = false }: { onDark?: boolean }) {
       aria-hidden="true"
       className="shrink-0"
     >
-      <rect width="28" height="28" rx="8" fill={onDark ? '#16362F' : '#0E2622'} />
+      <rect
+        width="28"
+        height="28"
+        rx="8"
+        fill={onDark ? '#16362F' : '#0E2622'}
+      />
       <g stroke="#5CD1BE" strokeWidth="1.6" strokeLinecap="round">
         <path d="M10 7v14M18 7v14M7 10h14M7 18h14" />
       </g>
