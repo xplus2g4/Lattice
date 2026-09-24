@@ -6,8 +6,8 @@ from lattice.db.base import utcnow
 from lattice.db.models import Course, CourseSummary
 
 # MAGIC NUMBER (2026-09-24): a guess, not a measurement. The lowest cosine similarity at
-# which another course still counts as related. bge-small-en-v1.5 packs most pairs of texts
-# into roughly 0.6-1.0, and mean-pooled course vectors sit closer together still, so 0.75 is
+# which another course still counts as related. text-embedding-3-small packs most pairs of
+# texts well above zero, and mean-pooled course vectors sit closer together still, so 0.75 is
 # meant to keep a data-structures course away from a poetry course while letting two CS
 # courses through. Revisit with a real course set (docs/benchmarks template) before trusting it.
 MIN_SIMILARITY = 0.75

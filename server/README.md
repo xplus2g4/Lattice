@@ -97,11 +97,26 @@ unless they set `notes_opt_out`, tracked on the Note as `status` (`dirty`, `inde
 clears the searchable private content. The API coalesces dirty Notes and recovers interrupted
 ingest; the general Worker job queue remains a separate deployment step.
 
-Set `MCP_ENABLED=true` with development identity enabled to mount `/mcp/` over Streamable HTTP.
-It is loopback-only, rejects forwarded identity, and uses the same Postgres records, Enrolment
-checks and `notes_opt_out` setting as RPC. Run one API process per Cognee root. Existing local
-`.page-notes` JSON records are not automatically imported or deleted; migrate them explicitly
-before relying on the database as their only copy.
+MCP runs in a separate process from the API. Set `MCP_ENABLED=true` and
+`DEV_HEADER_AUTH=true` in `.env`, keep the API running, then launch from another terminal:
+
+```sh
+uv run --locked python -m lattice.mcp  # http://127.0.0.1:8001/mcp/
+```
+
+Point MCP clients at that URL with an `X-User: <email>` header. `MCP_API_URL` defaults to
+`http://127.0.0.1:8000`; change it if the API uses another port. For a custom MCP port, run
+`uv run --locked uvicorn lattice.mcp:create_app --factory --host 127.0.0.1 --port 8001 --no-proxy-headers`.
+The adapter is loopback-only and rejects forwarded identity. It forwards each caller to the
+API's authenticated `/study/*` operations, preserving Enrolment, Note revisions, Sessions and
+`notes_opt_out`. Tool discovery works while the API is unavailable; tool calls need the API.
+`MCP_ENABLED` only gates the separate adapter; the API never mounts `/mcp/`.
+
+The adapter opens no Postgres or Cognee stores and runs no ingestion loop. Keep one API process
+per Cognee root; it owns storage and Cognify, including Notes saved through MCP. With Docker,
+run the adapter on the host against the published API port. Existing local `.page-notes` JSON
+records are not automatically imported or deleted; migrate them explicitly before relying on
+the database as their only copy.
 
 `/ask` appends two Turns to a Session — the question, then the answer with its Tier results and
 the chunks they cite — so `/sessions.get` replays a conversation after a reload and `/sessions.list`
@@ -109,7 +124,7 @@ shows a student's conversations in a course, newest first. A Session is readable
 student who asked, and `/feedback.record` puts one rating per student on an answer. With Related
 courses on, the answer also carries a `related` tier per nearest course: a few bullet points from
 that course's Materials, searched as the instructor principal over its global Dataset alone
-([ADR 0007](../docs/adr/0007-related-courses-from-summary-neighbours.md)).
+([ADR 0008](../docs/adr/0008-related-courses-from-summary-neighbours.md)).
 
 Quizzes are records only: something else writes the questions and marks the answers, and
 `/quizzes.create` stores the result, `/quizAnswers.record` keeps every attempt as its own row, and
@@ -117,11 +132,13 @@ Quizzes are records only: something else writes the questions and marks the answ
 private to the student it was set for, and closes once through `/quizzes.submit` or
 `/quizzes.abandon`.
 
-Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model. Two settings belong to Related courses: `RELATED_COURSES_K`, how many nearest courses `/ask` also searches (`0` turns the lane off), and `COURSE_SUMMARY_REFRESH_S`, how often Course summaries are recomputed. Besides Note ingest, the API process runs that refresh on a timer, embedding one profile per ready Material with the same fastembed model and storing the mean per course in `course_summaries`; both loops sit under one file lock, hence one API process per Cognee root.
+Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings are OpenAI `text-embedding-3-small` through LiteLLM (`EMBEDDING_API_KEY`); its 8,191-token window matches Cognee's default Chunk, so whole Chunks are embedded ([ADR 0007](../docs/adr/0007-openai-embeddings.md)). Changing the embedding model or dimensions invalidates every Dataset under `COGNEE_ROOT`: stop the API, delete the root, re-seed.
+
+Two settings belong to Related courses: `RELATED_COURSES_K`, how many nearest courses `/ask` also searches (`0` turns the lane off), and `COURSE_SUMMARY_REFRESH_S`, how often Course summaries are recomputed. Besides Note ingest, the API process runs that refresh on a timer, embedding one profile per ready Material with the same embedding model and storing the mean per course in `course_summaries`; both loops sit under one file lock, hence one API process per Cognee root.
 
 Identity is dev-only: with `DEV_HEADER_AUTH=true` the `X-User: <email>` header is the caller. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.
 
-The two default tests marked `canary` spend real LLM calls. `test_private_notes_never_leak` cognifies a Material and a Note, then asserts a second user's `/ask` never carries the first user's Note. `test_retrieved_instructions_do_not_override_grounded_answers` uses poisoned context and checks Graph, RAG and Hybrid answers, an unsupported question and a follow-up. Both require successful Cognify rather than passing on empty tiers. Without `LLM_API_KEY` they skip. Both passed locally on 20 Sep 2026; the repository secret is still pending (#14). The shared `workspace` fixture supplies an explicit per-test `CACHE_DB_URL` so Cognee cannot reuse a default SQL cache pointing at a deleted temporary root.
+The two default tests marked `canary` spend real LLM and embedding calls. `test_private_notes_never_leak` cognifies a Material and a Note, then asserts a second user's `/ask` never carries the first user's Note. `test_retrieved_instructions_do_not_override_grounded_answers` uses poisoned context and checks Graph, RAG and Hybrid answers, an unsupported question and a follow-up. Both require successful Cognify rather than passing on empty tiers. Without `LLM_API_KEY` and `EMBEDDING_API_KEY` they skip. Both passed locally on 20 Sep 2026; the repository secrets are still pending (#14). The shared `workspace` fixture supplies an explicit per-test `CACHE_DB_URL` so Cognee cannot reuse a default SQL cache pointing at a deleted temporary root.
 
 For reliably offline verification, use `uv run pytest -m "not canary"`, even if a key is configured. `tests/test_prompt_boundary.py` checks the actual Cognee prompt path with external storage/LLM substitutes, including escaped delimiters and session history. The current API has no `not_covered` field; unsupported generated answers are requested as "Not covered by the supplied materials." `CHUNKS` remains raw retrieval. See [security.md](../docs/wiki/security.md) for mitigation limits. Tests disable Cognee log-file rotation by default to avoid deleting user-level logs.
 
@@ -177,12 +194,16 @@ their reservation. It rejects unpriced models, streaming, multiple completions, 
 unfunded requests. The limit cannot exceed US$2 or change on reopening a ledger. The report
 contains token counts and model identifiers, not prompts, responses or credentials. This is
 experiment tooling, not production billing enforcement, and only supports the verified
-DeepSeek/LiteLLM HTTPX route with local fastembed embeddings.
+DeepSeek/LiteLLM HTTPX route for completions and `api.openai.com/v1/embeddings` with
+`text-embedding-3-small` for embeddings; every other outbound write is refused.
 
 Pricing was checked against the [official table](https://api-docs.deepseek.com/quick_start/pricing)
 on 20 Sep 2026: `deepseek-v4-flash` is now an alias for V4.1 Flash. The ledger uses peak
 cache-miss/input and output rates ($0.30/$1.20 per million tokens), so its dollar figure is an
-**upper bound**, not an invoice estimate with cache/off-peak discounts. Recheck pricing before
+**upper bound**, not an invoice estimate with cache/off-peak discounts. Embeddings are priced at
+OpenAI's [$0.02 per million input tokens](https://developers.openai.com/api/docs/models/text-embedding-3-small)
+(checked 24 Sep 2026), reserved as one full Cognee batch (36 inputs of 8,191 tokens) and settled
+from reported usage. Recheck pricing before
 future runs. Credentials belong in the worktree's ignored `.env` or process environment;
 preflight reports readiness without printing them. The [ontology findings](../docs/research/2026-09-20-cognee-ontology-findings.md)
 and [PDF provenance/cost findings](../docs/research/2026-09-20-cognee-material-provenance-cost.md),

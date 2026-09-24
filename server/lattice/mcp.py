@@ -1,9 +1,11 @@
 import asyncio
+from contextlib import asynccontextmanager
 from ipaddress import ip_address
 from typing import Annotated
 from urllib.parse import urlsplit
 
-from fastapi import Request
+import httpx
+from fastapi import FastAPI, Request
 from fastapi.responses import PlainTextResponse
 from mcp.server.fastmcp import Context, FastMCP
 from mcp.server.fastmcp.exceptions import ToolError
@@ -11,9 +13,8 @@ from mcp.server.transport_security import TransportSecuritySettings
 from mcp.types import ToolAnnotations
 from pydantic import Field
 
-from lattice.config import Settings
-from lattice.db.repo import courses, users
-from lattice.note_review import NoteReview, NoteReviewer
+from lattice.config import Settings, get_settings
+from lattice.note_review import NoteReview
 from lattice.page_notes import (
     Course,
     Filename,
@@ -21,10 +22,8 @@ from lattice.page_notes import (
     NoteText,
     PageAnchor,
     PageNote,
-    PageNotes,
-    RevisionConflict,
 )
-from lattice.study import AskRequest, AskResponse, QueryType, SessionAccessError, ask_course
+from lattice.study import AskResponse, QueryType
 
 
 class LocalMCP:
@@ -78,24 +77,49 @@ def caller(ctx: Context) -> str:
     return email
 
 
-async def checked(operation):
-    try:
-        async with asyncio.timeout(125):
-            return await operation
-    except (RevisionConflict, SessionAccessError, courses.CourseAccessError) as exc:
-        raise ToolError(str(exc)) from None
-    except ValueError:
-        raise ToolError(
-            "Invalid input or Material/Page context; refresh context and retry"
-        ) from None
-    except Exception:
-        raise ToolError("Operation could not be completed; please retry") from None
+def create_app(settings: Settings | None = None) -> FastAPI:
+    """Standalone MCP process; the API owns all persistence and Cognee access."""
+    settings = settings or get_settings()
+    if not settings.mcp_enabled or not settings.dev_header_auth:
+        raise ValueError("MCP requires MCP_ENABLED=true and development header identity")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        async with httpx.AsyncClient(
+            base_url=settings.mcp_api_url,
+            timeout=130,
+            follow_redirects=False,
+            trust_env=False,
+        ) as client:
+            app.state.api_client = client
+            async with mcp.session_manager.run():
+                yield
+
+    app = FastAPI(title="Lattice MCP", lifespan=lifespan, docs_url=None, redoc_url=None)
+    mcp = create_mcp(app)
+    app.mount("/mcp", LocalMCP(mcp.streamable_http_app(), settings))
+    return app
 
 
-def create_mcp(app, settings: Settings) -> FastMCP:
-    async def transact(ctx: Context, operation):
-        async with app.state.database.sessionmaker() as session, session.begin():
-            return await operation(session, caller(ctx))
+def create_mcp(app) -> FastMCP:
+    async def request(ctx: Context, path: str, body: dict, response_type):
+        try:
+            async with asyncio.timeout(135):
+                response = await app.state.api_client.post(
+                    path, json=body, headers={"X-User": caller(ctx)}
+                )
+                if response.status_code in {401, 403, 404, 409}:
+                    raise ToolError(response.json()["detail"])
+                if response.status_code == 422:
+                    raise ToolError(
+                        "Invalid input or Material/Page context; refresh context and retry"
+                    )
+                response.raise_for_status()
+                return response_type.model_validate(response.json())
+        except ToolError:
+            raise
+        except Exception:
+            raise ToolError("Operation could not be completed; please retry") from None
 
     mcp = FastMCP(
         "Lattice Study Tools",
@@ -134,13 +158,8 @@ def create_mcp(app, settings: Settings) -> FastMCP:
     async def get_material_context(
         course: Course, filename: Filename, ctx: Context
     ) -> MaterialContext:
-        return await checked(
-            transact(
-                ctx,
-                lambda session, owner: PageNotes(session, settings).context(
-                    owner, course, filename
-                ),
-            )
+        return await request(
+            ctx, "/study/materialContext", {"course": course, "filename": filename}, MaterialContext
         )
 
     @mcp.tool(
@@ -150,9 +169,7 @@ def create_mcp(app, settings: Settings) -> FastMCP:
         annotations=read_only,
     )
     async def get_page_note(anchor: PageAnchor, ctx: Context) -> PageNote:
-        return await checked(
-            transact(ctx, lambda session, owner: PageNotes(session, settings).get(owner, anchor))
-        )
+        return await request(ctx, "/study/pageNote.get", anchor.model_dump(), PageNote)
 
     @mcp.tool(
         description=(
@@ -171,13 +188,15 @@ def create_mcp(app, settings: Settings) -> FastMCP:
         expected_revision: Annotated[int, Field(ge=0)],
         ctx: Context,
     ) -> PageNote:
-        return await checked(
-            transact(
-                ctx,
-                lambda session, owner: PageNotes(session, settings).upsert(
-                    owner, anchor, body_md, expected_revision=expected_revision
-                ),
-            )
+        return await request(
+            ctx,
+            "/study/pageNote.save",
+            {
+                "anchor": anchor.model_dump(),
+                "body_md": body_md,
+                "expected_revision": expected_revision,
+            },
+            PageNote,
         )
 
     @mcp.tool(
@@ -190,14 +209,9 @@ def create_mcp(app, settings: Settings) -> FastMCP:
         annotations=ToolAnnotations(readOnlyHint=True, destructiveHint=False, openWorldHint=True),
     )
     async def review_note(course: Course, body_md: NoteText, ctx: Context) -> NoteReview:
-        async def authorize(session, owner):
-            user = await users.get_or_create(session, owner)
-            await courses.require_enrolment(session, user, course)
-            return user.email
-
-        owner = await checked(transact(ctx, authorize))
-        reviewer = NoteReviewer(app.state.engine.retrieve_official, app.state.engine.generate)
-        return await checked(reviewer.review(course, owner, body_md))
+        return await request(
+            ctx, "/study/note.review", {"course": course, "body_md": body_md}, NoteReview
+        )
 
     @mcp.tool(
         name="ask_course",
@@ -217,18 +231,28 @@ def create_mcp(app, settings: Settings) -> FastMCP:
         session_id: Annotated[str | None, Field(max_length=64)] = None,
         query_type: QueryType = "GRAPH_COMPLETION",
     ) -> AskResponse:
-        return await checked(
-            transact(
-                ctx,
-                lambda session, owner: ask_course(
-                    app.state.engine,
-                    session,
-                    course,
-                    owner,
-                    AskRequest(question=question, session_id=session_id, query_type=query_type),
-                    related_k=settings.related_courses_k,
-                ),
-            )
+        return await request(
+            ctx,
+            "/study/ask",
+            {
+                "course": course,
+                "question": question,
+                "session_id": session_id,
+                "query_type": query_type,
+            },
+            AskResponse,
         )
 
     return mcp
+
+
+def main() -> None:
+    import uvicorn
+
+    uvicorn.run(
+        "lattice.mcp:create_app", factory=True, host="127.0.0.1", port=8001, proxy_headers=False
+    )
+
+
+if __name__ == "__main__":
+    main()

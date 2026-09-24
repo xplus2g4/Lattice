@@ -76,12 +76,12 @@ for each course:
   ready = Materials with status=ready            (none → drop the course's row; never a Related course)
   digest = sha256 over (sha256, title, week, kind, Topic labels) of every ready Material
   unchanged digest and model → skip
-  profile per Material = title, week, kind, Topic labels, first Page's text (pypdf), ≤ ~512 tokens
-  vectors = fastembed (the model Cognify uses) over the profiles; no LLM call
+  profile per Material = title, week, kind, Topic labels, first Page's text (pypdf), ≤ 1,500 chars
+  vectors = the embedding model Cognify uses over the profiles; no LLM call
   course_summaries ⟵ unit-length mean of the vectors, the profiles, the model name, the digest
 ```
 
-Per Material rather than one long text because bge-small embeds at most 512 tokens ([ADR 0007](../adr/0007-related-courses-from-summary-neighbours.md)).
+Per Material rather than one long text, so a course's later Materials are not crowded out of the vector ([ADR 0008](../adr/0008-related-courses-from-summary-neighbours.md)).
 
 ## Ask with related concepts (Phase 2)
 

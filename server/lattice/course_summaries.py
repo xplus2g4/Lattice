@@ -2,10 +2,9 @@
 
 Each ready Material contributes a short profile (title, week, kind, Topic labels, the first
 Page's text) embedded with the model Cognify uses; the course's vector is their unit-length
-mean. Per Material rather than one long text because bge-small embeds at most 512 tokens,
-so a single concatenated summary would silently stand for the first two or three Materials.
-No LLM is involved. Like Note ingest, this runs inside the API process until there is a
-Worker.
+mean. Per Material rather than one long text, so every Material weighs the same however
+long it is and a course's later Materials are not crowded out. No LLM is involved. Like
+Note ingest, this runs inside the API process until there is a Worker.
 """
 
 import asyncio
@@ -24,7 +23,7 @@ from lattice.engine import Engine
 
 log = logging.getLogger(__name__)
 
-# Roughly 512 tokens of English, the window bge-small embeds; anything longer is cut anyway.
+# How much of a Material stands for it: its record plus the opening of its first Page.
 PROFILE_CHARS = 1_500
 
 

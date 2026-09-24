@@ -24,7 +24,7 @@ def upgrade() -> None:
         "course_summaries",
         sa.Column("course_id", sa.Uuid(), nullable=False),
         sa.Column("summary_text", sa.Text(), nullable=False),
-        sa.Column("embedding", Vector(384), nullable=False),
+        sa.Column("embedding", Vector(1536), nullable=False),
         sa.Column("embedding_model", sa.String(length=200), nullable=False),
         sa.Column("source_digest", sa.String(length=64), nullable=False),
         sa.Column(

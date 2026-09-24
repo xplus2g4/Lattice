@@ -11,8 +11,9 @@ from lattice.db.base import Base, updated_at
 from lattice.db.models.identity import Course
 
 # The DDL pins the width: an embedding model of another size needs a migration, not an
-# env change. Matches `EMBEDDING_DIMENSIONS` for the model Cognify uses (bge-small-en-v1.5).
-EMBEDDING_DIMENSIONS = 384
+# env change. Matches `EMBEDDING_DIMENSIONS` for the model Cognify uses
+# (openai/text-embedding-3-small).
+EMBEDDING_DIMENSIONS = 1536
 
 
 class CourseSummary(Base):

@@ -19,7 +19,7 @@ Enforced twice ([ADR 0002](../adr/0002-two-tier-datasets-double-isolation.md)): 
 
 `tests/test_canary.py::test_private_notes_never_leak` exercises both layers end to end against real Cognee, and `tests/test_isolation.py` covers the API-level check exhaustively without spending LLM calls.
 
-The Related-course lane of `/ask` ([ADR 0007](../adr/0007-related-courses-from-summary-neighbours.md)) searches other courses' global datasets as the instructor principal, not the caller's. That principal owns every global dataset and no private one, so a Note is out of its reach by construction; each lane passes a datasets map holding only that course's global dataset, so the same `IsolationError` check refuses anything else, the caller's own datasets included. Student principals gain no permissions: what they may read is still exactly their Enrolments. A Related-course reference opens that course's reader in a new tab, and the reader still checks Enrolment, so the link reaches nothing the course page would not.
+The Related-course lane of `/ask` ([ADR 0008](../adr/0008-related-courses-from-summary-neighbours.md)) searches other courses' global datasets as the instructor principal, not the caller's. That principal owns every global dataset and no private one, so a Note is out of its reach by construction; each lane passes a datasets map holding only that course's global dataset, so the same `IsolationError` check refuses anything else, the caller's own datasets included. Student principals gain no permissions: what they may read is still exactly their Enrolments. A Related-course reference opens that course's reader in a new tab, and the reader still checks Enrolment, so the link reaches nothing the course page would not.
 
 ## Indirect prompt injection
 

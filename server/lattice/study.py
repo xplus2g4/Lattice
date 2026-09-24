@@ -3,7 +3,7 @@ import time
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
@@ -11,12 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.db.models import Course, Session, Turn, User
 from lattice.db.repo import course_summaries, courses, materials, sessions, users
-from lattice.engine import QUERY_TYPES, Engine
 from lattice.grounding import NOT_COVERED, RELATED_POLICY
 from lattice.retrieval import TierResult
 
+if TYPE_CHECKING:
+    from lattice.engine import Engine
+
 QueryType = Literal["GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS"]
-assert set(QueryType.__args__) == set(QUERY_TYPES)
 
 
 class AskRequest(BaseModel):

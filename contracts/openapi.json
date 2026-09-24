@@ -1,6 +1,66 @@
 {
   "components": {
     "schemas": {
+      "AnswerTurn": {
+        "properties": {
+          "content": {
+            "title": "Content",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "latency_ms": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latency Ms"
+          },
+          "query_type": {
+            "title": "Query Type",
+            "type": "string"
+          },
+          "results": {
+            "items": {
+              "$ref": "#/components/schemas/TierResult"
+            },
+            "title": "Results",
+            "type": "array"
+          },
+          "role": {
+            "const": "assistant",
+            "default": "assistant",
+            "title": "Role",
+            "type": "string"
+          },
+          "used_notes": {
+            "title": "Used Notes",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "content",
+          "query_type",
+          "results",
+          "used_notes",
+          "latency_ms",
+          "created_at"
+        ],
+        "title": "AnswerTurn",
+        "type": "object"
+      },
       "AskOut": {
         "properties": {
           "session": {
@@ -61,6 +121,23 @@
           "question"
         ],
         "title": "AskRequest",
+        "type": "object"
+      },
+      "AskResponse": {
+        "properties": {
+          "session_id": {
+            "title": "Session Id",
+            "type": "string"
+          },
+          "turn": {
+            "$ref": "#/components/schemas/AnswerTurn"
+          }
+        },
+        "required": [
+          "session_id",
+          "turn"
+        ],
+        "title": "AskResponse",
         "type": "object"
       },
       "Body_upload_material_materials_upload_post": {
@@ -154,6 +231,50 @@
           "created_at"
         ],
         "title": "CourseOut",
+        "type": "object"
+      },
+      "CourseQuestion": {
+        "properties": {
+          "course": {
+            "pattern": "^[a-z][a-z0-9]{1,15}$",
+            "title": "Course",
+            "type": "string"
+          },
+          "query_type": {
+            "default": "GRAPH_COMPLETION",
+            "enum": [
+              "GRAPH_COMPLETION",
+              "RAG_COMPLETION",
+              "HYBRID_COMPLETION",
+              "CHUNKS"
+            ],
+            "title": "Query Type",
+            "type": "string"
+          },
+          "question": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Question",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "maxLength": 64,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Session Id"
+          }
+        },
+        "required": [
+          "question",
+          "course"
+        ],
+        "title": "CourseQuestion",
         "type": "object"
       },
       "CourseRef": {
@@ -267,6 +388,172 @@
         "title": "EnrolmentOut",
         "type": "object"
       },
+      "Evidence": {
+        "properties": {
+          "chunk_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Id"
+          },
+          "chunk_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Index"
+          },
+          "data_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Id"
+          },
+          "dataset_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dataset Id"
+          },
+          "document_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Document Name"
+          },
+          "kind": {
+            "title": "Kind",
+            "type": "string"
+          },
+          "label": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Label"
+          },
+          "page_end": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page End"
+          },
+          "page_start": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Start"
+          },
+          "relationship_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Relationship Name"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "Evidence",
+        "type": "object"
+      },
+      "Finding": {
+        "properties": {
+          "citations": {
+            "items": {
+              "$ref": "#/components/schemas/ReviewChunk"
+            },
+            "title": "Citations",
+            "type": "array"
+          },
+          "correction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correction"
+          },
+          "evidence_limited": {
+            "default": false,
+            "description": "Retrieved Chunks were omitted to keep review within its budget.",
+            "title": "Evidence Limited",
+            "type": "boolean"
+          },
+          "excerpt": {
+            "title": "Excerpt",
+            "type": "string"
+          },
+          "explanation": {
+            "title": "Explanation",
+            "type": "string"
+          },
+          "verdict": {
+            "enum": [
+              "supported",
+              "contradicted",
+              "insufficient_evidence"
+            ],
+            "title": "Verdict",
+            "type": "string"
+          }
+        },
+        "required": [
+          "excerpt",
+          "verdict",
+          "explanation",
+          "correction",
+          "citations"
+        ],
+        "title": "Finding",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -278,6 +565,43 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "MaterialContext": {
+        "properties": {
+          "course": {
+            "pattern": "^[a-z][a-z0-9]{1,15}$",
+            "title": "Course",
+            "type": "string"
+          },
+          "filename": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^[^\\\\/:*?\"<>|\\x00-\\x1f]+$",
+            "title": "Filename",
+            "type": "string"
+          },
+          "material_id": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Material Id",
+            "type": "string"
+          },
+          "page_count": {
+            "title": "Page Count",
+            "type": "integer"
+          },
+          "topic": {
+            "title": "Topic",
+            "type": "null"
+          }
+        },
+        "required": [
+          "course",
+          "filename",
+          "material_id",
+          "page_count"
+        ],
+        "title": "MaterialContext",
         "type": "object"
       },
       "MaterialOut": {
@@ -410,6 +734,28 @@
           "material"
         ],
         "title": "MaterialRef",
+        "type": "object"
+      },
+      "MaterialRequest": {
+        "properties": {
+          "course": {
+            "pattern": "^[a-z][a-z0-9]{1,15}$",
+            "title": "Course",
+            "type": "string"
+          },
+          "filename": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^[^\\\\/:*?\"<>|\\x00-\\x1f]+$",
+            "title": "Filename",
+            "type": "string"
+          }
+        },
+        "required": [
+          "course",
+          "filename"
+        ],
+        "title": "MaterialRequest",
         "type": "object"
       },
       "MeOut": {
@@ -683,6 +1029,52 @@
         "title": "NoteRef",
         "type": "object"
       },
+      "NoteReview": {
+        "properties": {
+          "draft_hash": {
+            "title": "Draft Hash",
+            "type": "string"
+          },
+          "findings": {
+            "items": {
+              "$ref": "#/components/schemas/Finding"
+            },
+            "title": "Findings",
+            "type": "array"
+          },
+          "input_characters": {
+            "title": "Input Characters",
+            "type": "integer"
+          },
+          "limitation": {
+            "default": "Only the listed claims were checked; this is not a correctness score.",
+            "title": "Limitation",
+            "type": "string"
+          },
+          "reviewed_characters": {
+            "title": "Reviewed Characters",
+            "type": "integer"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "truncated": {
+            "title": "Truncated",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "draft_hash",
+          "findings",
+          "reviewed_characters",
+          "input_characters",
+          "truncated",
+          "summary"
+        ],
+        "title": "NoteReview",
+        "type": "object"
+      },
       "NoteUploadOut": {
         "properties": {
           "deduplicated": {
@@ -698,6 +1090,144 @@
           "deduplicated"
         ],
         "title": "NoteUploadOut",
+        "type": "object"
+      },
+      "PageAnchor": {
+        "additionalProperties": false,
+        "properties": {
+          "course": {
+            "pattern": "^[a-z][a-z0-9]{1,15}$",
+            "title": "Course",
+            "type": "string"
+          },
+          "filename": {
+            "maxLength": 200,
+            "minLength": 1,
+            "pattern": "^[^\\\\/:*?\"<>|\\x00-\\x1f]+$",
+            "title": "Filename",
+            "type": "string"
+          },
+          "material_id": {
+            "pattern": "^[a-f0-9]{64}$",
+            "title": "Material Id",
+            "type": "string"
+          },
+          "page_number": {
+            "minimum": 1.0,
+            "title": "Page Number",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "course",
+          "filename",
+          "material_id",
+          "page_number"
+        ],
+        "title": "PageAnchor",
+        "type": "object"
+      },
+      "PageNote": {
+        "properties": {
+          "anchor": {
+            "$ref": "#/components/schemas/PageAnchor"
+          },
+          "attempts": {
+            "default": 0,
+            "title": "Attempts",
+            "type": "integer"
+          },
+          "body_md": {
+            "maxLength": 50000,
+            "title": "Body Md",
+            "type": "string"
+          },
+          "cognified_revision": {
+            "title": "Cognified Revision",
+            "type": "integer"
+          },
+          "cognify_enabled": {
+            "default": true,
+            "title": "Cognify Enabled",
+            "type": "boolean"
+          },
+          "content_hash": {
+            "title": "Content Hash",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "owner": {
+            "title": "Owner",
+            "type": "string"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "integer"
+          },
+          "run_after": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Run After"
+          },
+          "status": {
+            "enum": [
+              "empty",
+              "queued",
+              "cognifying",
+              "ready",
+              "failed",
+              "stored"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "required": [
+          "id",
+          "anchor",
+          "owner",
+          "body_md",
+          "revision",
+          "content_hash",
+          "cognified_revision",
+          "status",
+          "updated_at",
+          "run_after"
+        ],
+        "title": "PageNote",
         "type": "object"
       },
       "QuizAnswerOut": {
@@ -1085,6 +1615,68 @@
         "title": "ReplaceTopics",
         "type": "object"
       },
+      "ReviewChunk": {
+        "properties": {
+          "chunk_id": {
+            "format": "uuid",
+            "title": "Chunk Id",
+            "type": "string"
+          },
+          "chunk_index": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Chunk Index"
+          },
+          "dataset_id": {
+            "format": "uuid",
+            "title": "Dataset Id",
+            "type": "string"
+          },
+          "material_name": {
+            "title": "Material Name",
+            "type": "string"
+          },
+          "text": {
+            "title": "Text",
+            "type": "string"
+          }
+        },
+        "required": [
+          "chunk_id",
+          "dataset_id",
+          "material_name",
+          "chunk_index",
+          "text"
+        ],
+        "title": "ReviewChunk",
+        "type": "object"
+      },
+      "ReviewRequest": {
+        "properties": {
+          "body_md": {
+            "maxLength": 50000,
+            "title": "Body Md",
+            "type": "string"
+          },
+          "course": {
+            "pattern": "^[a-z][a-z0-9]{1,15}$",
+            "title": "Course",
+            "type": "string"
+          }
+        },
+        "required": [
+          "course",
+          "body_md"
+        ],
+        "title": "ReviewRequest",
+        "type": "object"
+      },
       "SaveNote": {
         "properties": {
           "body_md": {
@@ -1151,6 +1743,30 @@
           "body_md"
         ],
         "title": "SaveNote",
+        "type": "object"
+      },
+      "SavePageNote": {
+        "properties": {
+          "anchor": {
+            "$ref": "#/components/schemas/PageAnchor"
+          },
+          "body_md": {
+            "maxLength": 50000,
+            "title": "Body Md",
+            "type": "string"
+          },
+          "expected_revision": {
+            "minimum": 0.0,
+            "title": "Expected Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "anchor",
+          "body_md",
+          "expected_revision"
+        ],
+        "title": "SavePageNote",
         "type": "object"
       },
       "SessionOut": {
@@ -1238,6 +1854,60 @@
           "quiz"
         ],
         "title": "SubmitQuiz",
+        "type": "object"
+      },
+      "TierResult": {
+        "properties": {
+          "answer": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Answer"
+          },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
+          },
+          "dataset_name": {
+            "title": "Dataset Name",
+            "type": "string"
+          },
+          "evidence": {
+            "items": {
+              "$ref": "#/components/schemas/Evidence"
+            },
+            "title": "Evidence",
+            "type": "array"
+          },
+          "tier": {
+            "enum": [
+              "course",
+              "notes",
+              "related"
+            ],
+            "title": "Tier",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tier",
+          "dataset_name",
+          "answer",
+          "evidence"
+        ],
+        "title": "TierResult",
         "type": "object"
       },
       "TopicIn": {
@@ -4011,6 +4681,301 @@
         "summary": "List Sessions",
         "tags": [
           "ask"
+        ]
+      }
+    },
+    "/study/ask": {
+      "post": {
+        "operationId": "ask_study_ask_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CourseQuestion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AskResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ask",
+        "tags": [
+          "study"
+        ]
+      }
+    },
+    "/study/materialContext": {
+      "post": {
+        "operationId": "material_context_study_materialContext_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MaterialRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MaterialContext"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Material Context",
+        "tags": [
+          "study"
+        ]
+      }
+    },
+    "/study/note.review": {
+      "post": {
+        "operationId": "review_note_study_note_review_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NoteReview"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Review Note",
+        "tags": [
+          "study"
+        ]
+      }
+    },
+    "/study/pageNote.get": {
+      "post": {
+        "operationId": "get_page_note_study_pageNote_get_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PageAnchor"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageNote"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Page Note",
+        "tags": [
+          "study"
+        ]
+      }
+    },
+    "/study/pageNote.save": {
+      "post": {
+        "operationId": "save_page_note_study_pageNote_save_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SavePageNote"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PageNote"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Save Page Note",
+        "tags": [
+          "study"
         ]
       }
     },

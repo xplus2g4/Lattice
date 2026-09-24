@@ -19,8 +19,15 @@ neo4j      compose profile `neo4j`, off by default
 
 Both `api` and `worker` import Cognee, so both mount `graphdata` and point at the same Postgres. Cognee's own config (`ENABLE_BACKEND_ACCESS_CONTROL`, storage backends, LLM/embedding providers) comes from env, identical in both containers.
 
-The migration that creates `course_summaries` runs `CREATE EXTENSION IF NOT EXISTS vector`, so the database must come from the pgvector image (compose and CI do) and the migrating role must be allowed to create extensions; on a managed Postgres, enable `vector` by hand before the first `alembic upgrade head`. The API downloads the fastembed model at start-up if the container has no cache; `RELATED_COURSES_K=0` switches the Related-course lane off without touching the summaries.
+The migration that creates `course_summaries` runs `CREATE EXTENSION IF NOT EXISTS vector`, so the database must come from the pgvector image (compose and CI do) and the migrating role must be allowed to create extensions; on a managed Postgres, enable `vector` by hand before the first `alembic upgrade head`. Course summaries are embedded through the same OpenAI model as everything else, so the API needs `EMBEDDING_API_KEY` to refresh them; `RELATED_COURSES_K=0` switches the Related-course lane off without touching the summaries.
 
+For local MCP access, run `uv run --locked python -m lattice.mcp` separately from the API,
+with `MCP_ENABLED=true` and `DEV_HEADER_AUTH=true`. The adapter listens on loopback port 8001
+and calls `MCP_API_URL` (default `http://127.0.0.1:8000`). It needs no shared volumes or database
+connection. The API retains the Cognee root and Note ingestion lock. See
+[server setup](../../server/README.md) for client configuration.
+
+>>>>>>> origin/main
 ## CI and deploys
 
 GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every PR and on merge to `main`:

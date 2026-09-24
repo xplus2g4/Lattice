@@ -18,13 +18,13 @@ turns            id, session_id, role(user|assistant), content_json, cited_chunk
 feedback         turn_id, user_id, rating(+1|-1), comment
 jobs             id, kind(ingest_material|index_note|reindex_course), payload_json, status, attempts, run_after, locked_by
 eval_runs        id, git_sha, model, prompt_version, search_type, metrics_json, created_at
-course_summaries course_id, summary_text, embedding vector(384), embedding_model, source_digest, refreshed_at
+course_summaries course_id, summary_text, embedding vector(1536), embedding_model, source_digest, refreshed_at
 ```
 
 Rules:
 
 - `materials.sha256` gives idempotent re-upload. Same hash is a no-op; a new hash for the same (course, week, title) replaces the content in Cognee, then updates the row.
-- `course_summaries` holds one unit-length vector per course with a ready Material, refreshed on a timer ([flows.md](./flows.md)); `/ask` picks Related courses by cosine distance over it ([ADR 0007](../adr/0007-related-courses-from-summary-neighbours.md)). The `vector` extension is enabled by the migration that creates the table; the width is pinned in the DDL.
+- `course_summaries` holds one unit-length vector per course with a ready Material, refreshed on a timer ([flows.md](./flows.md)); `/ask` picks Related courses by cosine distance over it ([ADR 0008](../adr/0008-related-courses-from-summary-neighbours.md)). The `vector` extension is enabled by the migration that creates the table; the width is pinned in the DDL.
 - `turns.cited_chunk_ids` is the audit trail for citation validation (see [security.md](./security.md)) and for eval.
 - The job queue is a Postgres table with `SELECT … FOR UPDATE SKIP LOCKED`. No Redis, no Celery ([ADR 0003](../adr/0003-postgres-table-job-queue.md)).
 
@@ -37,7 +37,7 @@ Cognee's unit of scope is the dataset. The two knowledge tiers map to two datase
 | Course global | `{course_code}-global` | Course created | Every enrolled principal | Instructors of that course, admin |
 | User private | `{course_code}-user-{user_id}` | User enrols in the course | Owner only | Owner only |
 
-`ENABLE_BACKEND_ACCESS_CONTROL=true`, so each principal+dataset pair is isolated at the vector and graph level rather than only filtered in application code. Every `cognee.add/cognify/search` call passes the caller's principal; the API never uses a super-user principal on a user's request path. The one call made as another principal is the Related-course lane of `/ask`, which searches other courses' global datasets as the instructor principal: that principal owns every global dataset and no private one, and the lane's own datasets map is checked by `IsolationError` ([ADR 0007](../adr/0007-related-courses-from-summary-neighbours.md)).
+`ENABLE_BACKEND_ACCESS_CONTROL=true`, so each principal+dataset pair is isolated at the vector and graph level rather than only filtered in application code. Every `cognee.add/cognify/search` call passes the caller's principal; the API never uses a super-user principal on a user's request path. The one call made as another principal is the Related-course lane of `/ask`, which searches other courses' global datasets as the instructor principal: that principal owns every global dataset and no private one, and the lane's own datasets map is checked by `IsolationError` ([ADR 0008](../adr/0008-related-courses-from-summary-neighbours.md)).
 
 The mapping from app user to Cognee principal is stored in `users.cognee_principal_id` and created lazily on first enrolment. Deleting an account deletes every `{course}-user-{id}` dataset before the row.
 
