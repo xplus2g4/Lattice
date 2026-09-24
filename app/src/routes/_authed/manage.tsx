@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 
 import { Badge } from '#/components/ui/badge'
@@ -162,19 +163,27 @@ function CreateInvite() {
           </p>
         )}
       </div>
-      {link && (
-        <div className="mt-3 flex items-center gap-2">
-          <Input
-            className="font-mono text-xs"
-            readOnly
-            value={link}
-            onFocus={(e) => e.target.select()}
-          />
-          <Button variant="outline" size="sm" onClick={copy}>
-            {copied ? 'Copied!' : 'Copy'}
-          </Button>
-        </div>
-      )}
+      <AnimatePresence>
+        {link && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
+            transition={{ duration: 0.15 }}
+            className="mt-3 flex items-center gap-2"
+          >
+            <Input
+              className="font-mono text-xs"
+              readOnly
+              value={link}
+              onFocus={(e) => e.target.select()}
+            />
+            <Button variant="outline" size="sm" onClick={copy}>
+              {copied ? 'Copied!' : 'Copy'}
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }

@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { Alert02Icon, Tick02Icon } from '@hugeicons/core-free-icons'
+import { AnimatePresence, motion } from 'motion/react'
 import { useState } from 'react'
 
 import { updateCourse } from '#/lib/api'
@@ -20,7 +21,7 @@ export function CourseCard({
   const opened = relativeTime(lastOpenedAt)
 
   return (
-    <div className="group relative flex min-h-[236px] flex-col rounded-[18px] border border-[#E3E8E6] bg-white p-5 shadow-[0_1px_2px_rgba(14,38,34,0.04)] transition-all hover:border-[#C4D3CF] hover:shadow-[0_6px_20px_rgba(14,38,34,0.08)] focus-within:border-[#C4D3CF]">
+    <div className="group relative flex min-h-[236px] flex-col rounded-[18px] border border-[#E3E8E6] bg-white p-5 shadow-[0_1px_2px_rgba(14,38,34,0.04)] transition-all hover:-translate-y-0.5 hover:border-[#C4D3CF] hover:shadow-[0_6px_20px_rgba(14,38,34,0.08)] focus-within:border-[#C4D3CF]">
       {/* Stretched link: the whole card opens the workspace, while the name editor below
           sits above it and stays clickable on its own. */}
       <Link
@@ -71,34 +72,65 @@ function CourseStatus({
   pending: number
   failed: number
 }) {
-  if (pending > 0) {
-    return (
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF3D6] px-2.5 py-1 text-xs font-semibold text-[#7A4F00]">
-        <span
-          aria-hidden="true"
-          className="size-3 animate-spin rounded-full border-2 border-[#7A4F00]/40 border-t-[#7A4F00]"
-        />
-        Indexing {pending} {pending === 1 ? 'file' : 'files'}
-      </span>
-    )
-  }
-  if (failed > 0) {
-    return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-[#FDECEA] px-2.5 py-1 text-xs font-semibold text-[#B3261E]">
-        <HugeiconsIcon
-          icon={Alert02Icon}
-          className="size-4"
-          strokeWidth={2.5}
-        />
-        {failed} failed
-      </span>
-    )
-  }
+  const state = pending > 0 ? 'pending' : failed > 0 ? 'failed' : 'ready'
   return (
-    <span className="inline-flex items-center gap-1 text-xs font-semibold text-[#0F7F6E]">
-      <HugeiconsIcon icon={Tick02Icon} className="size-4" strokeWidth={2.5} />
-      Ready
-    </span>
+    <AnimatePresence mode="wait" initial={false}>
+      {state === 'pending' ? (
+        <motion.span
+          key="pending"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="inline-flex items-center gap-1.5 rounded-full bg-[#FFF3D6] px-2.5 py-1 text-xs font-semibold text-[#7A4F00]"
+        >
+          <span
+            aria-hidden="true"
+            className="size-3 animate-spin rounded-full border-2 border-[#7A4F00]/40 border-t-[#7A4F00]"
+          />
+          Indexing {pending} {pending === 1 ? 'file' : 'files'}
+        </motion.span>
+      ) : state === 'failed' ? (
+        <motion.span
+          key="failed"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="inline-flex items-center gap-1 rounded-full bg-[#FDECEA] px-2.5 py-1 text-xs font-semibold text-[#B3261E]"
+        >
+          <HugeiconsIcon
+            icon={Alert02Icon}
+            className="size-4"
+            strokeWidth={2.5}
+          />
+          {failed} failed
+        </motion.span>
+      ) : (
+        <motion.span
+          key="ready"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.2 }}
+          className="inline-flex items-center gap-1 text-xs font-semibold text-[#0F7F6E]"
+        >
+          <motion.span
+            initial={{ scale: 0.4 }}
+            animate={{ scale: 1 }}
+            transition={{ type: 'spring', stiffness: 500, damping: 15 }}
+            className="flex"
+          >
+            <HugeiconsIcon
+              icon={Tick02Icon}
+              className="size-4"
+              strokeWidth={2.5}
+            />
+          </motion.span>
+          Ready
+        </motion.span>
+      )}
+    </AnimatePresence>
   )
 }
 

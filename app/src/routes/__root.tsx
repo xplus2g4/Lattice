@@ -5,6 +5,7 @@ import {
 } from '@tanstack/react-router'
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
+import { MotionConfig } from 'motion/react'
 
 import TanStackQueryDevtools from '../integrations/tanstack-query/devtools'
 import { TooltipProvider } from '../components/ui/tooltip'
@@ -48,7 +49,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body>
-        <TooltipProvider>{children}</TooltipProvider>
+        {/* "user" respects the OS-level reduce-motion preference for every Motion animation below. */}
+        <MotionConfig reducedMotion="user">
+          <TooltipProvider>{children}</TooltipProvider>
+        </MotionConfig>
         <TanStackDevtools
           config={{
             position: 'bottom-right',

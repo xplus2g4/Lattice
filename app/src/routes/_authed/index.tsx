@@ -2,6 +2,8 @@ import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { PlusSignIcon } from '@hugeicons/core-free-icons'
+import { useAutoAnimate } from '@formkit/auto-animate/react'
+import { motion } from 'motion/react'
 import { useEffect, useState } from 'react'
 
 import { Skeleton } from '#/components/ui/skeleton'
@@ -51,6 +53,9 @@ function Home() {
   // keeps the normal grid (with its error) so a real, populated account is never told to
   // start over just because the request hiccuped.
   const firstRun = courses.isSuccess && merged.length === 0
+  // Cards present on load get Motion's staggered entrance below; autoAnimate only
+  // picks up later mutations (a course created after mount slides into place).
+  const [gridRef] = useAutoAnimate<HTMLDivElement>()
 
   return (
     <main className="flex-1 px-5 py-10 sm:px-8 sm:py-12">
@@ -79,19 +84,32 @@ function Home() {
                     : 'Could not reach the API — is the server running?'}
                 </p>
               )}
-              <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+              <div
+                ref={gridRef}
+                className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+              >
                 {courses.isPending ? (
                   [0, 1, 2].map((i) => (
                     <Skeleton key={i} className="h-[236px] rounded-[18px]" />
                   ))
                 ) : (
                   <>
-                    {merged.map((course) => (
-                      <CourseCard
+                    {merged.map((course, i) => (
+                      <motion.div
                         key={course.code}
-                        course={course}
-                        lastOpenedAt={openedAt[course.code]}
-                      />
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{
+                          duration: 0.2,
+                          ease: 'easeOut',
+                          delay: i * 0.04,
+                        }}
+                      >
+                        <CourseCard
+                          course={course}
+                          lastOpenedAt={openedAt[course.code]}
+                        />
+                      </motion.div>
                     ))}
                     <AddCourseTile />
                   </>
