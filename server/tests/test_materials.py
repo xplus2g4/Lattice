@@ -189,3 +189,11 @@ async def test_the_course_owner_may_remove_a_classmates_upload(student: AsyncCli
 
 async def test_materials_need_an_identity(client: AsyncClient) -> None:
     assert (await client.get("/materials.list", params={"course": "cs3216"})).status_code == 401
+
+
+async def test_upload_rejects_pptx_until_a_loader_exists(student: AsyncClient) -> None:
+    """Cognee 1.5.4 has no PPTX loader; accepting a deck only produced a failed ingest (#6)."""
+    await join(student)
+
+    response = await student.post("/materials.upload", **upload_args(filename="lecture.pptx"))
+    assert response.status_code == 415

@@ -18,7 +18,9 @@ from lattice.db.repo import courses, materials
 
 router = APIRouter(tags=["materials"])
 
-ALLOWED_SUFFIXES = {".pdf", ".pptx", ".md", ".txt"}
+# No .pptx: Cognee 1.5.4 has no PPTX loader, so a deck only ever ends as a failed ingest.
+# Re-add it with the loader or conversion path chosen for #6.
+ALLOWED_SUFFIXES = {".pdf", ".md", ".txt"}
 
 
 class MaterialRef(BaseModel):

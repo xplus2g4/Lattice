@@ -111,7 +111,7 @@ function Materials({ course, user }: Enrolment) {
         <input
           className="text-sm"
           type="file"
-          accept=".pdf,.pptx,.md,.txt"
+          accept=".pdf,.md,.txt"
           onChange={(e) => setFile(e.target.files?.[0] ?? null)}
         />
         <Button type="submit" size="sm" disabled={!file || upload.isPending}>

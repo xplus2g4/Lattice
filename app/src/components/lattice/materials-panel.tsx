@@ -57,7 +57,7 @@ export function MaterialsPanel({ course, user }: Enrolment) {
         <input
           ref={inputRef}
           type="file"
-          accept=".pdf,.pptx,.md,.txt"
+          accept=".pdf,.md,.txt"
           multiple
           className="hidden"
           onChange={(e) => {

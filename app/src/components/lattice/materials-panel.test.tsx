@@ -17,11 +17,11 @@ describe('uploading Materials', () => {
 
     fireEvent.change(input, {
       target: {
-        files: [new File(['a'], 'week1.pptx'), new File(['b'], 'week2.pdf')],
+        files: [new File(['a'], 'week1.md'), new File(['b'], 'week2.pdf')],
       },
     })
 
-    expect(await screen.findByText('week1.pptx')).toBeInTheDocument()
+    expect(await screen.findByText('week1.md')).toBeInTheDocument()
     expect(await screen.findByText('week2.pdf')).toBeInTheDocument()
   })
 
