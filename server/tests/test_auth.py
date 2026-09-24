@@ -1,16 +1,13 @@
-"""Signing in: the token pair, the dev login, the Google exchange, invitations, and admin gating."""
+"""Signing in: the token pair, the dev login, the Google exchange and invitations."""
 
 import pytest
 from httpx import AsyncClient
 
 from lattice.api import auth as auth_api
 from lattice.config import Settings
-from tests.test_materials import BOB, join
+from tests.test_materials import BOB
 
 pytestmark = pytest.mark.asyncio
-
-ADMIN = {"X-User": "root@example.com"}
-ADA = {"X-User": "ada@example.com"}
 
 
 @pytest.fixture
@@ -20,7 +17,6 @@ def settings(tmp_path, migrated_database):
         dev_header_auth=True,
         session_secret="test-secret-at-least-thirty-two-bytes",
         google_client_id="test-client-id",
-        admin_emails=["root@example.com"],
         cognee_root=tmp_path / "cognee",
         uploads_dir=tmp_path / "uploads",
     )
@@ -219,43 +215,3 @@ async def test_google_login_can_be_limited_to_a_domain(
     )
     response = await client.post("/auth/google", json={"credential": "google-jwt"})
     assert response.status_code == 403
-
-
-async def test_admin_emails_promote_on_first_sight(client: AsyncClient) -> None:
-    assert (await client.get("/me.get", headers=ADMIN)).json()["user"]["role"] == "admin"
-
-
-async def test_admin_endpoints_need_an_identity(client: AsyncClient) -> None:
-    response = await client.get("/admin/sessions.list", params={"course": "cs3216"})
-    assert response.status_code == 401
-
-
-async def test_students_cannot_reach_admin_endpoints(student: AsyncClient) -> None:
-    response = await student.get("/admin/sessions.list", params={"course": "cs3216"})
-    assert response.status_code == 403
-
-
-async def test_an_admin_reads_across_students(client: AsyncClient) -> None:
-    await join(client, headers=BOB)
-    await client.post("/enrolments.join", json={"course": "cs3216"}, headers=ADA)
-    for headers, question in ((BOB, "bob asked"), (ADA, "ada asked")):
-        asked = await client.post(
-            "/ask", json={"course": "cs3216", "question": question}, headers=headers
-        )
-        assert asked.status_code == 200, asked.text
-
-    listed = await client.get("/admin/sessions.list", params={"course": "cs3216"}, headers=ADMIN)
-    assert listed.status_code == 200
-    assert {s["user_email"] for s in listed.json()} == {"bob@example.com", "ada@example.com"}
-
-    one = await client.get(
-        "/admin/sessions.list",
-        params={"course": "cs3216", "user": "bob@example.com"},
-        headers=ADMIN,
-    )
-    assert {s["user_email"] for s in one.json()} == {"bob@example.com"}
-
-    got = await client.get(
-        "/admin/sessions.get", params={"session": one.json()[0]["id"]}, headers=ADMIN
-    )
-    assert got.json()["turns"][0]["content_json"]["text"] == "bob asked"

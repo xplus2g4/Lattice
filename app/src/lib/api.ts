@@ -5,7 +5,6 @@ import type {
   AskOut as RpcAskOut,
   AskRequest as RpcAskRequest,
   CourseOut,
-  CourseSearchOut,
   MaterialOut,
   NoteOut,
   SessionOut,
@@ -42,14 +41,6 @@ export interface CourseSummary {
   material_count: number
   note_count: number
   pending_count: number
-}
-
-/** What a course page needs before it mounts: existence, name, and whether the
- * caller is enrolled. `enrolled` false renders the join card, not the panels. */
-export interface CourseInfo {
-  code: string
-  name: string
-  enrolled: boolean
 }
 
 export interface SessionSummary {
@@ -347,30 +338,6 @@ export async function listCourses(user: string): Promise<Array<CourseSummary>> {
     }),
   )
 }
-
-/** Existence + enrolment probe for a course page; 404 ApiError when the code
- * belongs to no course. */
-export async function getCourse(
-  user: string,
-  code: string,
-): Promise<CourseInfo> {
-  // Search answers both halves of the probe: an exact-code hit means the course
-  // exists and the row carries the caller's enrolment state.
-  const wire = await request<CourseSearchOut>(
-    user,
-    query('/courses.search', { q: code }),
-  )
-  const hit = wire.results.find((r) => r.course.code === code.toLowerCase())
-  if (!hit) throw new ApiError(404, 'no such course')
-  return {
-    code: hit.course.code,
-    name: hit.course.name,
-    enrolled: hit.enrolled,
-  }
-}
-
-/** Enrol in a course by code, creating it (owned by the caller) when it does
- * not exist yet — the "add a course" flow on the home screen. */
 export async function joinCourse(user: string, course: string): Promise<void> {
   try {
     await request(user, '/enrolments.join', json({ course }))
@@ -461,15 +428,13 @@ export async function listNotes(
   )
   return rows.map((row) => noteView(user, course, row))
 }
-/** `id` is the server uuid of an existing Note; anything else writes a fresh one. */
 export async function saveNote(
   user: string,
   course: string,
-  id: string | null,
+  id: string,
   body_md: string,
 ): Promise<Note> {
   const note =
-    id &&
     /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
       ? id
       : undefined

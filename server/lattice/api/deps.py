@@ -1,5 +1,5 @@
 import re
-from collections.abc import AsyncIterator, Awaitable, Callable
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request
@@ -58,23 +58,9 @@ def current_email(
 CurrentEmail = Annotated[str, Depends(current_email)]
 
 
-async def current_user(email: CurrentEmail, session: SessionDep, settings: SettingsDep) -> User:
-    """The caller's `users` row, created on first sight; `ADMIN_EMAILS` are promoted here."""
-    return await users.get_or_create(session, email, admin_emails=settings.admin_emails)
+async def current_user(email: CurrentEmail, session: SessionDep) -> User:
+    """The caller's `users` row, created on first sight."""
+    return await users.get_or_create(session, email)
 
 
 CurrentUser = Annotated[User, Depends(current_user)]
-
-
-def require_role(*roles: str) -> Callable[[User], Awaitable[User]]:
-    """Gate an endpoint on `users.role`. Enrolment still decides what a role may read."""
-
-    async def dep(user: CurrentUser) -> User:
-        if user.role not in roles:
-            raise HTTPException(403, f"requires {' or '.join(roles)} role")
-        return user
-
-    return dep
-
-
-AdminUser = Annotated[User, Depends(require_role("admin"))]

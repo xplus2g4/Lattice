@@ -187,37 +187,5 @@ async def test_the_course_owner_may_remove_a_classmates_upload(student: AsyncCli
     assert deleted.status_code == 200
 
 
-async def test_download_returns_the_uploaded_bytes(student: AsyncClient) -> None:
-    await join(student)
-    await upload(student, content=b"week one slides", filename="week1.pdf")
-
-    response = await student.get(
-        "/materials.download", params={"course": "cs3216", "filename": "week1.pdf"}
-    )
-    assert response.status_code == 200
-    assert response.content == b"week one slides"
-
-
-async def test_download_needs_enrolment(student: AsyncClient) -> None:
-    await join(student)
-    await upload(student)
-
-    response = await student.get(
-        "/materials.download",
-        params={"course": "cs3216", "filename": "week1.pdf"},
-        headers=BOB,
-    )
-    assert response.status_code == 403
-
-
-async def test_download_unknown_filename_is_404(student: AsyncClient) -> None:
-    await join(student)
-
-    response = await student.get(
-        "/materials.download", params={"course": "cs3216", "filename": "nope.pdf"}
-    )
-    assert response.status_code == 404
-
-
 async def test_materials_need_an_identity(client: AsyncClient) -> None:
     assert (await client.get("/materials.list", params={"course": "cs3216"})).status_code == 401

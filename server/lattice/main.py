@@ -6,7 +6,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from filelock import FileLock
 
 from lattice.api import (
-    admin,
     ask,
     auth,
     courses,
@@ -72,7 +71,6 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     for router in (
         health.router,
         auth.router,
-        admin.router,
         me.router,
         courses.router,
         material_records.router,

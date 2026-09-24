@@ -143,14 +143,11 @@ function Notes({ course, user }: Enrolment) {
     queryFn: () => listNotes(user, course),
     refetchInterval: (q) => pollWhilePending<Note>(q.state.data),
   })
-  const [noteId, setNoteId] = useState('')
+  const [noteId, setNoteId] = useState('n1')
   const [body, setBody] = useState('')
   const save = useMutation({
-    mutationFn: () => saveNote(user, course, noteId || null, body),
-    onSuccess: (note) => {
-      setNoteId(note.id)
-      return queryClient.invalidateQueries({ queryKey: key })
-    },
+    mutationFn: () => saveNote(user, course, noteId, body),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
   })
 
   return (
@@ -165,7 +162,8 @@ function Notes({ course, user }: Enrolment) {
       >
         <Input
           value={noteId}
-          placeholder="note uuid — blank writes a new note"
+          pattern="[A-Za-z0-9_\-]{1,64}"
+          placeholder="note id"
           onChange={(e) => setNoteId(e.target.value)}
         />
         <Textarea
@@ -178,7 +176,7 @@ function Notes({ course, user }: Enrolment) {
         <Button
           type="submit"
           size="sm"
-          disabled={!body.trim() || save.isPending}
+          disabled={!noteId || !body.trim() || save.isPending}
         >
           {save.isPending ? 'Saving…' : 'Save'}
         </Button>

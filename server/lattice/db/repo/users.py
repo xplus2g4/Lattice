@@ -14,19 +14,13 @@ async def by_email(session: AsyncSession, email: str) -> User | None:
     return await session.scalar(select(User).where(User.email == email))
 
 
-async def get_or_create(session: AsyncSession, email: str, *, admin_emails: list[str] = ()) -> User:
-    """The app user behind an authenticated email; created on first sight.
-
-    `admin_emails` is the bootstrap path for the admin role: a listed email is
-    promoted on every sighting, so the role survives a fresh database.
-    """
+async def get_or_create(session: AsyncSession, email: str) -> User:
+    """The app user behind an authenticated email; created on first sight."""
     user = await by_email(session, email)
     if user is None:
         user = User(email=email)
         session.add(user)
-    if email in admin_emails and user.role != "admin":
-        user.role = "admin"
-    await session.flush()
+        await session.flush()
     return user
 
 

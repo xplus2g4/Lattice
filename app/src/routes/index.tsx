@@ -170,7 +170,6 @@ function AddCourse({ user }: { user: string }) {
   const [value, setValue] = useState('')
   const code = value.trim().toLowerCase()
   const invalid = value.trim() !== '' && !COURSE_RE.test(code)
-  // Join the course when the code exists, create it (as owner) when it does not.
   const join = useMutation({
     mutationFn: () => joinCourse(user, code),
     onSuccess: () => {
@@ -188,32 +187,32 @@ function AddCourse({ user }: { user: string }) {
       className="flex flex-wrap items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault()
-        if (COURSE_RE.test(code)) join.mutate()
+        if (COURSE_RE.test(code) && !join.isPending) join.mutate()
       }}
     >
       <Input
         className="w-auto"
         value={value}
-        placeholder="Course code — e.g. cs3216"
+        placeholder="New course code — e.g. cs3216"
         aria-invalid={invalid}
         disabled={join.isPending}
         onChange={(e) => setValue(e.target.value)}
       />
+      {join.error && (
+        <p className="w-full text-xs text-destructive">{join.error.message}</p>
+      )}
       <Button
         type="submit"
         size="sm"
         disabled={!COURSE_RE.test(code) || join.isPending}
       >
         <HugeiconsIcon icon={PlusSignIcon} data-icon="inline-start" />
-        {join.isPending ? 'Adding…' : 'Add course'}
+        Create course
       </Button>
       {invalid && (
         <p className="w-full text-xs text-destructive">
           2–16 chars: lowercase letters and digits, starting with a letter.
         </p>
-      )}
-      {join.error && (
-        <p className="w-full text-xs text-destructive">{join.error.message}</p>
       )}
     </form>
   )

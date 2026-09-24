@@ -14,16 +14,6 @@ async def by_sha256(session: AsyncSession, course: Course, sha256: str) -> Mater
     )
 
 
-async def by_filename(session: AsyncSession, course: Course, filename: str) -> Material | None:
-    """The newest Material under a filename — a re-upload keeps the earlier row."""
-    return await session.scalar(
-        select(Material)
-        .where(Material.course_id == course.id, Material.filename == filename)
-        .order_by(Material.created_at.desc())
-        .limit(1)
-    )
-
-
 async def get(session: AsyncSession, material_id: UUID) -> Material | None:
     return await session.get(Material, material_id)
 

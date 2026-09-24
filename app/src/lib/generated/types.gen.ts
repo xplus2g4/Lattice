@@ -5,38 +5,6 @@ export type ClientOptions = {
 }
 
 /**
- * AdminSessionOut
- *
- * A Session with its owner named: the shape only admins may read.
- */
-export type AdminSessionOut = {
-  /**
-   * Course Id
-   */
-  course_id: string
-  /**
-   * Created At
-   */
-  created_at: string
-  /**
-   * Id
-   */
-  id: string
-  /**
-   * Last Turn At
-   */
-  last_turn_at: string
-  /**
-   * Turns
-   */
-  turns: Array<TurnOut>
-  /**
-   * User Email
-   */
-  user_email: string
-}
-
-/**
  * AskOut
  */
 export type AskOut = {
@@ -147,34 +115,6 @@ export type CourseSearchOut = {
    * Results
    */
   results: Array<CourseSearchHit>
-}
-
-/**
- * CourseSummaryOut
- *
- * An enrolled course with the counts the home screen shows.
- */
-export type CourseSummaryOut = {
-  /**
-   * Code
-   */
-  code: string
-  /**
-   * Material Count
-   */
-  material_count: number
-  /**
-   * Name
-   */
-  name: string
-  /**
-   * Note Count
-   */
-  note_count: number
-  /**
-   * Pending Count
-   */
-  pending_count: number
 }
 
 /**
@@ -999,96 +939,6 @@ export type ValidationError = {
   type: string
 }
 
-export type GetSessionAdminSessionsGetGetData = {
-  body?: never
-  headers?: {
-    /**
-     * X-User
-     */
-    'x-user'?: string | null
-    /**
-     * Authorization
-     */
-    authorization?: string | null
-  }
-  path?: never
-  query: {
-    /**
-     * Session
-     */
-    session: string
-  }
-  url: '/admin/sessions.get'
-}
-
-export type GetSessionAdminSessionsGetGetErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError
-}
-
-export type GetSessionAdminSessionsGetGetError =
-  GetSessionAdminSessionsGetGetErrors[keyof GetSessionAdminSessionsGetGetErrors]
-
-export type GetSessionAdminSessionsGetGetResponses = {
-  /**
-   * Successful Response
-   */
-  200: AdminSessionOut
-}
-
-export type GetSessionAdminSessionsGetGetResponse =
-  GetSessionAdminSessionsGetGetResponses[keyof GetSessionAdminSessionsGetGetResponses]
-
-export type ListSessionsAdminSessionsListGetData = {
-  body?: never
-  headers?: {
-    /**
-     * X-User
-     */
-    'x-user'?: string | null
-    /**
-     * Authorization
-     */
-    authorization?: string | null
-  }
-  path?: never
-  query: {
-    /**
-     * Course
-     */
-    course: string
-    /**
-     * User
-     */
-    user?: string | null
-  }
-  url: '/admin/sessions.list'
-}
-
-export type ListSessionsAdminSessionsListGetErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError
-}
-
-export type ListSessionsAdminSessionsListGetError =
-  ListSessionsAdminSessionsListGetErrors[keyof ListSessionsAdminSessionsListGetErrors]
-
-export type ListSessionsAdminSessionsListGetResponses = {
-  /**
-   * Response List Sessions Admin Sessions List Get
-   *
-   * Successful Response
-   */
-  200: Array<AdminSessionOut>
-}
-
-export type ListSessionsAdminSessionsListGetResponse =
-  ListSessionsAdminSessionsListGetResponses[keyof ListSessionsAdminSessionsListGetResponses]
-
 export type AskAskPostData = {
   body: AskRequest
   headers?: {
@@ -1375,45 +1225,6 @@ export type SearchCoursesCoursesSearchGetResponses = {
 
 export type SearchCoursesCoursesSearchGetResponse =
   SearchCoursesCoursesSearchGetResponses[keyof SearchCoursesCoursesSearchGetResponses]
-
-export type CourseSummariesCoursesSummaryGetData = {
-  body?: never
-  headers?: {
-    /**
-     * X-User
-     */
-    'x-user'?: string | null
-    /**
-     * Authorization
-     */
-    authorization?: string | null
-  }
-  path?: never
-  query?: never
-  url: '/courses.summary'
-}
-
-export type CourseSummariesCoursesSummaryGetErrors = {
-  /**
-   * Validation Error
-   */
-  422: HttpValidationError
-}
-
-export type CourseSummariesCoursesSummaryGetError =
-  CourseSummariesCoursesSummaryGetErrors[keyof CourseSummariesCoursesSummaryGetErrors]
-
-export type CourseSummariesCoursesSummaryGetResponses = {
-  /**
-   * Response Course Summaries Courses Summary Get
-   *
-   * Successful Response
-   */
-  200: Array<CourseSummaryOut>
-}
-
-export type CourseSummariesCoursesSummaryGetResponse =
-  CourseSummariesCoursesSummaryGetResponses[keyof CourseSummariesCoursesSummaryGetResponses]
 
 export type UpdateCourseCoursesUpdatePostData = {
   body: UpdateCourse

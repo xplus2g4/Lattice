@@ -45,9 +45,6 @@ class Settings(BaseSettings):
     # One shared code per deploy — there is deliberately no management mechanism.
     invitation_code: str = ""
 
-    # Emails promoted to the admin role at first sight.
-    admin_emails: list[str] = []
-
     # Principal that owns every course's global dataset and runs material ingest.
     instructor_email: str = "instructor@lattice.example"
 

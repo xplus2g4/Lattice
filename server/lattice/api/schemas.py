@@ -112,17 +112,6 @@ class SessionOut(Record):
     last_turn_at: datetime
 
 
-class AdminSessionOut(Record):
-    """A Session with its owner named: the shape only admins may read."""
-
-    id: UUID
-    course_id: UUID
-    user_email: str
-    turns: list[TurnOut]
-    created_at: datetime
-    last_turn_at: datetime
-
-
 class AskOut(BaseModel):
     session: UUID
     turn: TurnOut
@@ -173,16 +162,6 @@ class TopicStat(BaseModel):
 class MeOut(BaseModel):
     user: UserOut
     courses: list[CourseOut]
-
-
-class CourseSummaryOut(BaseModel):
-    """An enrolled course with the counts the home screen shows."""
-
-    code: str
-    name: str
-    material_count: int
-    note_count: int
-    pending_count: int
 
 
 class CourseSearchHit(BaseModel):

@@ -3,14 +3,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.api.deps import COURSE_CODE, CurrentUser, EngineDep, SessionDep
-from lattice.api.schemas import (
-    CourseOut,
-    CourseSearchHit,
-    CourseSearchOut,
-    CourseSummaryOut,
-    EnrolmentOut,
-    UserOut,
-)
+from lattice.api.schemas import CourseOut, CourseSearchHit, CourseSearchOut, EnrolmentOut, UserOut
 from lattice.db.models import Course, User
 from lattice.db.repo import courses, users
 
@@ -69,23 +62,6 @@ async def get_course(course: str, _: CurrentUser, session: SessionDep) -> Course
 @router.get("/courses.list")
 async def list_courses(user: CurrentUser, session: SessionDep) -> list[CourseOut]:
     return [CourseOut.model_validate(c) for c in await courses.enrolled_courses(session, user)]
-
-
-@router.get("/courses.summary")
-async def course_summaries(user: CurrentUser, session: SessionDep) -> list[CourseSummaryOut]:
-    """Enrolled courses with material, note and pending-ingest counts, in one call."""
-    return [
-        CourseSummaryOut(
-            code=course.code,
-            name=course.name,
-            material_count=material_count,
-            note_count=note_count,
-            pending_count=pending_count,
-        )
-        for course, material_count, note_count, pending_count in await courses.summaries(
-            session, user
-        )
-    ]
 
 
 @router.post("/courses.create", status_code=201)

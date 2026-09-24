@@ -83,7 +83,7 @@ async def _issue(
 ) -> User:
     if await users.by_email(session, email) is None:
         _check_invitation(settings, invitation_code)
-    user = await users.get_or_create(session, email, admin_emails=settings.admin_emails)
+    user = await users.get_or_create(session, email)
     if name and user.name is None:
         await users.update(session, user, name=name)
     _set_session_cookies(response, settings, user)

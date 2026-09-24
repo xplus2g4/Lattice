@@ -30,17 +30,6 @@ async def for_course(db: AsyncSession, *, user: User, course: Course) -> list[Se
     )
 
 
-async def for_course_all_users(db: AsyncSession, *, course: Course) -> list[tuple[Session, str]]:
-    """Every Session in a course, each with its owner's email. Admin reads only."""
-    rows = await db.execute(
-        select(Session, User.email)
-        .join(User, User.id == Session.user_id)
-        .where(Session.course_id == course.id)
-        .order_by(Session.last_turn_at.desc())
-    )
-    return [(session, email) for session, email in rows]
-
-
 async def add_turn(
     db: AsyncSession,
     session: Session,
