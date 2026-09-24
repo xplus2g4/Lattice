@@ -220,6 +220,42 @@ export type InviteOut = {
 }
 
 /**
+ * InviteSummaryOut
+ *
+ * An invite's status for the manage view. Never carries the token itself.
+ */
+export type InviteSummaryOut = {
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Created By Email
+   */
+  created_by_email: string | null
+  /**
+   * Expires At
+   */
+  expires_at: string
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Role
+   */
+  role: string
+  /**
+   * Used At
+   */
+  used_at: string | null
+  /**
+   * Used By Email
+   */
+  used_by_email: string | null
+}
+
+/**
  * MaterialOut
  */
 export type MaterialOut = {
@@ -1445,6 +1481,45 @@ export type CreateInviteInvitesCreatePostResponses = {
 export type CreateInviteInvitesCreatePostResponse =
   CreateInviteInvitesCreatePostResponses[keyof CreateInviteInvitesCreatePostResponses]
 
+export type ListInvitesInvitesListGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/invites.list'
+}
+
+export type ListInvitesInvitesListGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListInvitesInvitesListGetError =
+  ListInvitesInvitesListGetErrors[keyof ListInvitesInvitesListGetErrors]
+
+export type ListInvitesInvitesListGetResponses = {
+  /**
+   * Response List Invites Invites List Get
+   *
+   * Successful Response
+   */
+  200: Array<InviteSummaryOut>
+}
+
+export type ListInvitesInvitesListGetResponse =
+  ListInvitesInvitesListGetResponses[keyof ListInvitesInvitesListGetResponses]
+
 export type RedeemInviteInvitesRedeemPostData = {
   body: RedeemInvite
   headers?: {
@@ -2666,3 +2741,42 @@ export type ReplaceTopicsTopicsReplacePostResponses = {
 
 export type ReplaceTopicsTopicsReplacePostResponse =
   ReplaceTopicsTopicsReplacePostResponses[keyof ReplaceTopicsTopicsReplacePostResponses]
+
+export type ListUsersUsersListGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/users.list'
+}
+
+export type ListUsersUsersListGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListUsersUsersListGetError =
+  ListUsersUsersListGetErrors[keyof ListUsersUsersListGetErrors]
+
+export type ListUsersUsersListGetResponses = {
+  /**
+   * Response List Users Users List Get
+   *
+   * Successful Response
+   */
+  200: Array<UserOut>
+}
+
+export type ListUsersUsersListGetResponse =
+  ListUsersUsersListGetResponses[keyof ListUsersUsersListGetResponses]

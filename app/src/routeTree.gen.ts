@@ -14,6 +14,8 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedDevRouteImport } from './routes/_authed/dev'
 import { Route as AuthedFoundationRouteImport } from './routes/_authed/foundation'
+import { Route as AuthedManageRouteImport } from './routes/_authed/manage'
+import { Route as AuthDevRouteImport } from './routes/auth/dev'
 import { Route as AuthLogoutRouteImport } from './routes/auth/logout'
 import { Route as InviteTokenRouteImport } from './routes/invite/$token'
 import { Route as AuthedCoursesCourseRouteImport } from './routes/_authed/courses/$course'
@@ -44,6 +46,16 @@ const AuthedFoundationRoute = AuthedFoundationRouteImport.update({
   id: '/foundation',
   path: '/foundation',
   getParentRoute: () => AuthedRoute,
+} as any)
+const AuthedManageRoute = AuthedManageRouteImport.update({
+  id: '/manage',
+  path: '/manage',
+  getParentRoute: () => AuthedRoute,
+} as any)
+const AuthDevRoute = AuthDevRouteImport.update({
+  id: '/auth/dev',
+  path: '/auth/dev',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthLogoutRoute = AuthLogoutRouteImport.update({
   id: '/auth/logout',
@@ -82,6 +94,8 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/dev': typeof AuthedDevRoute
   '/foundation': typeof AuthedFoundationRoute
+  '/manage': typeof AuthedManageRoute
+  '/auth/dev': typeof AuthDevRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/invite/$token': typeof InviteTokenRoute
   '/courses/$course': typeof AuthedCoursesCourseRouteWithChildren
@@ -93,6 +107,8 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/dev': typeof AuthedDevRoute
   '/foundation': typeof AuthedFoundationRoute
+  '/manage': typeof AuthedManageRoute
+  '/auth/dev': typeof AuthDevRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/invite/$token': typeof InviteTokenRoute
   '/': typeof AuthedIndexRoute
@@ -106,6 +122,8 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/_authed/dev': typeof AuthedDevRoute
   '/_authed/foundation': typeof AuthedFoundationRoute
+  '/_authed/manage': typeof AuthedManageRoute
+  '/auth/dev': typeof AuthDevRoute
   '/auth/logout': typeof AuthLogoutRoute
   '/invite/$token': typeof InviteTokenRoute
   '/_authed/': typeof AuthedIndexRoute
@@ -121,6 +139,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/dev'
     | '/foundation'
+    | '/manage'
+    | '/auth/dev'
     | '/auth/logout'
     | '/invite/$token'
     | '/courses/$course'
@@ -132,6 +152,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/dev'
     | '/foundation'
+    | '/manage'
+    | '/auth/dev'
     | '/auth/logout'
     | '/invite/$token'
     | '/'
@@ -144,6 +166,8 @@ export interface FileRouteTypes {
     | '/login'
     | '/_authed/dev'
     | '/_authed/foundation'
+    | '/_authed/manage'
+    | '/auth/dev'
     | '/auth/logout'
     | '/invite/$token'
     | '/_authed/'
@@ -156,6 +180,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
   LoginRoute: typeof LoginRoute
+  AuthDevRoute: typeof AuthDevRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
   InviteTokenRoute: typeof InviteTokenRoute
   AuthGoogleCallbackRoute: typeof AuthGoogleCallbackRoute
@@ -198,6 +223,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/foundation'
       preLoaderRoute: typeof AuthedFoundationRouteImport
       parentRoute: typeof AuthedRoute
+    }
+    '/_authed/manage': {
+      id: '/_authed/manage'
+      path: '/manage'
+      fullPath: '/manage'
+      preLoaderRoute: typeof AuthedManageRouteImport
+      parentRoute: typeof AuthedRoute
+    }
+    '/auth/dev': {
+      id: '/auth/dev'
+      path: '/auth/dev'
+      fullPath: '/auth/dev'
+      preLoaderRoute: typeof AuthDevRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/auth/logout': {
       id: '/auth/logout'
@@ -258,6 +297,7 @@ const AuthedCoursesCourseRouteWithChildren =
 interface AuthedRouteChildren {
   AuthedDevRoute: typeof AuthedDevRoute
   AuthedFoundationRoute: typeof AuthedFoundationRoute
+  AuthedManageRoute: typeof AuthedManageRoute
   AuthedIndexRoute: typeof AuthedIndexRoute
   AuthedCoursesCourseRoute: typeof AuthedCoursesCourseRouteWithChildren
 }
@@ -265,6 +305,7 @@ interface AuthedRouteChildren {
 const AuthedRouteChildren: AuthedRouteChildren = {
   AuthedDevRoute: AuthedDevRoute,
   AuthedFoundationRoute: AuthedFoundationRoute,
+  AuthedManageRoute: AuthedManageRoute,
   AuthedIndexRoute: AuthedIndexRoute,
   AuthedCoursesCourseRoute: AuthedCoursesCourseRouteWithChildren,
 }
@@ -275,6 +316,7 @@ const AuthedRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
   LoginRoute: LoginRoute,
+  AuthDevRoute: AuthDevRoute,
   AuthLogoutRoute: AuthLogoutRoute,
   InviteTokenRoute: InviteTokenRoute,
   AuthGoogleCallbackRoute: AuthGoogleCallbackRoute,

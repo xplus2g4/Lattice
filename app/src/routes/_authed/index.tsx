@@ -10,13 +10,7 @@ import { Card, CardContent } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { Skeleton } from '#/components/ui/skeleton'
 import { CourseCard } from '#/components/lattice/course-card'
-import {
-  ApiError,
-  createInvite,
-  getMe,
-  joinCourse,
-  listCourses,
-} from '#/lib/api'
+import { ApiError, getMe, joinCourse, listCourses } from '#/lib/api'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
@@ -34,6 +28,14 @@ function Home() {
     queryFn: () => listCourses(),
     retry: false,
   })
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: () => getMe(),
+    retry: false,
+  })
+  const isInstructor = ['instructor', 'admin'].includes(
+    me.data?.user.role ?? '',
+  )
 
   // Server-known courses plus codes the user added but has not filled yet.
   const known = new Set((courses.data ?? []).map((c) => c.code))
@@ -68,6 +70,14 @@ function Home() {
             Signed in as
             <div className="flex items-center gap-3">
               <span className="text-sm text-foreground">{user}</span>
+              {isInstructor && (
+                <Link
+                  to="/manage"
+                  className="text-sm underline underline-offset-2 hover:text-foreground"
+                >
+                  Manage access
+                </Link>
+              )}
               <a
                 href="/auth/logout"
                 className="text-sm underline underline-offset-2 hover:text-foreground"
@@ -115,57 +125,8 @@ function Home() {
             </div>
           )}
         </section>
-
-        <InvitePanel />
       </div>
     </main>
-  )
-}
-
-/** Instructors and admins mint invite links here; everyone else never sees this. */
-function InvitePanel() {
-  const me = useQuery({
-    queryKey: ['me'],
-    queryFn: () => getMe(),
-    retry: false,
-  })
-  const [link, setLink] = useState('')
-  const invite = useMutation({
-    mutationFn: () => createInvite(),
-    onSuccess: (data) =>
-      setLink(`${window.location.origin}/invite/${data.token}`),
-  })
-  if (!['instructor', 'admin'].includes(me.data?.user.role ?? '')) return null
-  return (
-    <section className="max-w-md">
-      <h2 className="text-lattice-heading font-semibold tracking-tight">
-        Invite someone
-      </h2>
-      <p className="mt-2 text-sm text-muted-foreground">
-        Sign-up is invite-only. Each link works once and expires in 7 days.
-      </p>
-      <div className="mt-3 flex items-center gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={invite.isPending}
-          onClick={() => invite.mutate()}
-        >
-          Create invite link
-        </Button>
-        {invite.error && (
-          <p className="text-xs text-destructive">{invite.error.message}</p>
-        )}
-      </div>
-      {link && (
-        <Input
-          className="mt-3 font-mono text-xs"
-          readOnly
-          value={link}
-          onFocus={(e) => e.target.select()}
-        />
-      )}
-    </section>
   )
 }
 

@@ -10,7 +10,7 @@ from lattice.api.deps import (
     SessionDep,
     SettingsDep,
 )
-from lattice.api.schemas import InviteOut, UserOut
+from lattice.api.schemas import InviteOut, InviteSummaryOut, UserOut
 from lattice.db.repo import invites, users
 
 router = APIRouter(tags=["invites"])
@@ -42,6 +42,28 @@ async def create_invite(user: CurrentUser, body: CreateInvite, session: SessionD
         expires_at=invite.expires_at,
         created_at=invite.created_at,
     )
+
+
+@router.get("/invites.list")
+async def list_invites(user: CurrentUser, session: SessionDep) -> list[InviteSummaryOut]:
+    """Every invite minted, with status. Never returns a token — those are one-time."""
+    if user.role not in ("instructor", "admin"):
+        raise HTTPException(403, "only instructors and admins may view invites")
+    rows = await invites.list_all(session)
+    ids = {i for r in rows for i in (r.created_by, r.used_by) if i is not None}
+    emails = {u.id: u.email for u in await users.by_ids(session, ids)}
+    return [
+        InviteSummaryOut(
+            id=r.id,
+            role=r.role,
+            expires_at=r.expires_at,
+            created_at=r.created_at,
+            created_by_email=emails.get(r.created_by) if r.created_by else None,
+            used_at=r.used_at,
+            used_by_email=emails.get(r.used_by) if r.used_by else None,
+        )
+        for r in rows
+    ]
 
 
 @router.post("/invites.redeem")

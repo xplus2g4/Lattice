@@ -177,6 +177,18 @@ class InviteOut(BaseModel):
     created_at: datetime
 
 
+class InviteSummaryOut(BaseModel):
+    """An invite's status for the manage view. Never carries the token itself."""
+
+    id: UUID
+    role: str
+    expires_at: datetime
+    created_at: datetime
+    created_by_email: str | None
+    used_at: datetime | None
+    used_by_email: str | None
+
+
 class MeOut(BaseModel):
     user: UserOut
     courses: list[CourseOut]

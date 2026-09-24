@@ -10,6 +10,17 @@ async def by_email(session: AsyncSession, email: str) -> User | None:
     return await session.scalar(select(User).where(User.email == email))
 
 
+async def by_ids(session: AsyncSession, ids: set[UUID]) -> list[User]:
+    if not ids:
+        return []
+    return list(await session.scalars(select(User).where(User.id.in_(ids))))
+
+
+async def list_all(session: AsyncSession) -> list[User]:
+    """Everyone who has signed up, newest first — the instructor's people view."""
+    return list(await session.scalars(select(User).order_by(User.created_at.desc())))
+
+
 async def create(
     session: AsyncSession, email: str, *, name: str | None = None, role: str = "student"
 ) -> User:

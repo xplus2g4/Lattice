@@ -164,6 +164,48 @@ async def test_invite_via_header(client: AsyncClient) -> None:
     assert r.status_code == 200
 
 
+async def test_invites_list_shows_status_and_emails(client: AsyncClient) -> None:
+    token = await mint(client)
+    await client.post(
+        "/invites.redeem", json={"token": token}, headers=bearer("kid@example.com")
+    )
+    r = await client.get("/invites.list", headers=bearer("prof@example.com"))
+    assert r.status_code == 200
+    row = next(i for i in r.json() if i["used_by_email"] == "kid@example.com")
+    assert row["created_by_email"] == "prof@example.com"
+    assert row["role"] == "student"
+    assert "token" not in row
+
+
+async def test_invites_list_forbidden_for_students(client: AsyncClient) -> None:
+    token = await mint(client)
+    await client.post(
+        "/invites.redeem", json={"token": token}, headers=bearer("kid@example.com")
+    )
+    r = await client.get("/invites.list", headers=bearer("kid@example.com"))
+    assert r.status_code == 403
+
+
+async def test_users_list_shows_everyone(client: AsyncClient) -> None:
+    token = await mint(client)
+    await client.post(
+        "/invites.redeem", json={"token": token}, headers=bearer("kid@example.com")
+    )
+    r = await client.get("/users.list", headers=bearer("prof@example.com"))
+    assert r.status_code == 200
+    emails = {u["email"] for u in r.json()}
+    assert {"prof@example.com", "kid@example.com"} <= emails
+
+
+async def test_users_list_forbidden_for_students(client: AsyncClient) -> None:
+    token = await mint(client)
+    await client.post(
+        "/invites.redeem", json={"token": token}, headers=bearer("kid@example.com")
+    )
+    r = await client.get("/users.list", headers=bearer("kid@example.com"))
+    assert r.status_code == 403
+
+
 async def test_dev_invite_code_admits_students(client: AsyncClient) -> None:
     """The fixed dev code is reusable and creates students, no invite row needed."""
     for email in ("one@example.com", "two@example.com"):

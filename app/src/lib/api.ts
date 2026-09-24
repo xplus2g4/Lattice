@@ -6,6 +6,7 @@ import type {
   AskRequest as RpcAskRequest,
   CourseOut,
   InviteOut,
+  InviteSummaryOut,
   MaterialOut,
   MeOut,
   NoteOut,
@@ -13,8 +14,12 @@ import type {
   SessionOut,
   TurnOut,
   UploadOut,
+  UserOut,
   ValidationError,
 } from './generated'
+
+export type InviteSummary = InviteSummaryOut
+export type UserSummary = UserOut
 
 export { ApiError } from './api-error'
 
@@ -530,8 +535,20 @@ export async function getMe(): Promise<MeOut> {
 
 export async function createInvite(
   role: 'student' | 'instructor' | 'admin' = 'student',
+  expiresInDays = 7,
 ): Promise<InviteOut> {
-  return request<InviteOut>('/invites.create', json({ role }))
+  return request<InviteOut>(
+    '/invites.create',
+    json({ role, expires_in_days: expiresInDays }),
+  )
+}
+
+export async function listInvites(): Promise<Array<InviteSummary>> {
+  return request<Array<InviteSummaryOut>>('/invites.list')
+}
+
+export async function listUsers(): Promise<Array<UserSummary>> {
+  return request<Array<UserOut>>('/users.list')
 }
 
 /** react-query refetchInterval helper: poll while anything is still ingesting. */
