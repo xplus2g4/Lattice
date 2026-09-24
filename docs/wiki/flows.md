@@ -1,6 +1,6 @@
 # Key flows
 
-The five flows that move data through the system: enrol, ingest a material, save a note, ask, and ask with related concepts.
+The six flows that move data through the system: enrol, ingest a material, save a note, ask, refresh Course summaries, and ask with related concepts.
 
 ## Enrol
 

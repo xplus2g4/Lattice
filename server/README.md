@@ -74,7 +74,9 @@ Application records (users, courses, materials, notes, sessions and quizzes) liv
 Lattice's own Postgres, reached through `DATABASE_URL`; Cognee keeps its own embedded stores and is
 not part of that database. Migrations are Alembic: `uv run alembic upgrade head`, or set
 `DATABASE_AUTO_MIGRATE=true` to have start-up do it in dev. Tests need a Postgres too and create
-their own database from `TEST_DATABASE_URL` (default `…/lattice_test`).
+their own database from `TEST_DATABASE_URL` (default `…/lattice_test`); it must have pgvector
+available (the `pgvector/pgvector:pg16` image does), because the course-summaries migration
+enables the `vector` extension.
 
 The persisted endpoints are RPC-shaped: a verb-named path, GET with query arguments for reads and
 POST with a JSON body for writes (`/me.get`, `/courses.search`, `/courses.create`,
@@ -104,7 +106,10 @@ before relying on the database as their only copy.
 `/ask` appends two Turns to a Session — the question, then the answer with its Tier results and
 the chunks they cite — so `/sessions.get` replays a conversation after a reload and `/sessions.list`
 shows a student's conversations in a course, newest first. A Session is readable only by the
-student who asked, and `/feedback.record` puts one rating per student on an answer.
+student who asked, and `/feedback.record` puts one rating per student on an answer. With Related
+courses on, the answer also carries a `related` tier per nearest course: a few bullet points from
+that course's Materials, searched as the instructor principal over its global Dataset alone
+([ADR 0007](../docs/adr/0007-related-courses-from-summary-neighbours.md)).
 
 Quizzes are records only: something else writes the questions and marks the answers, and
 `/quizzes.create` stores the result, `/quizAnswers.record` keeps every attempt as its own row, and
@@ -112,7 +117,7 @@ Quizzes are records only: something else writes the questions and marks the answ
 private to the student it was set for, and closes once through `/quizzes.submit` or
 `/quizzes.abandon`.
 
-Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model.
+Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model. Two settings belong to Related courses: `RELATED_COURSES_K`, how many nearest courses `/ask` also searches (`0` turns the lane off), and `COURSE_SUMMARY_REFRESH_S`, how often Course summaries are recomputed. Besides Note ingest, the API process runs that refresh on a timer, embedding one profile per ready Material with the same fastembed model and storing the mean per course in `course_summaries`; both loops sit under one file lock, hence one API process per Cognee root.
 
 Identity is dev-only: with `DEV_HEADER_AUTH=true` the `X-User: <email>` header is the caller. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.
 
