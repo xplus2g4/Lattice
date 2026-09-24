@@ -88,6 +88,24 @@ export type AskResponse = {
 }
 
 /**
+ * BatchOut
+ */
+export type BatchOut = {
+  /**
+   * Index
+   */
+  index: number
+  /**
+   * Page End
+   */
+  page_end: number
+  /**
+   * Page Start
+   */
+  page_start: number
+}
+
+/**
  * Body_upload_material_materials_upload_post
  */
 export type BodyUploadMaterialMaterialsUploadPost = {
@@ -298,6 +316,20 @@ export type Evidence = {
 }
 
 /**
+ * ExtendGrill
+ */
+export type ExtendGrill = {
+  /**
+   * Batch
+   */
+  batch: number
+  /**
+   * Quiz
+   */
+  quiz: string
+}
+
+/**
  * Finding
  */
 export type Finding = {
@@ -341,14 +373,6 @@ export type GenerateGrill = {
    * Material
    */
   material: string
-  /**
-   * Page End
-   */
-  page_end: number
-  /**
-   * Page Start
-   */
-  page_start: number
 }
 
 /**
@@ -388,6 +412,19 @@ export type GradedQuizOut = {
    * Remark
    */
   remark: string
+}
+
+/**
+ * GrillPlanOut
+ *
+ * A Grill just planned: the Quiz without questions, and the batches to ask for.
+ */
+export type GrillPlanOut = {
+  /**
+   * Batches
+   */
+  batches: Array<BatchOut>
+  quiz: QuizOut
 }
 
 /**
@@ -2491,6 +2528,41 @@ export type DeleteQuizQuizzesDeletePostResponses = {
 export type DeleteQuizQuizzesDeletePostResponse =
   DeleteQuizQuizzesDeletePostResponses[keyof DeleteQuizQuizzesDeletePostResponses]
 
+export type ExtendQuizQuizzesExtendPostData = {
+  body: ExtendGrill
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.extend'
+}
+
+export type ExtendQuizQuizzesExtendPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ExtendQuizQuizzesExtendPostError =
+  ExtendQuizQuizzesExtendPostErrors[keyof ExtendQuizQuizzesExtendPostErrors]
+
+export type ExtendQuizQuizzesExtendPostResponses = {
+  /**
+   * Response Extend Quiz Quizzes Extend Post
+   *
+   * Successful Response
+   */
+  200: Array<QuizQuestionOut>
+}
+
+export type ExtendQuizQuizzesExtendPostResponse =
+  ExtendQuizQuizzesExtendPostResponses[keyof ExtendQuizQuizzesExtendPostResponses]
+
 export type GenerateQuizQuizzesGeneratePostData = {
   body: GenerateGrill
   headers?: {
@@ -2518,7 +2590,7 @@ export type GenerateQuizQuizzesGeneratePostResponses = {
   /**
    * Successful Response
    */
-  201: QuizOut
+  201: GrillPlanOut
 }
 
 export type GenerateQuizQuizzesGeneratePostResponse =

@@ -13,6 +13,8 @@ from lattice.quiz import (
     WrittenQuestion,
     WrittenQuiz,
     page_text,
+    plan_batches,
+    questions_per_batch,
 )
 from tests.test_materials import BOB, join, upload
 
@@ -83,11 +85,29 @@ async def material(client: AsyncClient, **kwargs) -> str:
     return (await upload(client, **kwargs))["material"]["id"]
 
 
-async def generate(client: AsyncClient, material_id: str, start=1, end=1, **kwargs) -> dict:
-    body = {"course": "cs3216", "material": material_id, "page_start": start, "page_end": end}
+async def plan(client: AsyncClient, material_id: str, **kwargs) -> dict:
+    body = {"course": "cs3216", "material": material_id}
     response = await client.post("/quizzes.generate", json=body, **kwargs)
     assert response.status_code == 201, response.text
     return response.json()
+
+
+async def extend(client: AsyncClient, quiz_id: str, batch: int = 0, **kwargs) -> list[dict]:
+    response = await client.post(
+        "/quizzes.extend", json={"quiz": quiz_id, "batch": batch}, **kwargs
+    )
+    assert response.status_code == 200, response.text
+    return response.json()
+
+
+async def generate(client: AsyncClient, material_id: str, **kwargs) -> dict:
+    """Plan, write every batch, and read the Quiz back whole."""
+    planned = await plan(client, material_id, **kwargs)
+    for batch in planned["batches"]:
+        await extend(client, planned["quiz"]["id"], batch["index"], **kwargs)
+    fetched = await client.get("/quizzes.get", params={"quiz": planned["quiz"]["id"]}, **kwargs)
+    assert fetched.status_code == 200, fetched.text
+    return fetched.json()
 
 
 def answers(quiz: dict, *texts: str) -> list[dict]:
@@ -135,52 +155,122 @@ async def test_page_text_treats_markdown_as_one_page(tmp_path) -> None:
         page_text(path, 2, 2)
 
 
-# --- writing --------------------------------------------------------------------------
+# --- planning and writing ------------------------------------------------------------------
 
 
-async def test_generate_withholds_the_answer_key(student: AsyncClient, engine) -> None:
-    engine.generated[WrittenQuiz] = WRITTEN
-    material_id = await material(student, content=b"# Hashing\nCollisions.", filename="w1.md")
+async def test_plan_batches_cover_every_page_once() -> None:
+    assert plan_batches(1) == [(1, 1)]
+    assert plan_batches(12) == [(1, 12)]
+    assert plan_batches(13) == [(1, 7), (8, 13)]
+    assert plan_batches(24) == [(1, 12), (13, 24)]
+    assert plan_batches(100) == [
+        (1, 13),
+        (14, 26),
+        (27, 39),
+        (40, 52),
+        (53, 65),
+        (66, 78),
+        (79, 91),
+        (92, 100),
+    ]
+    assert questions_per_batch(1) == 10
+    assert questions_per_batch(2) == 5
+    assert questions_per_batch(8) == 2
+    with pytest.raises(ValueError):
+        plan_batches(0)
 
-    quiz = await generate(student, material_id)
 
+async def test_generate_plans_the_whole_material_without_questions(
+    student: AsyncClient, engine
+) -> None:
+    material_id = await material(student, content=pdf([f"Page {n}" for n in range(1, 14)]))
+
+    planned = await plan(student, material_id)
+
+    quiz = planned["quiz"]
     assert quiz["kind"] == "grill"
     assert quiz["status"] == "open"
+    assert quiz["questions"] == []
     assert quiz["scope_json"] == {
         "material_id": material_id,
         "page_start": 1,
-        "page_end": 1,
-        "topic_label": "Hash collisions",
+        "page_end": 13,
+        "topic_label": "week1.pdf",
+        "batches": [[1, 7], [8, 13]],
     }
-    assert [q["expected_json"] for q in quiz["questions"]] == [None, None]
-    assert quiz["questions"][0]["options_json"] == [
-        "Chaining",
-        "Sorting",
-        "Hashing twice",
-        "Deleting",
+    assert planned["batches"] == [
+        {"index": 0, "page_start": 1, "page_end": 7},
+        {"index": 1, "page_start": 8, "page_end": 13},
     ]
-    assert quiz["questions"][0]["citation_json"] == {"page": 1}
-    assert [q["material_id"] for q in quiz["questions"]] == [material_id, material_id]
+    assert engine.generate_calls == []
 
+
+async def test_extend_writes_one_batch_from_its_pages_and_withholds_the_key(
+    student: AsyncClient, engine
+) -> None:
+    engine.generated[WrittenQuiz] = WrittenQuiz(
+        topic_label="Hash collisions", questions=[mcq(page=9), short(page=13)]
+    )
+    material_id = await material(student, content=pdf([f"Page {n}" for n in range(1, 14)]))
+    planned = await plan(student, material_id)
+
+    written = await extend(student, planned["quiz"]["id"], 1)
+
+    assert [(q["position"], q["expected_json"]) for q in written] == [(100, None), (101, None)]
+    assert written[0]["options_json"] == ["Chaining", "Sorting", "Hashing twice", "Deleting"]
+    assert written[0]["citation_json"] == {"page": 9, "topic": "Hash collisions"}
+    assert [q["material_id"] for q in written] == [material_id, material_id]
     schema, _, data = engine.generate_calls[0]
     assert schema is WrittenQuiz
-    assert data["pages"] == [{"page": 1, "text": "# Hashing\nCollisions."}]
+    assert data["questions_wanted"] == 5
+    assert [p["page"] for p in data["pages"]] == [8, 9, 10, 11, 12, 13]
+    assert data["pages"][1]["text"].strip() == "Page 9"
 
-    listed = await student.get("/quizzes.get", params={"quiz": quiz["id"]})
-    assert [q["expected_json"] for q in listed.json()["questions"]] == [None, None]
+    fetched = await student.get("/quizzes.get", params={"quiz": planned["quiz"]["id"]})
+    assert [q["expected_json"] for q in fetched.json()["questions"]] == [None, None]
 
 
-async def test_generate_sends_the_pdf_pages_in_range(student: AsyncClient, engine) -> None:
-    engine.generated[WrittenQuiz] = WrittenQuiz(topic_label="Deck", questions=[mcq(page=3)])
-    material_id = await material(student, content=pdf(["One", "Two", "Three", "Four"]))
+async def test_batches_keep_page_order_whatever_lands_first(student: AsyncClient, engine) -> None:
+    material_id = await material(student, content=pdf([f"Page {n}" for n in range(1, 25)]))
+    planned = await plan(student, material_id)
+    quiz_id = planned["quiz"]["id"]
+    engine.generated[WrittenQuiz] = WrittenQuiz(topic_label="Late", questions=[short(page=20)])
+    await extend(student, quiz_id, 1)
+    engine.generated[WrittenQuiz] = WrittenQuiz(topic_label="Early", questions=[short(page=2)])
+    await extend(student, quiz_id, 0)
 
-    quiz = await generate(student, material_id, start=2, end=9)
+    fetched = await student.get("/quizzes.get", params={"quiz": quiz_id})
 
-    assert quiz["scope_json"]["page_start"] == 2
-    assert quiz["scope_json"]["page_end"] == 4
-    _, _, data = engine.generate_calls[0]
-    assert [p["page"] for p in data["pages"]] == [2, 3, 4]
-    assert data["pages"][1]["text"].strip() == "Three"
+    assert [(q["position"], q["citation_json"]["topic"]) for q in fetched.json()["questions"]] == [
+        (0, "Early"),
+        (100, "Late"),
+    ]
+
+
+async def test_extending_the_same_batch_twice_returns_the_first_writing(
+    student: AsyncClient, engine
+) -> None:
+    engine.generated[WrittenQuiz] = WRITTEN
+    material_id = await material(student, content=b"text", filename="w1.md")
+    planned = await plan(student, material_id)
+
+    first = await extend(student, planned["quiz"]["id"], 0)
+    second = await extend(student, planned["quiz"]["id"], 0)
+
+    assert [q["id"] for q in second] == [q["id"] for q in first]
+    assert len(engine.generate_calls) == 1
+
+
+async def test_extend_refuses_a_batch_off_the_plan(student: AsyncClient, engine) -> None:
+    material_id = await material(student, content=b"text", filename="w1.md")
+    planned = await plan(student, material_id)
+
+    response = await student.post(
+        "/quizzes.extend", json={"quiz": planned["quiz"]["id"], "batch": 1}
+    )
+
+    assert response.status_code == 422
+    assert engine.generate_calls == []
 
 
 async def test_generate_drops_what_the_schema_cannot_vouch_for(
@@ -206,45 +296,56 @@ async def test_generate_drops_what_the_schema_cannot_vouch_for(
         ("duplicate options", ["Chaining", "Sorting"]),
         ("kept", None),
     ]
-    assert quiz["scope_json"]["topic_label"] == "Hash collisions"
+    assert quiz["questions"][0]["citation_json"]["topic"] == "Hash collisions"
+
+
+async def test_questions_about_the_deck_itself_are_dropped_and_numbering_stripped(
+    student: AsyncClient, engine
+) -> None:
+    engine.generated[WrittenQuiz] = WrittenQuiz(
+        topic_label="Clocks",
+        questions=[
+            short(prompt="1. Which lecture of CS4231 do these pages belong to?"),
+            short(prompt="2) What is the stated goal of today's lecture?"),
+            mcq(prompt="Question 3: Which chapter does the roadmap cover?"),
+            short(
+                prompt="4.  Why can a vector clock detect concurrency when a Lamport clock cannot?"
+            ),
+            mcq(prompt="Q5 - What happens to causal order if a channel reorders messages?"),
+        ],
+    )
+    material_id = await material(student, content=b"text", filename="w1.md")
+
+    quiz = await generate(student, material_id)
+
+    assert [q["prompt"] for q in quiz["questions"]] == [
+        "Why can a vector clock detect concurrency when a Lamport clock cannot?",
+        "What happens to causal order if a channel reorders messages?",
+    ]
 
 
 async def test_generate_retries_once_then_reports_502(student: AsyncClient, engine) -> None:
     engine.generated[WrittenQuiz] = WrittenQuiz(topic_label="x", questions=[])
     material_id = await material(student, content=b"text", filename="w1.md")
+    planned = await plan(student, material_id)
 
     response = await student.post(
-        "/quizzes.generate",
-        json={"course": "cs3216", "material": material_id, "page_start": 1, "page_end": 1},
+        "/quizzes.extend", json={"quiz": planned["quiz"]["id"], "batch": 0}
     )
 
     assert response.status_code == 502
     assert len(engine.generate_calls) == 2
-    assert (await student.get("/quizzes.list", params={"course": "cs3216"})).json() == []
-
-
-async def test_generate_rejects_a_bad_range(student: AsyncClient, engine) -> None:
-    engine.generated[WrittenQuiz] = WRITTEN
-    material_id = await material(student, content=pdf(["One", "Two"]))
-
-    async def attempt(start: int, end: int) -> int:
-        body = {"course": "cs3216", "material": material_id, "page_start": start, "page_end": end}
-        return (await student.post("/quizzes.generate", json=body)).status_code
-
-    assert await attempt(3, 2) == 422
-    assert await attempt(1, 41) == 422
-    assert await attempt(3, 3) == 422
-    assert engine.generate_calls == []
+    fetched = await student.get("/quizzes.get", params={"quiz": planned["quiz"]["id"]})
+    assert fetched.json()["questions"] == []
 
 
 async def test_generate_needs_the_material_in_the_caller_s_course(
     student: AsyncClient, engine
 ) -> None:
-    engine.generated[WrittenQuiz] = WRITTEN
     material_id = await material(student, content=b"text", filename="w1.md")
     await join(student, "cs3217")
 
-    body = {"course": "cs3217", "material": material_id, "page_start": 1, "page_end": 1}
+    body = {"course": "cs3217", "material": material_id}
     assert (await student.post("/quizzes.generate", json=body)).status_code == 404
     body["course"] = "cs3216"
     assert (await student.post("/quizzes.generate", json=body, headers=BOB)).status_code == 403
@@ -384,6 +485,20 @@ async def test_a_failed_remark_does_not_fail_the_submit(student: AsyncClient, en
 
     assert result["remark"] == ""
     assert result["quiz"]["status"] == "submitted"
+
+
+async def test_a_quiz_with_no_questions_yet_cannot_be_graded(student: AsyncClient) -> None:
+    material_id = await material(student, content=b"text", filename="w1.md")
+    planned = await plan(student, material_id)
+
+    response = await student.post(
+        "/quizzes.grade",
+        json={
+            "quiz": planned["quiz"]["id"],
+            "answers": [{"question": planned["quiz"]["id"], "answer_text": "x"}],
+        },
+    )
+    assert response.status_code == 422
 
 
 async def test_grading_needs_every_question_and_only_those(student: AsyncClient, engine) -> None:

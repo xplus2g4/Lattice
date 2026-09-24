@@ -32,6 +32,19 @@ async def create(
     return quiz
 
 
+async def append(
+    db: AsyncSession, quiz: Quiz, *, base: int, questions: list[dict[str, Any]]
+) -> list[QuizQuestion]:
+    """Questions written later take positions from `base` up, so a batch keeps its place."""
+    added = [
+        QuizQuestion(position=base + offset, answers=[], **question)
+        for offset, question in enumerate(questions)
+    ]
+    quiz.questions.extend(added)
+    await db.flush()
+    return added
+
+
 async def for_course(
     db: AsyncSession,
     *,
@@ -129,7 +142,7 @@ async def history(
     )
     return [
         {
-            "topic_label": (scope or {}).get("topic_label"),
+            "topic_label": (citation or {}).get("topic") or (scope or {}).get("topic_label"),
             "page": (citation or {}).get("page"),
             "prompt": prompt,
             "correct": correct,

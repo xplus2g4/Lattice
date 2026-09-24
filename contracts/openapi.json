@@ -140,6 +140,29 @@
         "title": "AskResponse",
         "type": "object"
       },
+      "BatchOut": {
+        "properties": {
+          "index": {
+            "title": "Index",
+            "type": "integer"
+          },
+          "page_end": {
+            "title": "Page End",
+            "type": "integer"
+          },
+          "page_start": {
+            "title": "Page Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "index",
+          "page_start",
+          "page_end"
+        ],
+        "title": "BatchOut",
+        "type": "object"
+      },
       "Body_upload_material_materials_upload_post": {
         "properties": {
           "course": {
@@ -522,6 +545,26 @@
         "title": "Evidence",
         "type": "object"
       },
+      "ExtendGrill": {
+        "properties": {
+          "batch": {
+            "minimum": 0.0,
+            "title": "Batch",
+            "type": "integer"
+          },
+          "quiz": {
+            "format": "uuid",
+            "title": "Quiz",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quiz",
+          "batch"
+        ],
+        "title": "ExtendGrill",
+        "type": "object"
+      },
       "Finding": {
         "properties": {
           "citations": {
@@ -587,23 +630,11 @@
             "format": "uuid",
             "title": "Material",
             "type": "string"
-          },
-          "page_end": {
-            "minimum": 1.0,
-            "title": "Page End",
-            "type": "integer"
-          },
-          "page_start": {
-            "minimum": 1.0,
-            "title": "Page Start",
-            "type": "integer"
           }
         },
         "required": [
           "course",
-          "material",
-          "page_start",
-          "page_end"
+          "material"
         ],
         "title": "GenerateGrill",
         "type": "object"
@@ -634,7 +665,7 @@
             "items": {
               "$ref": "#/components/schemas/GivenAnswer"
             },
-            "maxItems": 50,
+            "maxItems": 100,
             "minItems": 1,
             "title": "Answers",
             "type": "array"
@@ -667,6 +698,27 @@
           "remark"
         ],
         "title": "GradedQuizOut",
+        "type": "object"
+      },
+      "GrillPlanOut": {
+        "description": "A Grill just planned: the Quiz without questions, and the batches to ask for.",
+        "properties": {
+          "batches": {
+            "items": {
+              "$ref": "#/components/schemas/BatchOut"
+            },
+            "title": "Batches",
+            "type": "array"
+          },
+          "quiz": {
+            "$ref": "#/components/schemas/QuizOut"
+          }
+        },
+        "required": [
+          "quiz",
+          "batches"
+        ],
+        "title": "GrillPlanOut",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -4314,9 +4366,73 @@
         ]
       }
     },
+    "/quizzes.extend": {
+      "post": {
+        "description": "Write one batch's questions. Asking twice for the same batch returns what the first\ncall wrote, so a retry after a lost response never doubles the questions.",
+        "operationId": "extend_quiz_quizzes_extend_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExtendGrill"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/QuizQuestionOut"
+                  },
+                  "title": "Response Extend Quiz Quizzes Extend Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Extend Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
     "/quizzes.generate": {
       "post": {
-        "description": "Up to ten questions on one Material's page range, answer key withheld.",
+        "description": "Plan a Grill over every page of a Material. No question is written yet: the client\nasks for each batch with `quizzes.extend`, all at once, and shows them as they land.",
         "operationId": "generate_quiz_quizzes_generate_post",
         "parameters": [
           {
@@ -4351,7 +4467,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/QuizOut"
+                  "$ref": "#/components/schemas/GrillPlanOut"
                 }
               }
             },
