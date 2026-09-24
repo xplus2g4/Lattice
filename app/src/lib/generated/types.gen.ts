@@ -284,9 +284,17 @@ export type Evidence = {
    */
   page_start?: number | null
   /**
+   * Rank
+   */
+  rank?: number | null
+  /**
    * Relationship Name
    */
   relationship_name?: string | null
+  /**
+   * Score
+   */
+  score?: number | null
 }
 
 /**
