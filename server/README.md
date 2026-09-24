@@ -180,7 +180,8 @@ text/tables, not notes, masters or images. `--directory` inventories both format
 cannot be combined with `--run`. `--preconvert` uses Markdown page/slide headers for an experimental
 conversion path. `--chunking-only` checks header behavior through the real Chunker without Cognify
 or paid requests; use `--output` to retain results. Native PPTX ingestion currently fails because
-its optional loader dependency is absent; no production conversion was installed.
+its optional loader dependency is absent; no production conversion was installed. The API therefore
+refuses `.pptx` uploads until a loader or conversion path is chosen (#6).
 
 For a paid ontology or Material run, add `--run --ledger .cognee/probe-budget.sqlite3 --output
 "../.scratch/new-results.json"`; create the repository-root `.scratch/` directory first if absent.

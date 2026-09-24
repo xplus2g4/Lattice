@@ -29,9 +29,11 @@ worker: claim job
 
 Cognify is the expensive step (LLM extraction per chunk). It runs only in the Worker, with retries and a per-material cost ceiling. The UI polls `materials.status`.
 
+The panels accept up to 10 files per selection (`MAX_UPLOAD_FILES` in the web app); a larger selection is refused whole before any request is sent, and each accepted file is its own upload request and its own ingest. Until the optional conversion step above exists, the API refuses `.pptx` uploads: Cognee 1.5.4 ships no PPTX loader, so a deck could only end as a failed ingest (see [backlog](./backlog.md) item 3).
+
 ## Save a note (student)
 
-Same shape as material ingest, with `kind=index_note`, dataset `{course}-user-{id}`, and the user's own principal. Saves are debounced client-side and coalesced in the queue (one pending job per note) so typing does not burn tokens. `notes.status` shows `indexing` until done; answers use whatever is indexed. `/notes.upload` makes one Note per PDF; ingest hands the stored PDF to the engine's own loader instead of writing a `.md`.
+Same shape as material ingest, with `kind=index_note`, dataset `{course}-user-{id}`, and the user's own principal. Saves are debounced client-side and coalesced in the queue (one pending job per note) so typing does not burn tokens. `notes.status` shows `indexing` until done; answers use whatever is indexed. `/notes.upload` makes one Note per PDF, up to 10 per selection as for Materials; ingest hands the stored PDF to the engine's own loader instead of writing a `.md`.
 
 ## Ask (Phase 1)
 
