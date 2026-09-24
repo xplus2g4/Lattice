@@ -73,6 +73,9 @@ export function NotesPanel({ course, user }: Enrolment) {
           />
         </div>
       </div>
+      <p className="px-4 pb-1.5 text-xs text-muted-foreground">
+        Only you can see what you upload.
+      </p>
       {notes.error && (
         <p className="px-4 pb-1 text-xs text-destructive">
           {notes.error.message}
@@ -128,7 +131,7 @@ export function NotesPanel({ course, user }: Enrolment) {
         })}
         {notes.data?.length === 0 && (
           <li className="px-2 py-1.5 text-sm leading-6 text-muted-foreground">
-            No notes yet — notes are private to you and feed your answers.
+            No notes yet — write one or upload a PDF to feed your answers.
           </li>
         )}
       </ul>
