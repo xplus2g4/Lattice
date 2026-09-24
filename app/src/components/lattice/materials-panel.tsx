@@ -41,10 +41,8 @@ export function MaterialsPanel({ course, user }: Enrolment) {
 
   return (
     <section>
-      <div className="flex items-center justify-between px-4 pb-1 pt-3">
-        <p className="text-lattice-meta font-semibold tracking-[0.14em] text-muted-foreground">
-          MATERIALS
-        </p>
+      <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-4">
+        <p className="fieldnotes-kicker text-muted-foreground">MATERIALS</p>
         <Button
           variant="ghost"
           size="xs"
@@ -84,7 +82,7 @@ export function MaterialsPanel({ course, user }: Enrolment) {
           {materials.error.message}
         </p>
       )}
-      <ul className="space-y-0.5 px-2 pb-2">
+      <ul className="divide-y divide-border/60 pb-4">
         {materials.data?.map((m) => {
           const row = (
             <>
@@ -108,7 +106,7 @@ export function MaterialsPanel({ course, user }: Enrolment) {
                 to="/courses/$course"
                 params={{ course: course }}
                 search={{ material: m.filename }}
-                className="block rounded-lg px-2 py-1.5 transition-colors hover:bg-accent"
+                className="block min-h-11 border-l-2 border-transparent px-4 py-3 transition-colors hover:bg-accent focus-visible:outline-offset-[-3px] [&[data-status=active]]:border-l-primary [&[data-status=active]]:bg-accent"
               >
                 {row}
               </Link>

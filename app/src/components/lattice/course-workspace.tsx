@@ -187,10 +187,10 @@ export function CourseWorkspace({
   const pane = (v: View) => (view === v ? 'flex' : 'hidden')
 
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-background lg:flex-row">
+    <div className="flex h-dvh flex-col overflow-hidden bg-background lg:flex-row">
       <nav
         aria-label="Workspace"
-        className="flex items-center gap-1 border-b border-border p-1.5 lg:hidden"
+        className="flex shrink-0 items-center border-b border-border bg-card lg:hidden"
       >
         {VIEWS.map(([v, title]) => (
           <button
@@ -199,10 +199,10 @@ export function CourseWorkspace({
             aria-pressed={view === v}
             onClick={() => setView(v)}
             className={cn(
-              'flex-1 rounded-lg px-3 py-1.5 text-sm font-medium transition-colors',
+              'min-h-12 flex-1 border-b-2 px-3 py-2 font-mono text-xs uppercase tracking-wider transition-colors',
               view === v
-                ? 'bg-accent text-foreground'
-                : 'text-muted-foreground hover:text-foreground',
+                ? 'border-primary bg-accent text-foreground'
+                : 'border-transparent text-muted-foreground hover:text-foreground',
             )}
           >
             {title}
@@ -210,18 +210,24 @@ export function CourseWorkspace({
         ))}
       </nav>
       <aside
-        className={`${pane('course')} min-h-0 flex-1 flex-col bg-sidebar lg:flex lg:w-80 lg:flex-none lg:border-r lg:border-border`}
+        className={`${pane('course')} min-h-0 flex-1 flex-col bg-sidebar lg:flex lg:w-64 lg:flex-none lg:border-r lg:border-border xl:w-72`}
       >
-        <div className="space-y-2 border-b border-border p-3">
+        <div className="space-y-5 border-b border-border px-5 py-5">
           <Link
             to="/"
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            className="fieldnotes-action inline-flex min-h-8 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
           >
             <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
             Home
           </Link>
-          <div className="px-1">
-            <Badge variant="secondary" className="font-mono uppercase">
+          <div>
+            <p className="fieldnotes-kicker mb-2 text-muted-foreground">
+              Course workspace
+            </p>
+            <Badge
+              variant="secondary"
+              className="h-auto border-0 bg-transparent p-0 font-mono text-2xl font-medium uppercase tracking-tight text-foreground"
+            >
               {course}
             </Badge>
           </div>
@@ -240,8 +246,18 @@ export function CourseWorkspace({
               onUploaded={(filename) => show(materialTab(filename))}
             />
           ) : (
-            <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-              Open a Material or Note from the sidebar to read it here.
+            <div className="fieldnotes-canvas flex flex-1 items-center justify-center p-8">
+              <div className="max-w-sm border-l-2 border-primary pl-6">
+                <p className="fieldnotes-kicker mb-4 text-muted-foreground">
+                  Room to think
+                </p>
+                <h1 className="font-editorial text-4xl leading-tight tracking-tight">
+                  Start with a little reading.
+                </h1>
+                <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                  Open a Material or Note from the sidebar to read it here.
+                </p>
+              </div>
             </div>
           )
         ) : (
@@ -281,7 +297,7 @@ export function CourseWorkspace({
         )}
       </main>
       <div
-        className={`${pane('ask')} min-h-0 min-w-0 flex-1 flex-col lg:flex lg:w-80 lg:flex-none lg:border-l lg:border-border xl:w-96`}
+        className={`${pane('ask')} min-h-0 min-w-0 flex-1 flex-col bg-card lg:flex lg:w-80 lg:flex-none lg:border-l lg:border-border xl:w-96`}
       >
         <AskPanel course={course} user={user} />
       </div>
@@ -323,8 +339,8 @@ function FirstUpload({
   return (
     <div
       className={cn(
-        'm-6 flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed px-8 text-center transition-colors',
-        dragOver ? 'border-primary bg-accent/40' : 'border-border',
+        'm-4 flex min-w-0 flex-1 flex-col items-center justify-center gap-6 border border-dashed p-6 text-center transition-colors sm:m-8',
+        dragOver ? 'border-primary bg-accent' : 'border-input bg-card',
       )}
       onDragOver={(e) => {
         e.preventDefault()
@@ -337,12 +353,9 @@ function FirstUpload({
         onFiles(e.dataTransfer.files)
       }}
     >
-      <HugeiconsIcon
-        icon={CloudUploadIcon}
-        className="size-10 text-muted-foreground"
-      />
+      <HugeiconsIcon icon={CloudUploadIcon} className="size-9 text-primary" />
       <div className="space-y-1">
-        <p className="text-lg font-semibold">
+        <p className="font-editorial text-3xl leading-tight tracking-tight">
           {upload.isPending
             ? 'Uploading…'
             : 'Drop your first slides or readings here'}

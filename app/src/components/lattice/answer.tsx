@@ -26,7 +26,7 @@ const components: Components = {
  * not rendered: all three are untrusted text. */
 export function Markdown({ children }: { children: string }) {
   return (
-    <div className="prose prose-sm max-w-none text-foreground dark:prose-invert prose-headings:text-foreground prose-strong:text-foreground prose-code:before:content-none prose-code:after:content-none prose-pre:bg-muted prose-pre:text-foreground">
+    <div className="prose prose-sm max-w-none break-words leading-7 text-foreground dark:prose-invert prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-a:text-primary prose-a:decoration-primary/40 prose-strong:text-foreground prose-blockquote:border-primary prose-blockquote:font-normal prose-blockquote:text-muted-foreground prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-sm prose-pre:border prose-pre:border-border prose-pre:bg-muted prose-pre:text-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}
@@ -132,9 +132,7 @@ export function ReferenceList({
     <section className="mt-3 border-t border-border pt-3">
       {sources.length > 0 && (
         <>
-          <p className="text-lattice-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
-            References
-          </p>
+          <p className="fieldnotes-kicker text-muted-foreground">Citations</p>
           <ol className="mt-1.5 space-y-1.5">
             {sources.map((s, i) => (
               <li key={s.name} className="flex items-baseline gap-2 text-sm">
@@ -165,7 +163,7 @@ export function ReferenceList({
                         material={s.filename}
                         span={span}
                         newTab={newTab}
-                        className="rounded-md bg-citation-context px-1.5 py-0.5 text-xs font-medium text-citation-context-text transition-opacity hover:opacity-80"
+                        className="inline-flex min-h-8 items-center rounded-xs border border-border bg-citation-context px-2 py-1 font-mono text-xs text-citation-context-text transition-colors hover:border-primary"
                         label={`${s.label}, ${pages(span)}`}
                       >
                         {pages(span)}
@@ -173,7 +171,7 @@ export function ReferenceList({
                     ) : (
                       <span
                         key={span.start}
-                        className="rounded-md bg-muted px-1.5 py-0.5 text-xs text-muted-foreground"
+                        className="rounded-xs border border-border bg-muted px-2 py-1 font-mono text-xs text-muted-foreground"
                       >
                         {pages(span)}
                       </span>

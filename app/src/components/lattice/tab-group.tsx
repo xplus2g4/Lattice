@@ -101,7 +101,7 @@ function SortableTab({
       className={cn(
         'flex shrink-0 items-center border-t-2 border-r border-r-border',
         !active && 'border-t-transparent',
-        active && 'bg-background',
+        active && 'bg-card',
         active && (focused ? 'border-t-primary' : 'border-t-border'),
         isDragging && 'opacity-50',
       )}
@@ -119,7 +119,7 @@ function SortableTab({
             onNudge(tab, e.key === 'ArrowLeft' ? -1 : 1)
           }
         }}
-        className="max-w-56 truncate py-1.5 pl-3 pr-1 text-sm text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring data-[state=active]:text-foreground"
+        className="min-h-11 max-w-56 truncate py-2 pl-4 pr-2 text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring data-[state=active]:font-medium data-[state=active]:text-foreground"
       >
         {dirty && (
           <span aria-label="unsaved" className="mr-1">
@@ -134,7 +134,7 @@ function SortableTab({
         tabIndex={-1}
         aria-label={`Close ${name}`}
         onClick={() => onClose(tab)}
-        className="mr-1 rounded-sm p-0.5 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+        className="mr-1 flex size-8 items-center justify-center rounded-xs text-muted-foreground transition-colors hover:bg-accent hover:text-foreground [@media(pointer:coarse)]:size-11"
       >
         <HugeiconsIcon icon={Cancel01Icon} className="size-3.5" />
       </button>
@@ -187,7 +187,7 @@ export function TabGroupView({
       <TabsPrimitive.List
         ref={setBarRef}
         aria-label="Open tabs"
-        className="flex shrink-0 overflow-x-auto border-b border-border bg-muted/40"
+        className="flex min-h-12 shrink-0 overflow-x-auto border-b border-border bg-sidebar"
       >
         <SortableContext
           id={`group:${index}`}

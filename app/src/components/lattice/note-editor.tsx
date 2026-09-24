@@ -133,13 +133,13 @@ function NoteEditor({
 
   return (
     <form
-      className="flex h-full flex-col"
+      className="flex h-full flex-col bg-card"
       onSubmit={(e) => {
         e.preventDefault()
         submit()
       }}
     >
-      <div className="flex items-center gap-2 border-b border-border px-4 py-2">
+      <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-background px-4 py-2">
         <p className="min-w-0 flex-1 truncate text-xs text-muted-foreground">
           {save.error ? (
             <span className="text-destructive">{save.error.message}</span>
@@ -176,7 +176,7 @@ function NoteEditor({
         <div
           title="Double-click to edit"
           onDoubleClick={() => setEditing(true)}
-          className="min-h-0 flex-1 overflow-y-auto px-6 py-5"
+          className="mx-auto min-h-0 w-full max-w-[72ch] flex-1 overflow-y-auto px-6 py-8"
         >
           {body.trim() ? (
             <Markdown>{body}</Markdown>
@@ -221,7 +221,7 @@ function NoteTextarea({
         }
         if (e.key === 'Escape') onDone()
       }}
-      className="min-h-0 flex-1 resize-none rounded-none border-0 p-4 font-mono shadow-none focus-visible:ring-0"
+      className="mx-auto min-h-0 w-full max-w-[80ch] flex-1 resize-none rounded-none border-0 bg-card px-6 py-8 font-mono leading-7 shadow-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-ring"
     />
   )
 }
