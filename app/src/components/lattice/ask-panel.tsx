@@ -15,7 +15,7 @@ import {
   listNotes,
   listSessions,
 } from '#/lib/api'
-import { groupReferences } from '#/lib/references'
+import { groupReferences, relatedReferences } from '#/lib/references'
 import { useStored } from '#/lib/user'
 
 import type {
@@ -326,11 +326,7 @@ function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
           {turn.results
             .filter((r) => r.tier === 'related')
             .map((r) => (
-              <RelatedCourseView
-                key={r.course ?? ''}
-                result={r}
-                course={sources.course}
-              />
+              <RelatedCourseView key={r.course ?? ''} result={r} />
             ))}
         </>
       )}
@@ -342,15 +338,9 @@ function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
 }
 
 /** A related course's answer stays apart from the course's own, under the code it came
- * from. Its citations name Materials this course cannot open, so they are grouped against
- * no Materials or Notes and shown as text rather than reader links. */
-function RelatedCourseView({
-  result,
-  course,
-}: {
-  result: TierResult
-  course: string
-}) {
+ * from: a few bullet points, with each reference opening that course's reader in a new
+ * tab so this workspace stays put. */
+function RelatedCourseView({ result }: { result: TierResult }) {
   return (
     <div className="border-t border-border pt-3">
       <p className="text-lattice-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
@@ -364,8 +354,9 @@ function RelatedCourseView({
         )}
       </div>
       <ReferenceList
-        course={course}
-        references={groupReferences(result.citations, [], [])}
+        course={result.course ?? ''}
+        references={relatedReferences(result.citations, result.course)}
+        newTab
       />
     </div>
   )

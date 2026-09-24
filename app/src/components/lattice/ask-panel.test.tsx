@@ -79,7 +79,7 @@ describe('an answer', () => {
     ).toHaveTextContent('uses')
   })
 
-  it('shows a related course under its code, with references but no reader links', async () => {
+  it('shows a related course under its code, its references opening that reader in a new tab', async () => {
     resetStore({
       materials: [material({ filename: 'week1.pdf' })],
       sessions: {
@@ -110,8 +110,19 @@ describe('an answer', () => {
       await screen.findByText('Related course · CS2040'),
     ).toBeInTheDocument()
     expect(screen.getByText('Open addressing probes.')).toBeInTheDocument()
-    expect(screen.getByText('week5.pdf')).toBeInTheDocument()
-    expect(screen.queryByRole('link', { name: 'week5.pdf, p. 2' })).toBeNull()
+    const page = screen.getByRole('link', { name: 'week5.pdf, p. 2' })
+    expect(page.getAttribute('href')).toBe(
+      '/courses/cs2040?material=week5.pdf&page=2',
+    )
+    expect(page.getAttribute('target')).toBe('_blank')
+    expect(page.getAttribute('rel')).toBe('noopener noreferrer')
+    expect(
+      screen.getByRole('link', { name: 'week5.pdf' }).getAttribute('target'),
+    ).toBe('_blank')
+    // The course's own reference still opens in place.
+    expect(
+      screen.getByRole('link', { name: 'week1.pdf' }).getAttribute('target'),
+    ).toBeNull()
   })
 
   it('turns an Evidence block of chunk ids into Page badges', async () => {
