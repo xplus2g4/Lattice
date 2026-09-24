@@ -10,7 +10,8 @@ from mcp import ClientSession
 from mcp.client.streamable_http import streamable_http_client
 
 from lattice.config import Settings
-from lattice.main import create_app
+from lattice.main import create_app as create_api
+from lattice.mcp import create_app
 from lattice.note_review import ClaimSet
 from lattice.retrieval import TierResult
 from tests.test_materials import BOB, join, upload
@@ -26,23 +27,36 @@ pytestmark = pytest.mark.asyncio
 
 
 @pytest_asyncio.fixture
-async def mcp_app(student, settings, sessionmaker, engine, ingest):
+async def mcp_app(student, settings, sessionmaker, app):
     await join(student, "cs2100")
     await join(student, "cs101")
     await upload(student, content=CONTENT, filename="lecture.md", course="cs2100")
     await student.post("/enrolments.join", json={"course": "cs2100"}, headers=BOB)
-    app = create_app(settings.model_copy(update={"mcp_enabled": True}))
-    app.state.engine = engine
-    app.state.ingest = ingest
+    from lattice.api.deps import get_session
+
     lock = asyncio.Lock()
 
-    @asynccontextmanager
     async def serialized_session():
-        async with lock, sessionmaker() as session:
+        async with lock, sessionmaker() as session, session.begin():
             yield session
 
-    app.state.database.sessionmaker = serialized_session
-    return app
+    app.dependency_overrides[get_session] = serialized_session
+    mcp = create_app(settings.model_copy(update={"mcp_enabled": True}))
+    lifespan = mcp.router.lifespan_context
+
+    @asynccontextmanager
+    async def connected_lifespan(instance):
+        async with (
+            lifespan(instance),
+            httpx.AsyncClient(
+                transport=httpx.ASGITransport(app=app), base_url="http://api"
+            ) as client,
+        ):
+            instance.state.api_client = client
+            yield
+
+    mcp.router.lifespan_context = connected_lifespan
+    return mcp
 
 
 @asynccontextmanager
@@ -215,13 +229,121 @@ async def test_mcp_rejects_untrusted_requests(tmp_path, address, headers, status
         assert response.status_code == status
 
 
-async def test_mcp_is_disabled_by_default_and_requires_dev_identity(tmp_path):
+async def test_api_never_mounts_mcp_and_adapter_requires_opt_in(tmp_path):
     settings = Settings(
         _env_file=None, cognee_root=tmp_path / "c", dev_header_auth=False, mcp_enabled=False
     )
-    app = create_app(settings)
-    async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app)) as http:
-        assert (await http.post("http://localhost/mcp/", json={})).status_code == 404
-    settings.mcp_enabled = True
-    with pytest.raises(ValueError, match="development"):
+    for enabled in (False, True):
+        settings.mcp_enabled = enabled
+        app = create_api(settings)
+        async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app)) as http:
+            assert (await http.post("http://localhost/mcp/", json={})).status_code == 404
+        with pytest.raises(ValueError, match="development"):
+            create_app(settings)
+    settings.dev_header_auth = True
+    settings.mcp_enabled = False
+    with pytest.raises(ValueError, match="MCP_ENABLED"):
         create_app(settings)
+
+
+async def test_mcp_starts_without_backend_storage_and_handles_api_outage(tmp_path):
+    settings = Settings(
+        _env_file=None,
+        dev_header_auth=True,
+        mcp_enabled=True,
+        cognee_root=tmp_path / "untouched",
+        uploads_dir=tmp_path / "uploads",
+        database_url="invalid-unused-url",
+    )
+    app = create_app(settings)
+
+    def unavailable(request):
+        raise httpx.ConnectError("sensitive-connection-diagnostic", request=request)
+
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.MockTransport(unavailable), base_url="http://api"
+        ) as upstream,
+    ):
+        app.state.api_client = upstream
+        async with mcp_session(app) as client:
+            assert len((await client.list_tools()).tools) == 5
+            result = await client.call_tool("ask_course", {"course": "cs2100", "question": "Why?"})
+            assert result.isError
+            assert "sensitive-connection-diagnostic" not in result.model_dump_json()
+    assert not settings.cognee_root.exists()
+    assert not settings.uploads_dir.exists()
+
+
+@pytest.mark.parametrize(
+    "tool,path,arguments,payload",
+    [
+        (
+            "get_material_context",
+            "/study/materialContext",
+            {"course": "cs2100", "filename": "lecture.md"},
+            {"course": "cs2100", "filename": "lecture.md"},
+        ),
+        ("get_page_note", "/study/pageNote.get", {"anchor": ANCHOR}, ANCHOR),
+        (
+            "upsert_page_note",
+            "/study/pageNote.save",
+            {"anchor": ANCHOR, "body_md": "Draft", "expected_revision": 3},
+            {"anchor": ANCHOR, "body_md": "Draft", "expected_revision": 3},
+        ),
+        (
+            "review_note",
+            "/study/note.review",
+            {"course": "cs2100", "body_md": "Draft"},
+            {"course": "cs2100", "body_md": "Draft"},
+        ),
+        (
+            "ask_course",
+            "/study/ask",
+            {"course": "cs2100", "question": "Why?"},
+            {
+                "course": "cs2100",
+                "question": "Why?",
+                "session_id": None,
+                "query_type": "GRAPH_COMPLETION",
+            },
+        ),
+    ],
+)
+async def test_tools_forward_each_caller_to_api(tmp_path, tool, path, arguments, payload):
+    import json
+
+    app = create_app(
+        Settings(
+            _env_file=None,
+            dev_header_auth=True,
+            mcp_enabled=True,
+            cognee_root=tmp_path / "unused",
+            uploads_dir=tmp_path / "uploads",
+        )
+    )
+    callers = []
+
+    async def upstream(request):
+        assert request.url.path == path
+        assert json.loads(request.content) == payload
+        callers.append(request.headers["X-User"])
+        await asyncio.sleep(0)
+        return httpx.Response(403, json={"detail": "not enrolled in this course"})
+
+    async def call(user):
+        async with mcp_session(app, user) as client:
+            result = await client.call_tool(tool, arguments)
+            assert result.isError
+            assert "not enrolled" in result.model_dump_json()
+
+    async with (
+        app.router.lifespan_context(app),
+        httpx.AsyncClient(
+            transport=httpx.MockTransport(upstream), base_url="http://api"
+        ) as api_client,
+    ):
+        app.state.api_client = api_client
+        await asyncio.gather(call("Ada@Example.com"), call("bob@example.com"))
+    assert sorted(callers) == ["ada@example.com", "bob@example.com"]

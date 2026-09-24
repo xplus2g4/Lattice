@@ -6,9 +6,10 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.19.2",
     "asyncpg>=0.31.0",
-    "cognee[fastembed]==1.5.4",
+    "cognee==1.5.4",
     "fastapi",
     "filelock==3.32.6",
+    "httpx",
     "mcp==1.30.0",
     "pydantic-settings",
     "pypdf==6.18.0",
@@ -21,7 +22,6 @@ exclude-newer = "2026-09-14T16:00:00Z"
 
 [dependency-groups]
 dev = [
-    "httpx",
     "pytest",
     "pytest-asyncio>=1.4.0",
     "ruff",

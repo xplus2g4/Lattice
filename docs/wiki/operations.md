@@ -18,6 +18,12 @@ neo4j      compose profile `neo4j`, off by default
 
 Both `api` and `worker` import Cognee, so both mount `graphdata` and point at the same Postgres. Cognee's own config (`ENABLE_BACKEND_ACCESS_CONTROL`, storage backends, LLM/embedding providers) comes from env, identical in both containers.
 
+For local MCP access, run `uv run --locked python -m lattice.mcp` separately from the API,
+with `MCP_ENABLED=true` and `DEV_HEADER_AUTH=true`. The adapter listens on loopback port 8001
+and calls `MCP_API_URL` (default `http://127.0.0.1:8000`). It needs no shared volumes or database
+connection. The API retains the Cognee root and Note ingestion lock. See
+[server setup](../../server/README.md) for client configuration.
+
 ## CI and deploys
 
 GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every PR and on merge to `main`:
