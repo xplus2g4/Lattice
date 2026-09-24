@@ -19,6 +19,8 @@ Enforced twice ([ADR 0002](../adr/0002-two-tier-datasets-double-isolation.md)): 
 
 `tests/test_canary.py::test_private_notes_never_leak` exercises both layers end to end against real Cognee, and `tests/test_isolation.py` covers the API-level check exhaustively without spending LLM calls.
 
+The Related-course lane of `/ask` ([ADR 0007](../adr/0007-related-courses-from-summary-neighbours.md)) searches other courses' global datasets as the instructor principal, not the caller's. That principal owns every global dataset and no private one, so a Note is out of its reach by construction; each lane passes a datasets map holding only that course's global dataset, so the same `IsolationError` check refuses anything else, the caller's own datasets included. Student principals gain no permissions: what they may read is still exactly their Enrolments.
+
 ## Indirect prompt injection
 
 Materials and Notes are untrusted text. `lattice/retrieval.py` wraps the retrieved context (including graph-derived text) in an escaped `<retrieved_context trust="untrusted">` block for `GRAPH_COMPLETION`, `RAG_COMPLETION` and `HYBRID_COMPLETION`. `Engine.search` supplies a grounding instruction that treats that context and previous answers as data, not instructions. `CHUNKS` remains raw retrieval, not an answer-generation path.

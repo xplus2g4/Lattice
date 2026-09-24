@@ -18,7 +18,14 @@ import {
 import { groupReferences } from '#/lib/references'
 import { useStored } from '#/lib/user'
 
-import type { Enrolment, Material, Note, Session, Turn } from '#/lib/api'
+import type {
+  Enrolment,
+  Material,
+  Note,
+  Session,
+  TierResult,
+  Turn,
+} from '#/lib/api'
 
 export function AskPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
@@ -299,8 +306,8 @@ function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
         </p>
       ) : (
         <>
-          {/* The server composes one answer across tiers (study.py); the references
-              it drew on are listed once too, Materials and Notes alike. */}
+          {/* The server composes one answer across the course's own tiers (study.py); the
+              references it drew on are listed once too, Materials and Notes alike. */}
           {turn.content ? (
             <Markdown>{turn.content}</Markdown>
           ) : (
@@ -309,16 +316,57 @@ function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
           <ReferenceList
             course={sources.course}
             references={groupReferences(
-              turn.results.flatMap((r) => r.citations),
+              turn.results
+                .filter((r) => r.tier !== 'related')
+                .flatMap((r) => r.citations),
               sources.materials,
               sources.notes,
             )}
           />
+          {turn.results
+            .filter((r) => r.tier === 'related')
+            .map((r) => (
+              <RelatedCourseView
+                key={r.course ?? ''}
+                result={r}
+                course={sources.course}
+              />
+            ))}
         </>
       )}
       <p className="text-lattice-meta text-muted-foreground">
         {turn.latency_ms ?? '?'} ms
       </p>
+    </div>
+  )
+}
+
+/** A related course's answer stays apart from the course's own, under the code it came
+ * from. Its citations name Materials this course cannot open, so they are grouped against
+ * no Materials or Notes and shown as text rather than reader links. */
+function RelatedCourseView({
+  result,
+  course,
+}: {
+  result: TierResult
+  course: string
+}) {
+  return (
+    <div className="border-t border-border pt-3">
+      <p className="text-lattice-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        {`Related course · ${result.course?.toUpperCase() ?? '?'}`}
+      </p>
+      <div className="mt-1.5">
+        {result.answer ? (
+          <Markdown>{result.answer}</Markdown>
+        ) : (
+          <p className="text-sm italic text-muted-foreground">no answer</p>
+        )}
+      </div>
+      <ReferenceList
+        course={course}
+        references={groupReferences(result.citations, [], [])}
+      />
     </div>
   )
 }

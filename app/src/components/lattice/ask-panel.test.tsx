@@ -79,6 +79,41 @@ describe('an answer', () => {
     ).toHaveTextContent('uses')
   })
 
+  it('shows a related course under its code, with references but no reader links', async () => {
+    resetStore({
+      materials: [material({ filename: 'week1.pdf' })],
+      sessions: {
+        'sess-1': session({
+          turns: [
+            userTurn('what is hashing?'),
+            assistantTurn({
+              results: [
+                tierResult({ answer: 'Chaining.' }),
+                tierResult({
+                  tier: 'related',
+                  course: 'cs2040',
+                  answer: 'Open addressing probes.',
+                  citations: [
+                    evidence({ filename: 'week5.pdf', page_start: 2 }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      },
+    })
+    localStorage.setItem('lattice.session.cs101.alice@example.com', 'sess-1')
+    renderRoute('/courses/cs101')
+
+    expect(
+      await screen.findByText('Related course · CS2040'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Open addressing probes.')).toBeInTheDocument()
+    expect(screen.getByText('week5.pdf')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'week5.pdf, p. 2' })).toBeNull()
+  })
+
   it('turns an Evidence block of chunk ids into Page badges', async () => {
     const sha = 'a'.repeat(64)
     withAnswer(

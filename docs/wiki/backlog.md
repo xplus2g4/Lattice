@@ -10,6 +10,10 @@ Settled in [ADR 0006](../adr/0006-cognee-go-for-phase-1.md) and no longer listed
 
 Current stance: one GCP VM, docker compose, nightly dumps to GCS. This follows from the self-hosting constraint and current scale, so no ADR. Revisit only if load or availability requirements change; nothing in the architecture assumes a single machine beyond the embedded graph volume.
 
+### Related-course similarity floor
+
+Current stance: `MIN_SIMILARITY = 0.75` cosine similarity in `server/lattice/db/repo/course_summaries.py`, a magic number guessed on 2026-09-24 for mean-pooled bge-small-en-v1.5 Course summaries, with no measurement behind it ([ADR 0007](../adr/0007-related-courses-from-summary-neighbours.md)). Revisit once a real course set exists: measure similarities between courses known to be related and known to be unrelated, using the [benchmark template](../benchmarks/0000-template.md), then move the floor, or make it a setting, from what that shows.
+
 ## Open backlog issues
 
 These gate launch. Each is tracked in GitHub. The [first-cut findings](../research/cognee-1.5.4-first-cut-findings.md) resolved #4 and #5; they can be closed on GitHub with the finding quoted.

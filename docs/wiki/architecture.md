@@ -43,10 +43,11 @@ TanStack Start (React, TanStack Router + Query, Nitro) · FastAPI (Python 3.14, 
 3. **Everything expensive is async.** Cognify (LLM extraction) runs only in the worker, with retries and cost ceilings. The queue is a Postgres table. No broker, no Redis; it lives inside the same backup. [ADR 0003](../adr/0003-postgres-table-job-queue.md)
 4. **Python backend now, Go at the edges.** Stage 1 backend is Python because Cognee is a Python library on the hot query path. Go gets the admin CLI now and, conditionally, a Stage 2 backend rewrite behind contracts that will be frozen as an in-repo OpenAPI spec. [ADR 0004](../adr/0004-python-backend-go-cli.md)
 5. **Single-VM ops.** Embedded graph DB (Ladybug, selected in ADR 0006), nightly `pg_dump` plus graph tarball to GCS, compose profiles for fallbacks (Neo4j), pinned versions gated by canary tests. Deliberately not an ADR; see [backlog.md](./backlog.md).
+6. **Related courses by Course summary.** Every course with a ready Material has one pgvector row in the app Postgres, the mean of its Materials' embeddings, refreshed on a timer without an LLM. `/ask` also searches the global tier of the three nearest courses, as the instructor principal and under its own isolation map, and returns their answers as a `related` tier. [ADR 0007](../adr/0007-related-courses-from-summary-neighbours.md)
 
 ## What this architecture deliberately does not do
 
-- No cross-course queries; a session is always scoped to one course.
+- No cross-course Sessions; a Session is always scoped to one course. Retrieval may reach the global tier of up to three Related courses ([ADR 0007](../adr/0007-related-courses-from-summary-neighbours.md)); nothing else crosses a course boundary.
 - No temporal versioning of materials (a re-upload replaces). Graphiti-style bi-temporal facts are a Stage 3 concern.
 - No super-user retrieval path in the API; admin debugging uses a CLI with an explicit principal.
 - No Cognee REST server or Cognee MCP server exposed; the library runs in-process behind the API. An opt-in, loopback-only Lattice MCP adapter shares the API's application records and access checks.
