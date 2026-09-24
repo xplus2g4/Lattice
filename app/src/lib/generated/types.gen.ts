@@ -354,32 +354,6 @@ export type HttpValidationError = {
 }
 
 /**
- * MaterialContext
- */
-export type MaterialContext = {
-  /**
-   * Course
-   */
-  course: string
-  /**
-   * Filename
-   */
-  filename: string
-  /**
-   * Material Id
-   */
-  material_id: string
-  /**
-   * Page Count
-   */
-  page_count: number
-  /**
-   * Topic
-   */
-  topic?: null
-}
-
-/**
  * InviteOut
  *
  * Returned once at creation: `token` is the only copy of the invite secret.
@@ -437,6 +411,32 @@ export type InviteSummaryOut = {
    * Used By Email
    */
   used_by_email: string | null
+}
+
+/**
+ * MaterialContext
+ */
+export type MaterialContext = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Material Id
+   */
+  material_id: string
+  /**
+   * Page Count
+   */
+  page_count: number
+  /**
+   * Topic
+   */
+  topic?: null
 }
 
 /**
@@ -3056,6 +3056,10 @@ export type AskStudyAskPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -3089,6 +3093,10 @@ export type MaterialContextStudyMaterialContextPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -3122,6 +3130,10 @@ export type ReviewNoteStudyNoteReviewPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -3155,6 +3167,10 @@ export type GetPageNoteStudyPageNoteGetPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -3188,6 +3204,10 @@ export type SavePageNoteStudyPageNoteSavePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
