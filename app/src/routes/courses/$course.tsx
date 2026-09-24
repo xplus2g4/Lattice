@@ -7,12 +7,14 @@ export const Route = createFileRoute('/courses/$course')({
   validateSearch: (
     search: Record<string, unknown>,
   ): { material?: string; page?: number; pageEnd?: number } => {
+    // Any Material opens as a tab; only a PDF has Pages to jump to.
     const material =
-      typeof search.material === 'string' &&
-      search.material.toLowerCase().endsWith('.pdf')
+      typeof search.material === 'string' && search.material
         ? search.material
         : undefined
-    const page = material ? pageNumber(search.page) : undefined
+    const page = material?.toLowerCase().endsWith('.pdf')
+      ? pageNumber(search.page)
+      : undefined
     const pageEnd = page ? pageNumber(search.pageEnd) : undefined
     return {
       material,

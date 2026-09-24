@@ -235,17 +235,27 @@ export function parseLayout(raw: string | null): TabLayout {
     : layout
 }
 
+/** The tab the focused group is showing: the one the URL names. */
+export function focusedTab(layout: TabLayout): TabKey | null {
+  return layout.groups[layout.focused].active
+}
+
+export function isOpen(layout: TabLayout, key: TabKey): boolean {
+  return groupOf(layout, key) !== -1
+}
+
 /** One user's tabs in one course. `update` reads storage afresh, so two changes made in
- * the same tick both land. */
+ * the same tick both land, and returns the layout it left, for the caller to follow. */
 export function useTabLayout(user: string, course: string) {
   const key = `lattice.tabs:${user}:${course}`
   const [raw, setRaw] = useStored(key, '')
   const layout = useMemo(() => parseLayout(raw || null), [raw])
   const update = useCallback(
-    (change: (layout: TabLayout) => TabLayout) => {
+    (change: (layout: TabLayout) => TabLayout): TabLayout => {
       const current = parseLayout(localStorage.getItem(key))
       const next = change(current)
       if (next !== current) setRaw(JSON.stringify(next))
+      return next
     },
     [key, setRaw],
   )

@@ -1,0 +1,135 @@
+import { screen, waitFor, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { beforeAll, describe, expect, it, vi } from 'vitest'
+
+import { KEEP_LOADED } from '#/lib/tabs'
+import { material } from '#/test/fixtures'
+import { resetStore } from '#/test/handlers'
+import { renderRoute } from '#/test/render'
+
+// jsdom can run neither pdf.js nor layout; what is under test is the tabs around the viewer.
+vi.mock('react-pdf', () => ({
+  Document: () => <div>rendered pdf</div>,
+  Page: () => null,
+  pdfjs: { GlobalWorkerOptions: {} },
+}))
+beforeAll(() => {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  }
+})
+
+const FILES = ['week1.pdf', 'week2.pdf', 'week3.pdf', 'memo.md']
+
+function seed() {
+  resetStore({ materials: FILES.map((filename) => material({ filename })) })
+}
+
+async function openFromSidebar(filename: string) {
+  const sidebar = screen.getByText('MATERIALS').closest('section')
+  if (!sidebar) throw new Error('no Materials panel')
+  await userEvent.click(await within(sidebar).findByText(filename))
+  await screen.findByRole('tab', { name: filename })
+}
+
+/** The workspace's tabs only: Ask has tabs of its own. */
+function openTabs() {
+  const bar = screen.queryByRole('tablist', { name: 'Open tabs' })
+  return bar
+    ? within(bar)
+        .queryAllByRole('tab')
+        .map((t) => t.textContent)
+    : []
+}
+
+describe('the workspace tabs', () => {
+  it('opens a Material as a tab without rebuilding the sidebar or Ask', async () => {
+    seed()
+    renderRoute('/courses/cs101')
+    const ask = await screen.findByPlaceholderText(/Ask about/)
+    const sidebar = screen.getByText('MATERIALS').closest('aside')
+
+    await openFromSidebar('week1.pdf')
+
+    expect(screen.getByPlaceholderText(/Ask about/)).toBe(ask)
+    expect(screen.getByText('MATERIALS').closest('aside')).toBe(sidebar)
+  })
+
+  it('opens a text Material in a tab beside the sidebar', async () => {
+    seed()
+    const { router } = renderRoute('/courses/cs101')
+    await screen.findByText('MATERIALS')
+
+    await openFromSidebar('memo.md')
+
+    expect(await screen.findByText('sample material')).toBeInTheDocument()
+    expect(screen.getByText('MATERIALS')).toBeInTheDocument()
+    expect(router.state.location.search).toEqual({ material: 'memo.md' })
+  })
+
+  it(`keeps only ${KEEP_LOADED} tabs loaded`, async () => {
+    seed()
+    renderRoute('/courses/cs101')
+    await screen.findByText('MATERIALS')
+
+    for (const filename of FILES) await openFromSidebar(filename)
+
+    expect(openTabs()).toEqual(FILES)
+    // A loaded tab's panel is in the page. The first opened was viewed longest ago, so
+    // it is the one unloaded.
+    const loaded = FILES.filter((name) => {
+      const tab = screen.getByRole('tab', { name })
+      return document.getElementById(tab.getAttribute('aria-controls') ?? '')
+    })
+    expect(loaded).toHaveLength(KEEP_LOADED)
+    expect(loaded).toEqual(['week2.pdf', 'week3.pdf', 'memo.md'])
+  })
+
+  it('shows the neighbour of a closed tab and moves the URL to it', async () => {
+    seed()
+    const { router } = renderRoute('/courses/cs101')
+    await screen.findByText('MATERIALS')
+    await openFromSidebar('week1.pdf')
+    await openFromSidebar('week2.pdf')
+
+    await userEvent.click(
+      screen.getByRole('button', { name: 'Close week2.pdf' }),
+    )
+
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ material: 'week1.pdf' }),
+    )
+    expect(openTabs()).toEqual(['week1.pdf'])
+  })
+
+  it('brings back the tabs left open when the course is opened again', async () => {
+    seed()
+    const { router } = renderRoute('/courses/cs101')
+    await screen.findByText('MATERIALS')
+    await openFromSidebar('week1.pdf')
+    await openFromSidebar('week2.pdf')
+
+    await router.navigate({
+      to: '/courses/$course',
+      params: { course: 'cs101' },
+      search: {},
+    })
+
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ material: 'week2.pdf' }),
+    )
+    expect(openTabs()).toEqual(['week1.pdf', 'week2.pdf'])
+  })
+
+  it('closes the tab of a Material that no longer exists', async () => {
+    seed()
+    const { router } = renderRoute('/courses/cs101?material=gone.pdf')
+    await screen.findByText('MATERIALS')
+
+    await waitFor(() => expect(router.state.location.search).toEqual({}))
+    expect(openTabs()).toEqual([])
+    expect(screen.getByText(/Open a Material from the sidebar/)).toBeVisible()
+  })
+})

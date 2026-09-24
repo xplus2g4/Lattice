@@ -62,32 +62,83 @@ export interface PageRange {
   jump?: number
 }
 
-function PdfPages({ blob, page, pageEnd, jump }: { blob: Blob } & PageRange) {
+/** A tab's reading position: where to return when it reloads, and how to report moves. */
+export interface ReadingPosition {
+  resume?: number
+  onPage?: (page: number) => void
+}
+
+function PdfPages({
+  blob,
+  page,
+  pageEnd,
+  jump,
+  resume,
+  onPage,
+}: { blob: Blob } & PageRange & ReadingPosition) {
   const [numPages, setNumPages] = useState(0)
   const containerRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState<number>()
   const [rendered, setRendered] = useState<ReadonlySet<number>>(new Set())
   const scrolledTo = useRef<string | null>(null)
+  // Used once, and only when nothing asked for a Page: a later Page request wins, and
+  // losing that request (the tab going to the back) must not scroll anywhere.
+  const [resumeAt, setResumeAt] = useState(page ? undefined : resume)
   const target = page && numPages ? Math.min(page, numPages) : undefined
   const last = target ? Math.max(pageEnd ?? target, target) : undefined
+  const scrollTarget =
+    target ?? (resumeAt && numPages ? Math.min(resumeAt, numPages) : undefined)
 
   // Pages above the target change height as they render, so wait for all of them.
   useEffect(() => {
-    const visit = `${target}:${jump}`
-    if (!target || scrolledTo.current === visit) return
-    for (let p = 1; p <= target; p++) if (!rendered.has(p)) return
+    const visit = `${scrollTarget}:${jump}`
+    if (!scrollTarget || scrolledTo.current === visit) return
+    for (let p = 1; p <= scrollTarget; p++) if (!rendered.has(p)) return
     containerRef.current
-      ?.querySelector(`[data-page-number="${target}"]`)
+      ?.querySelector(`[data-page-number="${scrollTarget}"]`)
       ?.scrollIntoView({ block: 'start' })
     scrolledTo.current = visit
-  }, [target, jump, rendered])
+    setResumeAt(undefined)
+  }, [scrollTarget, jump, rendered])
+
+  // Reports the Page filling the top half of the view, at most once a frame.
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el || !onPage) return
+    let frame = 0
+    let reported = 0
+    const report = () => {
+      frame = 0
+      const middle = el.getBoundingClientRect().top + el.clientHeight / 2
+      for (const p of el.querySelectorAll<HTMLElement>('[data-page-number]')) {
+        if (p.getBoundingClientRect().bottom > middle) {
+          const n = Number(p.dataset.pageNumber)
+          if (n !== reported) {
+            reported = n
+            onPage(n)
+          }
+          return
+        }
+      }
+    }
+    const onScroll = () => {
+      if (!frame) frame = requestAnimationFrame(report)
+    }
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      el.removeEventListener('scroll', onScroll)
+      cancelAnimationFrame(frame)
+    }
+  }, [onPage])
 
   useEffect(() => {
     const el = containerRef.current
     if (!el) return
-    const observer = new ResizeObserver(([entry]) =>
-      setWidth(entry.contentRect.width),
-    )
+    // Zero means hidden (display: none), not narrow: keep the last width rather than
+    // redraw every Page at full size and lose the reader's place.
+    const observer = new ResizeObserver(([entry]) => {
+      if (entry.contentRect.width > 0) setWidth(entry.contentRect.width)
+    })
     observer.observe(el)
     return () => observer.disconnect()
   }, [])
@@ -96,6 +147,10 @@ function PdfPages({ blob, page, pageEnd, jump }: { blob: Blob } & PageRange) {
     <div ref={containerRef} className="h-full overflow-y-auto">
       <Document
         file={blob}
+        // react-pdf 11 suspends by default, and the nearest boundary is the route's, so
+        // every PDF load hid the whole workspace. Its own loading and error states stay
+        // inside the viewer instead. Pages inherit this from the Document.
+        suspense={false}
         loading={
           <p className="p-6 text-sm text-muted-foreground">Rendering…</p>
         }
@@ -139,10 +194,13 @@ export function MaterialViewer({
   page,
   pageEnd,
   jump,
+  resume,
+  onPage,
 }: {
   course: string
   filename: string
-} & PageRange) {
+} & PageRange &
+  ReadingPosition) {
   const { file, url } = useMaterialFile(course, filename)
   // react-pdf touches browser APIs; never render it during SSR.
   const [mounted, setMounted] = useState(false)
@@ -167,6 +225,8 @@ export function MaterialViewer({
             page={page}
             pageEnd={pageEnd}
             jump={jump}
+            resume={resume}
+            onPage={onPage}
           />
         ) : (
           <p className="p-6 text-sm text-muted-foreground">Loading…</p>
