@@ -1,10 +1,11 @@
-import { HttpResponse, http } from 'msw'
+import { HttpResponse, delay, http } from 'msw'
 
 import type { Material, Note, Session, Turn } from '#/lib/api'
 import type {
   CourseOut,
   MaterialOut,
   NoteOut,
+  NoteUploadOut,
   SessionOut,
   TurnOut,
   UploadOut,
@@ -24,18 +25,22 @@ export interface Store {
 }
 export const store: Store = { materials: [], notes: [], sessions: {} }
 let nextAnswer: Turn | null = null
+let nextAnswerAfterMs = 0
 let nextNote = 1
 
 /** Shape the next answer without replacing the handler, which would skip the session
- * bookkeeping the client depends on and leave `/ask` returning an id nothing can read. */
-export function answerNextAskWith(turn: Turn) {
+ * bookkeeping the client depends on and leave `/ask` returning an id nothing can read.
+ * `after` holds the answer back, so a test can look at the panel while it is asking. */
+export function answerNextAskWith(turn: Turn, { after = 0 } = {}) {
   nextAnswer = turn
+  nextAnswerAfterMs = after
 }
 export function resetStore(next: Partial<Store> = {}) {
   store.materials = next.materials ?? []
   store.notes = next.notes ?? []
   store.sessions = next.sessions ?? {}
   nextAnswer = null
+  nextAnswerAfterMs = 0
   nextNote = 1
 }
 function idFor(value: string): string {
@@ -81,6 +86,8 @@ function noteOut(n: Note): NoteOut {
     material_id: null,
     page: null,
     body_md: n.body_md,
+    filename: n.filename,
+    sha256: n.sha256,
     revision: 1,
     cognified_revision: n.status === 'ready' ? 1 : 0,
     status:
@@ -192,7 +199,8 @@ export const handlers = [
   http.get(
     '*/materials.download',
     () =>
-      new HttpResponse('sample material', {
+      // Markdown, so a `.md` Material has something to render.
+      new HttpResponse('# Sample memo\n\nsample material', {
         headers: { 'Content-Type': 'text/plain' },
       }),
   ),
@@ -207,6 +215,17 @@ export const handlers = [
         .map(noteOut),
     ),
   ),
+  http.get('*/notes.download', ({ request }) => {
+    const id = new URL(request.url).searchParams.get('note')
+    const found = store.notes.find(
+      (n) => n.id === id && n.owner === request.headers.get('X-User'),
+    )
+    return found?.filename
+      ? new HttpResponse('sample note', {
+          headers: { 'Content-Type': 'application/pdf' },
+        })
+      : HttpResponse.json({ detail: 'no such note' }, { status: 404 })
+  }),
   http.post('*/notes.save', async ({ request }) => {
     const body = (await request.json()) as {
       course: string
@@ -218,6 +237,8 @@ export const handlers = [
       owner: request.headers.get('X-User') ?? '',
       id: body.note ?? idFor(`note-${nextNote++}`),
       body_md: body.body_md,
+      filename: null,
+      sha256: null,
       status: 'queued',
       error: null,
       updated_at: new Date().toISOString(),
@@ -234,6 +255,27 @@ export const handlers = [
       saved,
     ]
     return HttpResponse.json(noteOut(saved), { status: 202 })
+  }),
+  http.post('*/notes.upload', async ({ request }) => {
+    // Raw multipart text for the same reason as materials.upload: jsdom's File breaks
+    // undici's parser.
+    const body = await request.text()
+    const filename = /filename="([^"]*)"/.exec(body)?.[1] ?? 'unknown'
+    const course = /name="course"\r?\n\r?\n([^\r\n]+)/.exec(body)?.[1] ?? ''
+    const saved: Note = {
+      course,
+      owner: request.headers.get('X-User') ?? '',
+      id: idFor(`note-${nextNote++}`),
+      body_md: '',
+      filename,
+      sha256: idFor(filename).replace(/-/g, '').padEnd(64, '0'),
+      status: 'queued',
+      error: null,
+      updated_at: new Date().toISOString(),
+    }
+    store.notes = [...store.notes, saved]
+    const result: NoteUploadOut = { note: noteOut(saved), deduplicated: false }
+    return HttpResponse.json(result, { status: 202 })
   }),
   http.post('*/ask', async ({ request }) => {
     const body = (await request.json()) as {
@@ -265,6 +307,8 @@ export const handlers = [
       turns: [...current.turns, userTurn(body.question), answered],
     }
     nextAnswer = null
+    if (nextAnswerAfterMs > 0) await delay(nextAnswerAfterMs)
+    nextAnswerAfterMs = 0
     return HttpResponse.json({
       session: current.id,
       turn: turnOut(answered, current.id),

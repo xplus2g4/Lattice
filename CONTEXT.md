@@ -23,7 +23,7 @@ The unit of a Material the reader shows and citations point to. Slides are pages
 _Avoid_: slide (outside reader copy), screen
 
 **Note**:
-A student-authored text belonging to that student's private tier for one course.
+A student's own text, or a PDF the student adds, belonging to that student's private tier for one course.
 _Avoid_: annotation, document
 
 **Cognify**:

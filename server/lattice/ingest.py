@@ -86,6 +86,7 @@ class Ingest:
                 ):
                     return
                 course, body, revision = note.course.code, note.body_md, note.revision
+                storage_uri = note.storage_uri
                 owner = note.user.email
                 note.ingest_attempts += 1
                 await notes.set_status(session, note, "indexing")
@@ -94,13 +95,18 @@ class Ingest:
             error = None
             try:
                 principal = await self.engine.principal(owner)
-                path = self._note_path(course, note_id, principal.id)
-                path.write_text(body, encoding="utf-8")
                 _, private = await self.engine.enrol(course, principal)
-                if body.strip():
-                    await self.engine.replace(private, principal, path.resolve())
+                if storage_uri is not None:
+                    # A PDF Note: hand the stored file to the engine's own loader. The name
+                    # is <sha256>.pdf, so a re-cognify replaces rather than duplicates.
+                    await self.engine.replace(private, principal, Path(storage_uri).resolve())
                 else:
-                    await self.engine.clear(private, principal, path.name)
+                    path = self._note_path(course, note_id, principal.id)
+                    path.write_text(body, encoding="utf-8")
+                    if body.strip():
+                        await self.engine.replace(private, principal, path.resolve())
+                    else:
+                        await self.engine.clear(private, principal, path.name)
             except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
                 error = f"{type(exc).__name__}: {exc}"
 

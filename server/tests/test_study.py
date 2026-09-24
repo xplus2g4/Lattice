@@ -2,6 +2,7 @@ import httpx
 import pytest
 
 from lattice.config import Settings
+from lattice.grounding import NOT_COVERED
 from lattice.main import create_app
 from lattice.retrieval import Evidence, TierResult
 from tests.test_materials import BOB, join
@@ -33,6 +34,37 @@ async def test_ask_returns_both_tiers_and_records_a_session(student, engine, que
     assert [r["tier"] for r in body["turn"]["content_json"]["results"]] == ["course", "notes"]
     session = await student.get("/sessions.get", params={"session": body["session"]})
     assert [t["role"] for t in session.json()["turns"]] == ["user", "assistant"]
+
+
+async def test_answer_leads_with_the_course_and_leaves_out_a_tier_that_declined(student, engine):
+    await join(student, "cs2100")
+    engine.results = [
+        TierResult(tier="notes", dataset_name="private", answer=NOT_COVERED, evidence=[]),
+        TierResult(tier="course", dataset_name="cs2100-global", answer="Chaining.", evidence=[]),
+    ]
+    response = await student.post("/ask", json={"course": "cs2100", "question": "Collisions?"})
+    assert response.status_code == 200
+    content = response.json()["turn"]["content_json"]
+    assert content["text"] == "Chaining."
+    assert [r["tier"] for r in content["results"]] == ["course", "notes"]
+    # The declining tier stays on record; only the composed answer leaves it out.
+    assert content["results"][1]["answer"] == NOT_COVERED
+
+
+async def test_answer_declines_once_when_no_tier_covers_the_question(student, engine):
+    await join(student, "cs2100")
+    engine.results = [
+        TierResult(tier="course", dataset_name="cs2100-global", answer=NOT_COVERED, evidence=[]),
+        TierResult(
+            tier="notes",
+            dataset_name="private",
+            answer=f"Sorry, {NOT_COVERED[0].lower()}{NOT_COVERED[1:]}",
+            evidence=[],
+        ),
+    ]
+    response = await student.post("/ask", json={"course": "cs2100", "question": "Deadline?"})
+    assert response.status_code == 200
+    assert response.json()["turn"]["content_json"]["text"] == NOT_COVERED
 
 
 async def test_chunks_marks_retrieved_private_notes_without_generated_evidence(student, engine):

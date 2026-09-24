@@ -1,17 +1,23 @@
 """Note records: quick notes (#37), page-anchored autosave (#38), private indexing (#39)."""
 
+from pathlib import Path
+from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lattice.api.deps import COURSE_CODE, CurrentUser, IngestDep, SessionDep
-from lattice.api.schemas import NoteOut
-from lattice.db.models import Material, Note, User
+from lattice.api.deps import COURSE_CODE, CurrentUser, IngestDep, SessionDep, SettingsDep
+from lattice.api.schemas import NoteOut, NoteUploadOut
+from lattice.api.uploads import receive
+from lattice.db.models import Course, Material, Note, User
 from lattice.db.repo import courses, materials, notes
 
 router = APIRouter(tags=["notes"])
+
+NOTE_SUFFIXES = {".pdf"}
 
 
 class SaveNote(BaseModel):
@@ -31,6 +37,13 @@ class SaveNote(BaseModel):
 
 class NoteRef(BaseModel):
     note: UUID
+
+
+async def _enrolled_course(session: AsyncSession, user: User, code: str) -> Course:
+    try:
+        return await courses.require_enrolment(session, user, code)
+    except courses.CourseAccessError as exc:
+        raise HTTPException(exc.status_code, str(exc)) from None
 
 
 async def _own_note(session: AsyncSession, user: User, note_id: UUID) -> Note:
@@ -61,12 +74,7 @@ async def save_note(
     background: BackgroundTasks,
 ) -> NoteOut:
     """Upserts on (student, material, page) when anchored, so autosave never piles up rows."""
-    course = await courses.by_code(session, body.course)
-    if course is None:
-        raise HTTPException(404, "no such course")
-    if await courses.enrolment(session, user.id, course.id) is None:
-        raise HTTPException(403, "not enrolled in this course")
-
+    course = await _enrolled_course(session, user, body.course)
     try:
         note = await notes.save(
             session,
@@ -85,6 +93,40 @@ async def save_note(
     if not user.notes_opt_out:
         background.add_task(ingest.note, note.id)
     return NoteOut.model_validate(note)
+
+
+@router.post("/notes.upload", status_code=202)
+async def upload_note(
+    user: CurrentUser,
+    session: SessionDep,
+    settings: SettingsDep,
+    ingest: IngestDep,
+    background: BackgroundTasks,
+    course: Annotated[str, Form(pattern=COURSE_CODE.pattern)],
+    file: Annotated[UploadFile, File()],
+) -> NoteUploadOut:
+    """One Note per PDF, into the student's private tier; the same bytes twice join the first."""
+    row = await _enrolled_course(session, user, course)
+    received = await receive(file, allowed=NOTE_SUFFIXES, max_mb=settings.max_upload_mb)
+
+    existing = await notes.by_sha256(session, user=user, course=row, sha256=received.sha256)
+    if existing is not None:
+        return NoteUploadOut(note=NoteOut.model_validate(existing), deduplicated=True)
+
+    # Per student, so a classmate's identical PDF is a separate private Note. Typed Notes
+    # live under notes/<principal_id>/<note_id>.md, so the two never collide.
+    target = received.store(settings.uploads_dir / row.code / "notes" / str(user.id))
+    note = await notes.add_file(
+        session,
+        user=user,
+        course=row,
+        filename=received.filename,
+        sha256=received.sha256,
+        storage_uri=str(target),
+    )
+    if not user.notes_opt_out:
+        background.add_task(ingest.note, note.id)
+    return NoteUploadOut(note=NoteOut.model_validate(note), deduplicated=False)
 
 
 @router.get("/notes.list")
@@ -117,6 +159,21 @@ async def get_note(
         session, user=user, material=await _material(session, user, material), page=page
     )
     return None if anchored is None else NoteOut.model_validate(anchored)
+
+
+@router.get("/notes.download", response_class=FileResponse)
+async def download_note(
+    note: UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> FileResponse:
+    """A PDF Note's bytes, so the reader can open it; only its author may read them."""
+    row = await _own_note(session, user, note)
+    if row.storage_uri is None or row.filename is None:
+        raise HTTPException(404, "this note has no file")
+    path = Path(row.storage_uri).resolve()
+    expected = (settings.uploads_dir / row.course.code / "notes" / str(user.id)).resolve()
+    if path.parent != expected or not path.is_file():
+        raise HTTPException(404, "note bytes are unavailable")
+    return FileResponse(path, filename=row.filename)
 
 
 @router.post("/notes.delete")

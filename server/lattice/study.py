@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from lattice.db.models import Session, Turn, User
 from lattice.db.repo import courses, sessions, users
 from lattice.engine import QUERY_TYPES, Engine
+from lattice.grounding import NOT_COVERED
 from lattice.retrieval import TierResult
 
 QueryType = Literal["GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS"]
@@ -43,6 +44,24 @@ class SessionAccessError(PermissionError):
         self.status_code = status_code
 
 
+def _declines(answer: str | None) -> bool:
+    """The tier said its context has nothing on the question; matched as loosely as the canary."""
+    return answer is not None and NOT_COVERED.rstrip(".").lower() in answer.lower()
+
+
+def compose_answer(results: list[TierResult]) -> str:
+    """One answer across tiers, rather than one per tier.
+
+    Cognee generates a completion per dataset, so a question the Notes do not cover gets a
+    "not covered" reply from that tier beside the real answer from the course. Such a tier
+    is left out; only when every tier declines does the reader see the sentinel, once.
+    """
+    answered = [r.answer for r in results if r.answer and not _declines(r.answer)]
+    if answered:
+        return "\n\n".join(answered)
+    return NOT_COVERED if any(_declines(r.answer) for r in results) else ""
+
+
 async def answer_course(
     engine: Engine, db: AsyncSession, user: User, course_code: str, body: AskRequest
 ) -> tuple[Session, Turn]:
@@ -65,8 +84,10 @@ async def answer_course(
     if not user.notes_opt_out:
         datasets[private_ds.id] = "notes"
     started = time.monotonic()
-    results = await engine.search(
-        principal, datasets, body.question, body.query_type, str(session.id)
+    # Cognee lists the datasets in its own order; the course tier leads the answer.
+    results = sorted(
+        await engine.search(principal, datasets, body.question, body.query_type, str(session.id)),
+        key=lambda r: r.tier != "course",
     )
     await sessions.add_turn(
         db, session, role="user", content={"text": body.question, "query_type": body.query_type}
@@ -76,7 +97,7 @@ async def answer_course(
         session,
         role="assistant",
         content={
-            "text": "\n\n".join(r.answer for r in results if r.answer),
+            "text": compose_answer(results),
             "query_type": body.query_type,
             "results": [r.model_dump(mode="json") for r in results],
         },
