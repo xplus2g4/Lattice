@@ -4,9 +4,14 @@ import type {
   AskOut as RpcAskOut,
   AskRequest as RpcAskRequest,
   CourseOut,
+  GenerateGrill,
+  GradeGrill,
+  GradedQuizOut,
   MaterialOut,
   NoteOut,
   NoteUploadOut,
+  QuizOut,
+  QuizQuestionOut,
   SessionOut,
   TurnOut,
   UploadOut,
@@ -48,6 +53,7 @@ export interface SessionSummary {
   first_question: string | null
 }
 export interface Material {
+  id: string
   course: string
   filename: string
   /** Also the name Cognee knows the Material by, so citations carry it. */
@@ -127,6 +133,44 @@ export interface Turn {
   latency_ms: number | null
   created_at: string
 }
+export type GrillStatus = 'open' | 'submitted' | 'abandoned'
+export interface GrillAnswer {
+  text: string
+  /** Null when the model left a short answer ungraded. */
+  correct: boolean | null
+  reason: string | null
+}
+export interface GrillQuestion {
+  id: string
+  kind: 'mcq' | 'short_answer'
+  prompt: string
+  options: Array<string> | null
+  /** The Page the question rests on. */
+  page: number | null
+  /** The model answer; the server withholds it until the Grill is graded. */
+  key: { answer: string; explanation: string | null } | null
+  given: GrillAnswer | null
+}
+export interface Grill {
+  id: string
+  status: GrillStatus
+  material_id: string
+  page_start: number
+  page_end: number
+  topic_label: string
+  score: number | null
+  questions: Array<GrillQuestion>
+}
+export interface GrillResult {
+  grill: Grill
+  /** One or two sentences on what to re-read, or "" when there is nothing to say. */
+  remark: string
+}
+export interface GrillScope {
+  material: string
+  page_start: number
+  page_end: number
+}
 export interface Session {
   id: string
   course: string
@@ -205,6 +249,7 @@ function ingestStatus(value: string): IngestStatus {
 }
 function materialView(course: string, row: MaterialOut): Material {
   return {
+    id: row.id,
     course,
     filename: row.filename,
     sha256: row.sha256,
@@ -513,6 +558,74 @@ export function uploadEach(
       }
     }),
   )
+}
+function str(value: unknown): string | null {
+  return typeof value === 'string' ? value : null
+}
+function num(value: unknown): number | null {
+  return typeof value === 'number' ? value : null
+}
+function grillQuestionView(row: QuizQuestionOut): GrillQuestion {
+  const answer = str(row.expected_json?.answer)
+  const last = row.answers.at(-1)
+  return {
+    id: row.id,
+    kind: row.kind === 'mcq' ? 'mcq' : 'short_answer',
+    prompt: row.prompt,
+    options: row.options_json ?? null,
+    page: num(row.citation_json?.page),
+    key:
+      answer === null
+        ? null
+        : { answer, explanation: str(row.expected_json?.explanation) },
+    given: last
+      ? {
+          text: last.answer_text,
+          correct: last.correct,
+          reason: str(last.feedback_json?.reason),
+        }
+      : null,
+  }
+}
+function grillView(row: QuizOut): Grill {
+  const scope = row.scope_json
+  return {
+    id: row.id,
+    status:
+      row.status === 'submitted' || row.status === 'abandoned'
+        ? row.status
+        : 'open',
+    material_id: str(scope.material_id) ?? '',
+    page_start: num(scope.page_start) ?? 1,
+    page_end: num(scope.page_end) ?? 1,
+    topic_label: str(scope.topic_label) ?? '',
+    score: row.score,
+    questions: row.questions.map(grillQuestionView),
+  }
+}
+/** Up to ten questions written from the pages in scope; the answer key stays on the server. */
+export async function generateGrill(
+  user: string,
+  course: string,
+  scope: GrillScope,
+): Promise<Grill> {
+  const body: GenerateGrill = { course, ...scope }
+  return grillView(
+    await request<QuizOut>(user, '/quizzes.generate', json(body)),
+  )
+}
+/** Every answer at once; the Grill comes back graded, with its key, and a remark. */
+export async function gradeGrill(
+  user: string,
+  grill: string,
+  answers: ReadonlyArray<{ question: string; answer_text: string }>,
+): Promise<GrillResult> {
+  const body: GradeGrill = { quiz: grill, answers: [...answers] }
+  const out = await request<GradedQuizOut>(user, '/quizzes.grade', json(body))
+  return { grill: grillView(out.quiz), remark: out.remark }
+}
+export async function abandonGrill(user: string, grill: string): Promise<void> {
+  await request<QuizOut>(user, '/quizzes.abandon', json({ quiz: grill }))
 }
 export async function ask(
   user: string,

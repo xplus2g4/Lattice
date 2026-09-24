@@ -1,16 +1,25 @@
 import { HttpResponse, delay, http } from 'msw'
 
-import type { Material, Note, Session, Turn } from '#/lib/api'
+import type {
+  Grill,
+  GrillResult,
+  Material,
+  Note,
+  Session,
+  Turn,
+} from '#/lib/api'
 import type {
   CourseOut,
+  GradedQuizOut,
   MaterialOut,
   NoteOut,
   NoteUploadOut,
+  QuizOut,
   SessionOut,
   TurnOut,
   UploadOut,
 } from '#/lib/generated'
-import { assistantTurn, session, userTurn } from './fixtures'
+import { assistantTurn, grill, session, userTurn } from './fixtures'
 
 // Mocking happens at the HTTP boundary, never at `src/lib/api.ts`: the transport, the
 // `X-User` header and the error flattening are behaviour under test, not scaffolding.
@@ -22,11 +31,19 @@ export interface Store {
   notes: Array<Note>
   // Partial, because a lookup by id can miss and the 404 path depends on saying so.
   sessions: Partial<Record<string, Session>>
+  grills: Partial<Record<string, { grill: Grill; course: string }>>
 }
-export const store: Store = { materials: [], notes: [], sessions: {} }
+export const store: Store = {
+  materials: [],
+  notes: [],
+  sessions: {},
+  grills: {},
+}
 let nextAnswer: Turn | null = null
 let nextAnswerAfterMs = 0
 let nextNote = 1
+let nextGrill: Grill | null = null
+let nextGraded: GrillResult | null = null
 
 /** Shape the next answer without replacing the handler, which would skip the session
  * bookkeeping the client depends on and leave `/ask` returning an id nothing can read.
@@ -35,13 +52,24 @@ export function answerNextAskWith(turn: Turn, { after = 0 } = {}) {
   nextAnswer = turn
   nextAnswerAfterMs = after
 }
+/** The Grill the next `quizzes.generate` writes, in place of the fixture. */
+export function grillNextWith(next: Grill) {
+  nextGrill = next
+}
+/** What the next `quizzes.grade` returns, in place of grading against the fixture's key. */
+export function gradeNextGrillWith(result: GrillResult) {
+  nextGraded = result
+}
 export function resetStore(next: Partial<Store> = {}) {
   store.materials = next.materials ?? []
   store.notes = next.notes ?? []
   store.sessions = next.sessions ?? {}
+  store.grills = next.grills ?? {}
   nextAnswer = null
   nextAnswerAfterMs = 0
   nextNote = 1
+  nextGrill = null
+  nextGraded = null
 }
 function idFor(value: string): string {
   let hash = 2166136261
@@ -63,7 +91,7 @@ function courseOut(code: string): CourseOut {
 }
 function materialOut(m: Material): MaterialOut {
   return {
-    id: idFor(`${m.course}:${m.filename}`),
+    id: m.id,
     course_id: idFor(m.course),
     title: m.filename,
     filename: m.filename,
@@ -151,6 +179,94 @@ function sessionOut(s: Session): SessionOut {
     turns: s.turns.map((t) => turnOut(t, s.id)),
   }
 }
+function quizOut(g: Grill, course: string): QuizOut {
+  const at = '2026-01-01T00:00:00.000Z'
+  return {
+    id: g.id,
+    course_id: idFor(course),
+    kind: 'grill',
+    scope_json: {
+      material_id: g.material_id,
+      page_start: g.page_start,
+      page_end: g.page_end,
+      topic_label: g.topic_label,
+    },
+    status: g.status,
+    score: g.score,
+    created_at: at,
+    submitted_at: g.status === 'open' ? null : at,
+    questions: g.questions.map((q, position) => ({
+      id: q.id,
+      quiz_id: g.id,
+      topic_id: null,
+      material_id: g.material_id,
+      position,
+      kind: q.kind,
+      prompt: q.prompt,
+      options_json: q.options,
+      // The server withholds the key while the Quiz is open (schemas.quiz_out).
+      expected_json:
+        g.status === 'open' || !q.key
+          ? null
+          : { answer: q.key.answer, explanation: q.key.explanation },
+      citation_json: q.page === null ? null : { page: q.page },
+      answers: q.given
+        ? [
+            {
+              id: `${q.id}-a1`,
+              question_id: q.id,
+              attempt_no: 1,
+              answer_text: q.given.text,
+              correct: q.given.correct,
+              feedback_json:
+                q.given.reason === null ? null : { reason: q.given.reason },
+              created_at: at,
+            },
+          ]
+        : [],
+    })),
+  }
+}
+/** Grades the way the server does in spirit: an mcq by comparison, a short answer by
+ * whether it mentions the model answer's key word, so a test can steer the verdict. */
+function gradeAgainstKey(
+  g: Grill,
+  answers: Array<{ question: string; answer_text: string }>,
+): GrillResult {
+  const given = new Map(answers.map((a) => [a.question, a.answer_text]))
+  const questions = g.questions.map((q) => {
+    const text = given.get(q.id) ?? ''
+    const correct =
+      q.kind === 'mcq'
+        ? text.trim().toLowerCase() === q.key?.answer.toLowerCase()
+        : /bucket/i.test(text)
+    return {
+      ...q,
+      given: {
+        text,
+        correct,
+        reason: correct
+          ? 'Correct.'
+          : q.kind === 'mcq'
+            ? `The correct option is: ${q.key?.answer}`
+            : 'A collision is about two keys sharing a bucket.',
+      },
+    }
+  })
+  const right = questions.filter((q) => q.given.correct).length
+  return {
+    grill: {
+      ...g,
+      status: 'submitted',
+      score: right / questions.length,
+      questions,
+    },
+    remark:
+      right === questions.length
+        ? ''
+        : 'Re-read p. 3 on hash collisions before moving on.',
+  }
+}
 function scope(request: Request) {
   return new URL(request.url).searchParams.get('course') ?? ''
 }
@@ -182,6 +298,7 @@ export const handlers = [
     const course = /name="course"\r?\n\r?\n([^\r\n]+)/.exec(body)?.[1] ?? ''
     const at = new Date().toISOString()
     const created: Material = {
+      id: idFor(`${course}:${filename}`),
       course,
       filename: filename || 'unknown',
       sha256: '0'.repeat(64),
@@ -319,6 +436,54 @@ export const handlers = [
       session: current.id,
       turn: turnOut(answered, current.id),
     })
+  }),
+  http.post('*/quizzes.generate', async ({ request }) => {
+    const body = (await request.json()) as {
+      course: string
+      material: string
+      page_start: number
+      page_end: number
+    }
+    const written: Grill = {
+      ...(nextGrill ?? grill()),
+      material_id: body.material,
+      page_start: body.page_start,
+      page_end: body.page_end,
+    }
+    nextGrill = null
+    store.grills[written.id] = { grill: written, course: body.course }
+    return HttpResponse.json(quizOut(written, body.course), { status: 201 })
+  }),
+  http.post('*/quizzes.grade', async ({ request }) => {
+    const body = (await request.json()) as {
+      quiz: string
+      answers: Array<{ question: string; answer_text: string }>
+    }
+    const found = store.grills[body.quiz]
+    if (!found)
+      return HttpResponse.json({ detail: 'no such quiz' }, { status: 404 })
+    if (found.grill.status !== 'open')
+      return HttpResponse.json(
+        { detail: `quiz already ${found.grill.status}` },
+        { status: 409 },
+      )
+    const result = nextGraded ?? gradeAgainstKey(found.grill, body.answers)
+    nextGraded = null
+    store.grills[body.quiz] = { grill: result.grill, course: found.course }
+    const out: GradedQuizOut = {
+      quiz: quizOut(result.grill, found.course),
+      remark: result.remark,
+    }
+    return HttpResponse.json(out)
+  }),
+  http.post('*/quizzes.abandon', async ({ request }) => {
+    const body = (await request.json()) as { quiz: string }
+    const found = store.grills[body.quiz]
+    if (!found)
+      return HttpResponse.json({ detail: 'no such quiz' }, { status: 404 })
+    const abandoned: Grill = { ...found.grill, status: 'abandoned' }
+    store.grills[body.quiz] = { grill: abandoned, course: found.course }
+    return HttpResponse.json(quizOut(abandoned, found.course))
   }),
   http.get('*/sessions.list', ({ request }) =>
     HttpResponse.json(
