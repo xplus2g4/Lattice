@@ -46,7 +46,7 @@ class SessionAccessError(PermissionError):
 
 def _declines(answer: str | None) -> bool:
     """The tier said its context has nothing on the question; matched as loosely as the canary."""
-    return answer is not None and NOT_COVERED.lower() in answer.lower()
+    return answer is not None and NOT_COVERED.rstrip(".").lower() in answer.lower()
 
 
 def compose_answer(results: list[TierResult]) -> str:
