@@ -353,7 +353,10 @@ function FirstUpload({
         onFiles(e.dataTransfer.files)
       }}
     >
-      <HugeiconsIcon icon={CloudUploadIcon} className="size-9 text-primary" />
+      <HugeiconsIcon
+        icon={CloudUploadIcon}
+        className="size-9 text-primary-ink"
+      />
       <div className="space-y-1">
         <p className="font-editorial text-3xl leading-tight tracking-tight">
           {upload.isPending

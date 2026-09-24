@@ -26,7 +26,7 @@ const components: Components = {
  * not rendered: all three are untrusted text. */
 export function Markdown({ children }: { children: string }) {
   return (
-    <div className="prose prose-sm max-w-none break-words leading-7 text-foreground dark:prose-invert prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-a:text-primary prose-a:decoration-primary/40 prose-strong:text-foreground prose-blockquote:border-primary prose-blockquote:font-normal prose-blockquote:text-muted-foreground prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-sm prose-pre:border prose-pre:border-border prose-pre:bg-muted prose-pre:text-foreground">
+    <div className="prose prose-sm max-w-none break-words leading-7 text-foreground dark:prose-invert prose-headings:font-semibold prose-headings:tracking-tight prose-headings:text-foreground prose-a:text-primary-ink prose-a:decoration-primary/40 prose-strong:text-foreground prose-blockquote:border-primary prose-blockquote:font-normal prose-blockquote:text-muted-foreground prose-code:before:content-none prose-code:after:content-none prose-pre:rounded-sm prose-pre:border prose-pre:border-border prose-pre:bg-muted prose-pre:text-foreground">
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkMath]}
         rehypePlugins={[[rehypeKatex, { throwOnError: false, strict: false }]]}

@@ -31,13 +31,9 @@ export function LogoMark({ onDark = false }: { onDark?: boolean }) {
         width="28"
         height="28"
         rx="3"
-        fill={onDark ? '#f3efe6' : 'var(--foreground)'}
+        fill={onDark ? '#16362F' : '#0E2622'}
       />
-      <g
-        stroke={onDark ? '#b6402c' : 'var(--background)'}
-        strokeWidth="1.6"
-        strokeLinecap="square"
-      >
+      <g stroke="#5CD1BE" strokeWidth="1.6" strokeLinecap="square">
         <g className="lattice-strand lattice-line-1">
           <path className="lattice-line" pathLength="1" d="M10 7v14" />
         </g>
@@ -97,7 +93,7 @@ export function TopBar() {
         >
           <LogoMark />
           <span className="text-2xl font-semibold tracking-[-0.05em]">
-            Lattice<span className="text-primary">.</span>
+            Lattice<span className="text-primary-ink">.</span>
           </span>
           <span className="fieldnotes-kicker ml-4 hidden border-l border-border pl-5 text-muted-foreground md:block">
             For the curious mind

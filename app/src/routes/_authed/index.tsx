@@ -71,7 +71,7 @@ function Home() {
                 <h2 className="text-2xl font-semibold tracking-tight">
                   Your courses
                   {!courses.isPending && (
-                    <span className="ml-3 align-top font-mono text-xs text-primary">
+                    <span className="ml-3 align-top font-mono text-xs text-primary-ink">
                       {String(merged.length).padStart(2, '0')}
                     </span>
                   )}
@@ -140,7 +140,7 @@ function Hero() {
   return (
     <header className="grid gap-6 border-l-2 border-primary pl-5 sm:pl-8 lg:grid-cols-[1fr_240px] lg:items-end">
       <div>
-        <p className="fieldnotes-kicker mb-5 text-primary">
+        <p className="fieldnotes-kicker mb-5 text-primary-ink">
           {hour === null ? '\u00a0' : greeting(hour, name, seed)}
         </p>
         <h1 className="fieldnotes-display max-w-3xl">
@@ -183,7 +183,7 @@ function ResumeCard({
 
   return (
     <section className="border-y border-border bg-card">
-      <h2 className="fieldnotes-kicker px-5 pt-5 text-primary sm:px-6">
+      <h2 className="fieldnotes-kicker px-5 pt-5 text-primary-ink sm:px-6">
         Back to where you left off
       </h2>
       <Link
@@ -196,7 +196,7 @@ function ResumeCard({
         <Thumbnail filename={filename} />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary">
+            <span className="font-mono text-xs font-semibold uppercase tracking-wider text-primary-ink">
               {course}
             </span>
             {opened && (
@@ -224,7 +224,7 @@ function ResumeCard({
             </div>
           )}
         </div>
-        <span className="hidden shrink-0 border-l border-border pl-6 text-sm font-semibold text-primary sm:inline">
+        <span className="hidden shrink-0 border-l border-border pl-6 text-sm font-semibold text-primary-ink sm:inline">
           Resume reading{' '}
           <span aria-hidden="true" className="fieldnotes-arrow ml-2">
             →
@@ -284,7 +284,7 @@ function AddCourseTile() {
       <div className="flex items-start gap-4 sm:px-6">
         <HugeiconsIcon
           icon={PlusSignIcon}
-          className="mt-1 size-5 shrink-0 text-primary"
+          className="mt-1 size-5 shrink-0 text-primary-ink"
           strokeWidth={1.5}
         />
         <div>
@@ -336,7 +336,7 @@ function FirstRun() {
   return (
     <div className="space-y-10">
       <header className="max-w-3xl border-l-2 border-primary pl-5 sm:pl-8">
-        <p className="fieldnotes-kicker mb-5 text-primary">
+        <p className="fieldnotes-kicker mb-5 text-primary-ink">
           Welcome to Lattice
         </p>
         <h1 className="fieldnotes-display fieldnotes-reveal">
@@ -434,11 +434,11 @@ function StepCard({
       }`}
     >
       <div className="flex items-center justify-between">
-        <span className="font-editorial text-4xl text-primary">
+        <span className="font-editorial text-4xl text-primary-ink">
           {String(n).padStart(2, '0')}
         </span>
         {badge && (
-          <span className="fieldnotes-kicker border-b border-primary pb-1 text-primary">
+          <span className="fieldnotes-kicker border-b border-primary pb-1 text-primary-ink">
             {badge}
           </span>
         )}

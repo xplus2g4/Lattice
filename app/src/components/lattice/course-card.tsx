@@ -34,7 +34,7 @@ export function CourseCard({
 
       <div className="pointer-events-none relative z-10 grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)_150px] sm:items-center sm:gap-6">
         <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-start">
-          <span className="font-mono text-sm font-semibold uppercase tracking-wider text-primary">
+          <span className="font-mono text-sm font-semibold uppercase tracking-wider text-primary-ink">
             {course.code}
           </span>
           <CourseStatus
@@ -56,7 +56,7 @@ export function CourseCard({
           <span className="truncate text-xs text-muted-foreground">
             {opened ? `Last opened ${opened}` : 'Not opened yet'}
           </span>
-          <span className="shrink-0 text-sm font-semibold text-primary">
+          <span className="shrink-0 text-sm font-semibold text-primary-ink">
             Open{' '}
             <span aria-hidden="true" className="fieldnotes-arrow ml-2">
               →
@@ -202,7 +202,7 @@ function CourseName({ code, name }: { code: string; name?: string }) {
         setEditing(true)
       }}
       aria-label={`Rename ${name}`}
-      className="fieldnotes-action pointer-events-auto relative z-20 min-h-11 max-w-full truncate text-left text-[22px] font-semibold text-foreground hover:text-primary"
+      className="fieldnotes-action pointer-events-auto relative z-20 min-h-11 max-w-full truncate text-left text-[22px] font-semibold text-foreground hover:text-primary-ink"
     >
       {name}
     </button>

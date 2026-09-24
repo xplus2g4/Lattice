@@ -88,7 +88,7 @@ function Manage() {
           >
             ← Back home
           </Link>
-          <p className="fieldnotes-kicker mt-6 text-primary">LATTICE</p>
+          <p className="fieldnotes-kicker mt-6 text-primary-ink">LATTICE</p>
           <h1 className="fieldnotes-display fieldnotes-reveal mt-3">
             Invite people
           </h1>

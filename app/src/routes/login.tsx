@@ -53,7 +53,7 @@ function Login() {
         <div className="flex items-center gap-3">
           <LogoMark />
           <span className="text-2xl font-semibold tracking-[-0.05em]">
-            Lattice<span className="text-primary">.</span>
+            Lattice<span className="text-primary-ink">.</span>
           </span>
         </div>
         <span className="fieldnotes-kicker text-muted-foreground">
@@ -61,7 +61,7 @@ function Login() {
         </span>
       </div>
 
-      <section className="fieldnotes-grid hidden min-h-dvh shrink-0 flex-col justify-between gap-16 bg-[#24231F] px-10 py-12 text-[#F3EFE6] lg:flex lg:w-1/2 xl:px-16">
+      <section className="fieldnotes-grid hidden min-h-dvh shrink-0 flex-col justify-between gap-16 bg-[#0E2622] px-10 py-12 text-white lg:flex lg:w-1/2 xl:px-16">
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-3">
             <LogoMark onDark />
@@ -69,12 +69,12 @@ function Login() {
               Lattice.
             </span>
           </div>
-          <span className="fieldnotes-kicker text-[#BCB4A7]">
+          <span className="fieldnotes-kicker text-[#8FA7A2]">
             For the curious mind
           </span>
         </div>
         <div>
-          <p className="fieldnotes-kicker mb-7 text-[#ED977E]">
+          <p className="fieldnotes-kicker mb-7 text-[#5CD1BE]">
             A little more understanding
           </p>
           <p className="fieldnotes-display">
@@ -83,22 +83,22 @@ function Login() {
               Go a little deeper.
             </span>
           </p>
-          <ul className="mt-12 border-t border-[#555044]">
+          <ul className="mt-12 border-t border-[#C9DAD6]/20">
             {FEATURES.map(({ icon, label }, i) => (
               <li
                 key={label}
-                className="flex items-center gap-4 border-b border-[#555044] py-4 text-sm text-[#DED8CD]"
+                className="flex items-center gap-4 border-b border-[#C9DAD6]/20 py-4 text-sm text-[#C9DAD6]"
               >
                 <span
                   aria-hidden="true"
-                  className="font-mono text-[11px] text-[#ED977E]"
+                  className="font-mono text-[11px] text-[#5CD1BE]"
                 >
                   0{i + 1}
                 </span>
                 <span className="flex-1">{label}</span>
                 <HugeiconsIcon
                   icon={icon}
-                  className="size-[18px] shrink-0 text-[#BCB4A7]"
+                  className="size-[18px] shrink-0 text-[#8FA7A2]"
                   strokeWidth={1.5}
                 />
               </li>
@@ -106,7 +106,7 @@ function Login() {
           </ul>
         </div>
         <div className="flex items-end justify-between gap-6">
-          <p className="max-w-56 text-sm leading-6 text-[#BCB4A7]">
+          <p className="max-w-56 text-sm leading-6 text-[#8FA7A2]">
             Built for students.
             <br />
             One course at a time.
@@ -114,7 +114,7 @@ function Login() {
           <svg
             aria-hidden="true"
             viewBox="0 0 64 64"
-            className="lattice-mark lattice-mark-large size-16 text-[#ED977E]"
+            className="lattice-mark lattice-mark-large size-16 text-[#5CD1BE]"
             fill="none"
           >
             <g stroke="currentColor" strokeWidth="1">

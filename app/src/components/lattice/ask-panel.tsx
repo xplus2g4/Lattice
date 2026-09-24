@@ -169,7 +169,7 @@ export function AskPanel({ course, user }: Enrolment) {
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-5">
           {turns.length === 0 && !submit.isPending && (
             <div className="flex h-full flex-col justify-center py-8">
-              <p className="fieldnotes-kicker mb-5 text-primary">
+              <p className="fieldnotes-kicker mb-5 text-primary-ink">
                 Ask · {course.toUpperCase()}
               </p>
               <h2 className="font-editorial text-4xl leading-[1.1] tracking-tight">
@@ -278,7 +278,7 @@ export function AskPanel({ course, user }: Enrolment) {
 function QuestionBlock({ children }: { children: string }) {
   return (
     <div className="border-l-2 border-primary bg-background px-4 py-3">
-      <p className="fieldnotes-kicker mb-2 text-primary">Your question</p>
+      <p className="fieldnotes-kicker mb-2 text-primary-ink">Your question</p>
       <p className="whitespace-pre-wrap break-words text-sm font-medium leading-7">
         {children}
       </p>
