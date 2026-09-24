@@ -69,7 +69,7 @@ export function TopBar() {
   const initial = (user.trim().charAt(0) || '?').toUpperCase()
 
   return (
-    <header className="sticky top-0 z-40 h-[72px] w-full border-b border-[#E3E8E6] bg-white px-5 sm:px-8">
+    <header className="h-[72px] w-full border-b border-[#E3E8E6] bg-white px-5 sm:px-8">
       <div className="mx-auto flex h-full max-w-[1120px] items-center justify-between">
         <Link
           to="/"
