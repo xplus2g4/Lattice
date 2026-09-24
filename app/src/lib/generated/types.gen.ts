@@ -5,6 +5,38 @@ export type ClientOptions = {
 }
 
 /**
+ * AdminSessionOut
+ *
+ * A Session with its owner named: the shape only admins may read.
+ */
+export type AdminSessionOut = {
+  /**
+   * Course Id
+   */
+  course_id: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Last Turn At
+   */
+  last_turn_at: string
+  /**
+   * Turns
+   */
+  turns: Array<TurnOut>
+  /**
+   * User Email
+   */
+  user_email: string
+}
+
+/**
  * AskOut
  */
 export type AskOut = {
@@ -118,6 +150,34 @@ export type CourseSearchOut = {
 }
 
 /**
+ * CourseSummaryOut
+ *
+ * An enrolled course with the counts the home screen shows.
+ */
+export type CourseSummaryOut = {
+  /**
+   * Code
+   */
+  code: string
+  /**
+   * Material Count
+   */
+  material_count: number
+  /**
+   * Name
+   */
+  name: string
+  /**
+   * Note Count
+   */
+  note_count: number
+  /**
+   * Pending Count
+   */
+  pending_count: number
+}
+
+/**
  * CreateCourse
  */
 export type CreateCourse = {
@@ -133,6 +193,20 @@ export type CreateCourse = {
    * Term
    */
   term?: string | null
+}
+
+/**
+ * DevLogin
+ */
+export type DevLogin = {
+  /**
+   * Email
+   */
+  email: string
+  /**
+   * Invitation Code
+   */
+  invitation_code?: string | null
 }
 
 /**
@@ -155,6 +229,20 @@ export type EnrolmentOut = {
    * User Id
    */
   user_id: string
+}
+
+/**
+ * GoogleLogin
+ */
+export type GoogleLogin = {
+  /**
+   * Credential
+   */
+  credential: string
+  /**
+   * Invitation Code
+   */
+  invitation_code?: string | null
 }
 
 /**
@@ -911,6 +999,96 @@ export type ValidationError = {
   type: string
 }
 
+export type GetSessionAdminSessionsGetGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Session
+     */
+    session: string
+  }
+  url: '/admin/sessions.get'
+}
+
+export type GetSessionAdminSessionsGetGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetSessionAdminSessionsGetGetError =
+  GetSessionAdminSessionsGetGetErrors[keyof GetSessionAdminSessionsGetGetErrors]
+
+export type GetSessionAdminSessionsGetGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: AdminSessionOut
+}
+
+export type GetSessionAdminSessionsGetGetResponse =
+  GetSessionAdminSessionsGetGetResponses[keyof GetSessionAdminSessionsGetGetResponses]
+
+export type ListSessionsAdminSessionsListGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Course
+     */
+    course: string
+    /**
+     * User
+     */
+    user?: string | null
+  }
+  url: '/admin/sessions.list'
+}
+
+export type ListSessionsAdminSessionsListGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ListSessionsAdminSessionsListGetError =
+  ListSessionsAdminSessionsListGetErrors[keyof ListSessionsAdminSessionsListGetErrors]
+
+export type ListSessionsAdminSessionsListGetResponses = {
+  /**
+   * Response List Sessions Admin Sessions List Get
+   *
+   * Successful Response
+   */
+  200: Array<AdminSessionOut>
+}
+
+export type ListSessionsAdminSessionsListGetResponse =
+  ListSessionsAdminSessionsListGetResponses[keyof ListSessionsAdminSessionsListGetResponses]
+
 export type AskAskPostData = {
   body: AskRequest
   headers?: {
@@ -918,6 +1096,10 @@ export type AskAskPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -942,6 +1124,98 @@ export type AskAskPostResponses = {
 
 export type AskAskPostResponse = AskAskPostResponses[keyof AskAskPostResponses]
 
+export type DevLoginAuthDevPostData = {
+  body: DevLogin
+  path?: never
+  query?: never
+  url: '/auth/dev'
+}
+
+export type DevLoginAuthDevPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type DevLoginAuthDevPostError =
+  DevLoginAuthDevPostErrors[keyof DevLoginAuthDevPostErrors]
+
+export type DevLoginAuthDevPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserOut
+}
+
+export type DevLoginAuthDevPostResponse =
+  DevLoginAuthDevPostResponses[keyof DevLoginAuthDevPostResponses]
+
+export type GoogleLoginAuthGooglePostData = {
+  body: GoogleLogin
+  path?: never
+  query?: never
+  url: '/auth/google'
+}
+
+export type GoogleLoginAuthGooglePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GoogleLoginAuthGooglePostError =
+  GoogleLoginAuthGooglePostErrors[keyof GoogleLoginAuthGooglePostErrors]
+
+export type GoogleLoginAuthGooglePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserOut
+}
+
+export type GoogleLoginAuthGooglePostResponse =
+  GoogleLoginAuthGooglePostResponses[keyof GoogleLoginAuthGooglePostResponses]
+
+export type LogoutAuthLogoutPostData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/auth/logout'
+}
+
+export type LogoutAuthLogoutPostResponses = {
+  /**
+   * Response Logout Auth Logout Post
+   *
+   * Successful Response
+   */
+  200: {
+    [key: string]: boolean
+  }
+}
+
+export type LogoutAuthLogoutPostResponse =
+  LogoutAuthLogoutPostResponses[keyof LogoutAuthLogoutPostResponses]
+
+export type RefreshAuthRefreshPostData = {
+  body?: never
+  path?: never
+  query?: never
+  url: '/auth/refresh'
+}
+
+export type RefreshAuthRefreshPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: UserOut
+}
+
+export type RefreshAuthRefreshPostResponse =
+  RefreshAuthRefreshPostResponses[keyof RefreshAuthRefreshPostResponses]
+
 export type CreateCourseCoursesCreatePostData = {
   body: CreateCourse
   headers?: {
@@ -949,6 +1223,10 @@ export type CreateCourseCoursesCreatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -982,6 +1260,10 @@ export type GetCourseCoursesGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1020,6 +1302,10 @@ export type ListCoursesCoursesListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1055,6 +1341,10 @@ export type SearchCoursesCoursesSearchGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: {
@@ -1086,6 +1376,45 @@ export type SearchCoursesCoursesSearchGetResponses = {
 export type SearchCoursesCoursesSearchGetResponse =
   SearchCoursesCoursesSearchGetResponses[keyof SearchCoursesCoursesSearchGetResponses]
 
+export type CourseSummariesCoursesSummaryGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/courses.summary'
+}
+
+export type CourseSummariesCoursesSummaryGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type CourseSummariesCoursesSummaryGetError =
+  CourseSummariesCoursesSummaryGetErrors[keyof CourseSummariesCoursesSummaryGetErrors]
+
+export type CourseSummariesCoursesSummaryGetResponses = {
+  /**
+   * Response Course Summaries Courses Summary Get
+   *
+   * Successful Response
+   */
+  200: Array<CourseSummaryOut>
+}
+
+export type CourseSummariesCoursesSummaryGetResponse =
+  CourseSummariesCoursesSummaryGetResponses[keyof CourseSummariesCoursesSummaryGetResponses]
+
 export type UpdateCourseCoursesUpdatePostData = {
   body: UpdateCourse
   headers?: {
@@ -1093,6 +1422,10 @@ export type UpdateCourseCoursesUpdatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1126,6 +1459,10 @@ export type JoinCourseEnrolmentsJoinPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1159,6 +1496,10 @@ export type LeaveCourseEnrolmentsLeavePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1196,6 +1537,10 @@ export type ListEnrolmentsEnrolmentsListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1236,6 +1581,10 @@ export type RecordFeedbackFeedbackRecordPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1294,6 +1643,10 @@ export type DeleteMaterialMaterialsDeletePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1331,6 +1684,10 @@ export type DownloadMaterialMaterialsDownloadGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1366,6 +1723,10 @@ export type GetMaterialMaterialsGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1404,6 +1765,10 @@ export type ListMaterialsMaterialsListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1444,6 +1809,10 @@ export type RetryMaterialMaterialsRetryPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1477,6 +1846,10 @@ export type UpdateMaterialMaterialsUpdatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1510,6 +1883,10 @@ export type UploadMaterialMaterialsUploadPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1543,6 +1920,10 @@ export type GetMeMeGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1575,6 +1956,10 @@ export type UpdateMeMeUpdatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1608,6 +1993,10 @@ export type DeleteNoteNotesDeletePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1645,6 +2034,10 @@ export type GetNoteNotesGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: {
@@ -1693,6 +2086,10 @@ export type ListNotesNotesListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1737,6 +2134,10 @@ export type SaveNoteNotesSavePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1770,6 +2171,10 @@ export type RecordAnswerQuizAnswersRecordPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1803,6 +2208,10 @@ export type StatsByTopicQuizStatsByTopicGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1843,6 +2252,10 @@ export type AbandonQuizQuizzesAbandonPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1876,6 +2289,10 @@ export type CreateQuizQuizzesCreatePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1909,6 +2326,10 @@ export type DeleteQuizQuizzesDeletePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -1946,6 +2367,10 @@ export type GetQuizQuizzesGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -1984,6 +2409,10 @@ export type ListQuizzesQuizzesListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2036,6 +2465,10 @@ export type SubmitQuizQuizzesSubmitPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -2069,6 +2502,10 @@ export type GetReadingPositionReadingPositionGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2109,6 +2546,10 @@ export type SetReadingPositionReadingPositionSetPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -2142,6 +2583,10 @@ export type GetSessionSessionsGetGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2180,6 +2625,10 @@ export type ListSessionsSessionsListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2220,6 +2669,10 @@ export type ListTopicsTopicsListGetData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query: {
@@ -2260,6 +2713,10 @@ export type ReplaceTopicsTopicsReplacePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
