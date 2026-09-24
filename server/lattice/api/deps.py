@@ -5,7 +5,7 @@ from typing import Annotated
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lattice.auth import SESSION_COOKIE, read_session_email
+from lattice.auth import ACCESS_COOKIE, read_access_email
 from lattice.config import Settings, get_settings
 from lattice.db import Database
 from lattice.db.models import User
@@ -43,12 +43,12 @@ def current_email(
     x_user: Annotated[str | None, Header()] = None,
     authorization: Annotated[str | None, Header()] = None,
 ) -> str:
-    """The caller's email: the session cookie or Bearer token first, then the
+    """The caller's email: the access cookie or Bearer token first, then the
     dev-only `X-User` header when `DEV_HEADER_AUTH` is on."""
-    token = request.cookies.get(SESSION_COOKIE)
+    token = request.cookies.get(ACCESS_COOKIE)
     if token is None and authorization and authorization.startswith("Bearer "):
         token = authorization.removeprefix("Bearer ").strip() or None
-    if token is not None and (email := read_session_email(settings, token)) is not None:
+    if token is not None and (email := read_access_email(settings, token)) is not None:
         return email
     if settings.dev_header_auth and x_user and "@" in x_user:
         return x_user.strip().lower()

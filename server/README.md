@@ -61,7 +61,7 @@ private to the student it was set for, and closes once through `/quizzes.submit`
 
 Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model.
 
-Identity is dev-only: with `DEV_HEADER_AUTH=true` the `X-User: <email>` header is the caller. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.
+Identity: `/auth/google` exchanges a Google credential for an access/refresh JWT pair in HttpOnly cookies (`/auth/refresh` rotates them); a first sign-in needs `INVITATION_CODE` when it is set. In dev, `DEV_HEADER_AUTH=true` also honours the `X-User: <email>` header and `/auth/dev`. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.
 
 Layout: `lattice/main.py` builds the FastAPI app (`create_app`), `lattice/config.py` holds settings, `lattice/engine.py` is the only module that imports Cognee, `lattice/db/` holds the SQLAlchemy models, the session dependency and the Alembic helpers (migrations in `migrations/`), `lattice/retrieval.py` names what a retrieval returns (Tier results and their Evidence) without importing Cognee, `lattice/api/` holds routers. Embedded Cognee databases live under `.cognee/`, uploads under `data/uploads/`; both are ignored. See [docs/wiki/components.md](../docs/wiki/components.md) for what the API and Worker own and [docs/research/cognee-1.5.4-first-cut-findings.md](../docs/research/cognee-1.5.4-first-cut-findings.md) for what this cut observed.
 

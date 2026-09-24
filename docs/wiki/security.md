@@ -11,7 +11,7 @@ Where trust changes hands, and what enforces each boundary.
 
 ## Identity
 
-Google OAuth issues a JWT that the API verifies on every call. Cognee principals are derived from the `users` table, never from request input.
+Google OAuth at `/auth/google` is exchanged for a Lattice-signed JWT pair: a short-lived access token verified on every call and a refresh token that mints new pairs at `/auth/refresh`. Both travel as HttpOnly cookies (the refresh cookie is scoped to `/auth`); the `typ` claim keeps each token in its lane. First sign-in requires the deploy-wide `INVITATION_CODE` when one is configured. Cognee principals are derived from the `users` table, never from request input.
 
 ## Tenant isolation
 

@@ -1,4 +1,4 @@
-"""Signing in: the session cookie, the dev login, the Google exchange, and admin gating."""
+"""Signing in: the token pair, the dev login, the Google exchange, invitations, and admin gating."""
 
 import pytest
 from httpx import AsyncClient
@@ -61,6 +61,107 @@ async def test_logout_ends_the_session(client: AsyncClient) -> None:
     await client.post("/auth/dev", json={"email": "ada@example.com"})
     await client.post("/auth/logout")
     assert (await client.get("/me.get")).status_code == 401
+    # The refresh cookie is gone too, so the session cannot be resurrected.
+    assert (await client.post("/auth/refresh")).status_code == 401
+
+
+async def test_login_issues_a_refresh_cookie(client: AsyncClient) -> None:
+    await client.post("/auth/dev", json={"email": "ada@example.com"})
+    assert client.cookies.get("lattice_refresh") is not None
+
+
+async def test_refresh_mints_a_new_access_cookie(client: AsyncClient) -> None:
+    await client.post("/auth/dev", json={"email": "ada@example.com"})
+    client.cookies.delete("lattice_session")
+    assert (await client.post("/auth/refresh")).status_code == 200
+    assert (await client.get("/me.get")).json()["user"]["email"] == "ada@example.com"
+
+
+async def test_refresh_rotates_the_refresh_cookie(client: AsyncClient) -> None:
+    await client.post("/auth/dev", json={"email": "ada@example.com"})
+    before = client.cookies.get("lattice_refresh")
+    assert (await client.post("/auth/refresh")).status_code == 200
+    assert client.cookies.get("lattice_refresh") != before
+
+
+async def test_refresh_without_a_token_is_401(client: AsyncClient) -> None:
+    assert (await client.post("/auth/refresh")).status_code == 401
+
+
+async def test_the_refresh_token_is_not_a_session(client: AsyncClient) -> None:
+    """The typ claim keeps it out of the access lane."""
+    await client.post("/auth/dev", json={"email": "ada@example.com"})
+    refresh = client.cookies.get("lattice_refresh")
+    client.cookies.delete("lattice_session")
+    client.cookies.set("lattice_session", refresh)
+    assert (await client.get("/me.get")).status_code == 401
+
+
+async def test_the_access_token_cannot_refresh(client: AsyncClient) -> None:
+    """…and the typ claim keeps it out of the refresh lane (Bearer, as a CLI sends)."""
+    await client.post("/auth/dev", json={"email": "ada@example.com"})
+    access, refresh = (
+        client.cookies.get("lattice_session"),
+        client.cookies.get("lattice_refresh"),
+    )
+    client.cookies.clear()
+    denied = await client.post("/auth/refresh", headers={"Authorization": f"Bearer {access}"})
+    assert denied.status_code == 401
+    renewed = await client.post("/auth/refresh", headers={"Authorization": f"Bearer {refresh}"})
+    assert renewed.status_code == 200
+    assert (await client.get("/me.get")).json()["user"]["email"] == "ada@example.com"
+
+
+async def test_an_expired_access_token_is_401(client: AsyncClient, settings: Settings) -> None:
+    settings.access_token_ttl_minutes = -1
+    await client.post("/auth/dev", json={"email": "ada@example.com"})
+    assert (await client.get("/me.get")).status_code == 401
+
+
+async def test_a_new_email_needs_the_invitation_code(
+    client: AsyncClient, settings: Settings
+) -> None:
+    settings.invitation_code = "cs3216-2026"
+    for body in (
+        {"email": "ada@example.com"},
+        {"email": "ada@example.com", "invitation_code": "wrong"},
+    ):
+        response = await client.post("/auth/dev", json=body)
+        assert response.status_code == 403
+        assert (await client.get("/me.get")).status_code == 401
+
+
+async def test_the_invitation_code_is_only_asked_once(
+    client: AsyncClient, settings: Settings
+) -> None:
+    settings.invitation_code = "cs3216-2026"
+    joined = await client.post(
+        "/auth/dev",
+        json={"email": "ada@example.com", "invitation_code": "cs3216-2026"},
+    )
+    assert joined.status_code == 200
+    client.cookies.clear()
+    # The user exists now, so later logins need no code.
+    again = await client.post("/auth/dev", json={"email": "ada@example.com"})
+    assert again.status_code == 200
+
+
+async def test_google_signup_needs_the_code_too(
+    client: AsyncClient, settings: Settings, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    settings.invitation_code = "cs3216-2026"
+    monkeypatch.setattr(
+        auth_api.google_id_token,
+        "verify_oauth2_token",
+        lambda c, r, a: {"email": "ada@example.com", "email_verified": True},
+    )
+    denied = await client.post("/auth/google", json={"credential": "google-jwt"})
+    assert denied.status_code == 403
+    joined = await client.post(
+        "/auth/google",
+        json={"credential": "google-jwt", "invitation_code": "cs3216-2026"},
+    )
+    assert joined.status_code == 200
 
 
 async def test_dev_login_is_hidden_without_dev_auth(

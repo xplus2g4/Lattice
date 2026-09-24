@@ -1,0 +1,3 @@
+# Stateless access/refresh tokens and a shared invitation code
+
+Sign-in issues two signed JWTs — a short-lived access token and a refresh token rotated at `/auth/refresh` — both stateless: there is no token table, so logout cannot revoke a stolen refresh token, which stays valid until expiry. That is accepted at this scale (one cohort, short token lifetimes) to keep the schema and ops unchanged; a `refresh_tokens` table is the upgrade path if revocation is ever needed. Sign-up is gated by a single deploy-wide `INVITATION_CODE` checked on first sight of an email, deliberately without a per-user invitation mechanism.

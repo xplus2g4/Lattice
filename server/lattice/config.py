@@ -32,10 +32,17 @@ class Settings(BaseSettings):
     # When set, Google sign-in only accepts Workspace accounts on this domain (`hd` claim).
     google_hosted_domain: str = ""
 
-    # Signs the session token (a JWT). Unset means an ephemeral per-process key: dev
+    # Signs the session tokens (JWTs). Unset means an ephemeral per-process key: dev
     # sessions reset on restart instead of trusting a secret committed to the repo.
     session_secret: str | None = None
-    session_ttl_hours: int = 24 * 7
+    # The access token is what every call verifies; the refresh token only mints
+    # new pairs at /auth/refresh and is rotated there.
+    access_token_ttl_minutes: int = 30
+    refresh_token_ttl_days: int = 30
+
+    # Required on a user's first sign-in when set; empty means open sign-up.
+    # One shared code per deploy — there is deliberately no management mechanism.
+    invitation_code: str = ""
 
     # Emails promoted to the admin role at first sight.
     admin_emails: list[str] = []
