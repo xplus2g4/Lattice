@@ -26,7 +26,7 @@ function Home() {
   const user = useUser()
   const queryClient = useQueryClient()
   const navigate = useNavigate()
-  const { courses: added, lastOpened } = useLibrary()
+  const { courses: added, lastOpened } = useLibrary(user)
   const courses = useQuery({
     queryKey: ['courses', user],
     queryFn: () => listCourses(user),
@@ -82,7 +82,7 @@ function Home() {
           </div>
         </header>
 
-        {lastOpened && (
+        {lastOpened && merged.some((c) => c.code === lastOpened.course) && (
           <ContinueCard
             course={lastOpened.course}
             filename={lastOpened.filename}
@@ -165,7 +165,7 @@ function ContinueCard({
 }
 
 function AddCourse({ user }: { user: string }) {
-  const { addCourse } = useLibrary()
+  const { addCourse } = useLibrary(user)
   const navigate = useNavigate()
   const [value, setValue] = useState('')
   const code = value.trim().toLowerCase()

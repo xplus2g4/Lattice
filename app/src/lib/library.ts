@@ -1,6 +1,7 @@
 // Client-side library state: course codes the user has added (the server only
 // knows a course once it holds something) and the last material opened, which
-// drives the home screen's continue card.
+// drives the home screen's continue card. Keyed per user — one browser may
+// hold several accounts, and their libraries must not bleed into each other.
 
 import { useCallback, useSyncExternalStore } from 'react'
 
@@ -38,36 +39,47 @@ function parse(raw: string | null): Library {
 }
 
 // useSyncExternalStore requires a stable snapshot per raw value.
-let cache: { raw: string | null; value: Library } = { raw: null, value: EMPTY }
+let cache: { key: string; raw: string | null; value: Library } = {
+  key: '',
+  raw: null,
+  value: EMPTY,
+}
 
-function getSnapshot(): Library {
-  const raw = localStorage.getItem(KEY)
-  if (raw !== cache.raw) cache = { raw, value: parse(raw) }
+function getSnapshot(key: string): Library {
+  const raw = localStorage.getItem(key)
+  if (key !== cache.key || raw !== cache.raw) {
+    cache = { key, raw, value: parse(raw) }
+  }
   return cache.value
 }
 
-function write(next: Library) {
-  localStorage.setItem(KEY, JSON.stringify(next))
+function write(key: string, next: Library) {
+  localStorage.setItem(key, JSON.stringify(next))
   listeners.forEach((l) => l())
 }
 
-export function useLibrary() {
-  const library = useSyncExternalStore(subscribe, getSnapshot, () => EMPTY)
+export function useLibrary(user: string) {
+  const key = `${KEY}.${user || 'anonymous'}`
+  const library = useSyncExternalStore(
+    subscribe,
+    () => getSnapshot(key),
+    () => EMPTY,
+  )
 
   const addCourse = useCallback(
     (code: string) => {
       if (!library.courses.includes(code)) {
-        write({ ...library, courses: [...library.courses, code] })
+        write(key, { ...library, courses: [...library.courses, code] })
       }
     },
-    [library],
+    [key, library],
   )
 
   const markOpened = useCallback(
     (course: string, filename: string) => {
-      write({ ...library, lastOpened: { course, filename } })
+      write(key, { ...library, lastOpened: { course, filename } })
     },
-    [library],
+    [key, library],
   )
 
   return {

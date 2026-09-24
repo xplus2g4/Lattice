@@ -32,6 +32,14 @@ export interface CourseSummary {
   pending_count: number
 }
 
+/** What a course page needs before it mounts: existence, name, and whether the
+ * caller is enrolled. `enrolled` false renders the join card, not the panels. */
+export interface CourseInfo {
+  code: string
+  name: string
+  enrolled: boolean
+}
+
 export interface SessionSummary {
   id: string
   created_at: string
@@ -121,6 +129,12 @@ export interface AskResponse {
 
 export function listCourses(user: string) {
   return backend.listCourses(user)
+}
+
+/** Existence + enrolment probe for a course page; 404 ApiError when the code
+ * belongs to no course. */
+export function getCourse(user: string, code: string) {
+  return backend.getCourse(user, code)
 }
 
 /** Enrol in a course by code, creating it (owned by the caller) when it does

@@ -85,5 +85,5 @@ def read_refresh_subject(settings: Settings, token: str) -> UUID | None:
         return None
     try:
         return UUID(str(claims.get("sub")))
-    except ValueError, AttributeError, TypeError:
+    except (ValueError, AttributeError, TypeError):
         return None

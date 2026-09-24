@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { AskPanel } from '#/components/lattice/ask-panel'
+import { CourseGate } from '#/components/lattice/course-gate'
 import { MaterialViewer } from '#/components/lattice/material-viewer'
 import { MaterialsPanel } from '#/components/lattice/materials-panel'
 import { NotesPanel } from '#/components/lattice/notes-panel'
@@ -21,14 +22,23 @@ export const Route = createFileRoute('/courses/$courseId')({
         ? search.material
         : undefined,
   }),
-  component: authed(CourseWorkspace),
+  component: authed(CourseRoute),
 })
+
+function CourseRoute() {
+  const { courseId } = Route.useParams()
+  return (
+    <CourseGate courseId={courseId}>
+      <CourseWorkspace />
+    </CourseGate>
+  )
+}
 
 function CourseWorkspace() {
   const { courseId } = Route.useParams()
   const { material } = Route.useSearch()
   const user = useUser()
-  const { markOpened } = useLibrary()
+  const { markOpened } = useLibrary(user)
   const [mobileView, setMobileView] = useState<'material' | 'ask'>('material')
 
   useEffect(() => {

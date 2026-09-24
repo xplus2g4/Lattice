@@ -12,6 +12,7 @@ import type {
   AskRequest,
   AskResponse,
   Citation,
+  CourseInfo,
   CourseSummary,
   IngestStatus,
   Material,
@@ -86,6 +87,13 @@ interface SessionWire {
 interface UploadWire {
   material: MaterialWire
   deduplicated: boolean
+}
+
+interface CourseSearchWire {
+  results: Array<{
+    course: { code: string; name: string }
+    enrolled: boolean
+  }>
 }
 
 interface AskWire {
@@ -171,6 +179,22 @@ export async function listCourses(
     note_count: s.note_count,
     pending_count: s.pending_count,
   }))
+}
+
+export async function getCourse(
+  _user: string,
+  code: string,
+): Promise<CourseInfo> {
+  // Search answers both halves of the probe: an exact-code hit means the course
+  // exists and the row carries the caller's enrolment state.
+  const wire = await apiGet<CourseSearchWire>('/courses.search', { q: code })
+  const hit = wire.results.find((r) => r.course.code === code.toLowerCase())
+  if (!hit) throw new ApiError(404, 'no such course')
+  return {
+    code: hit.course.code,
+    name: hit.course.name,
+    enrolled: hit.enrolled,
+  }
 }
 
 export async function joinCourse(_user: string, code: string): Promise<void> {

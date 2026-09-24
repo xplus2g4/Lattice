@@ -9,6 +9,7 @@ import { ApiError } from './api-error'
 import type {
   AskRequest,
   AskResponse,
+  CourseInfo,
   CourseSummary,
   IngestStatus,
   Material,
@@ -260,6 +261,17 @@ export async function listCourses(user: string): Promise<Array<CourseSummary>> {
   return [...store.entries()]
     .map(([code, entry]) => summary(code, entry))
     .sort((a, b) => a.code.localeCompare(b.code))
+}
+
+export async function getCourse(
+  user: string,
+  code: string,
+): Promise<CourseInfo> {
+  seed(user)
+  await sleep()
+  // The mock keeps no enrolment ledger: a stored course counts as joined.
+  if (!store.get(code)) throw new ApiError(404, 'no such course')
+  return { code, name: code, enrolled: true }
 }
 
 export async function joinCourse(user: string, code: string): Promise<void> {

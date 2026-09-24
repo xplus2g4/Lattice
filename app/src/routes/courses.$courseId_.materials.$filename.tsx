@@ -9,18 +9,29 @@ import {
   MaterialViewer,
   useMaterialFile,
 } from '#/components/lattice/material-viewer'
+import { CourseGate } from '#/components/lattice/course-gate'
 import { authed } from '#/components/lattice/require-auth'
 import { useLibrary } from '#/lib/library'
+import { useUser } from '#/lib/user'
 
 export const Route = createFileRoute('/courses/$courseId_/materials/$filename')(
   {
-    component: authed(MaterialViewerRoute),
+    component: authed(GatedViewer),
   },
 )
 
+function GatedViewer() {
+  const { courseId } = Route.useParams()
+  return (
+    <CourseGate courseId={courseId}>
+      <MaterialViewerRoute />
+    </CourseGate>
+  )
+}
+
 function MaterialViewerRoute() {
   const { courseId, filename } = Route.useParams()
-  const { markOpened } = useLibrary()
+  const { markOpened } = useLibrary(useUser())
 
   useEffect(() => {
     markOpened(courseId, filename)
