@@ -114,15 +114,28 @@ function Login() {
           <svg
             aria-hidden="true"
             viewBox="0 0 64 64"
-            className="size-16 text-[#ED977E]"
+            className="lattice-mark lattice-mark-large size-16 text-[#ED977E]"
             fill="none"
           >
+            <g stroke="currentColor" strokeWidth="1">
+              <g className="lattice-strand lattice-line-1">
+                <path className="lattice-line" pathLength="1" d="M22 0v64" />
+              </g>
+              <g className="lattice-strand lattice-line-2">
+                <path className="lattice-line" pathLength="1" d="M42 64V0" />
+              </g>
+              <g className="lattice-strand lattice-line-3">
+                <path className="lattice-line" pathLength="1" d="M0 22h64" />
+              </g>
+              <g className="lattice-strand lattice-line-4">
+                <path className="lattice-line" pathLength="1" d="M64 42H0" />
+              </g>
+            </g>
             <path
-              d="M22 0v64M42 0v64M0 22h64M0 42h64"
-              stroke="currentColor"
-              strokeWidth="1"
+              className="lattice-mark-center"
+              d="M22 22h20v20H22z"
+              fill="currentColor"
             />
-            <path d="M22 22h20v20H22z" fill="currentColor" />
           </svg>
         </div>
       </section>

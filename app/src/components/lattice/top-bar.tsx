@@ -25,7 +25,7 @@ export function LogoMark({ onDark = false }: { onDark?: boolean }) {
       viewBox="0 0 28 28"
       fill="none"
       aria-hidden="true"
-      className="shrink-0"
+      className="lattice-mark shrink-0"
     >
       <rect
         width="28"
@@ -38,7 +38,18 @@ export function LogoMark({ onDark = false }: { onDark?: boolean }) {
         strokeWidth="1.6"
         strokeLinecap="square"
       >
-        <path d="M10 7v14M18 7v14M7 10h14M7 18h14" />
+        <g className="lattice-strand lattice-line-1">
+          <path className="lattice-line" pathLength="1" d="M10 7v14" />
+        </g>
+        <g className="lattice-strand lattice-line-2">
+          <path className="lattice-line" pathLength="1" d="M18 21V7" />
+        </g>
+        <g className="lattice-strand lattice-line-3">
+          <path className="lattice-line" pathLength="1" d="M7 10h14" />
+        </g>
+        <g className="lattice-strand lattice-line-4">
+          <path className="lattice-line" pathLength="1" d="M21 18H7" />
+        </g>
       </g>
     </svg>
   )
