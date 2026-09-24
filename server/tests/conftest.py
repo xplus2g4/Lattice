@@ -11,6 +11,7 @@ Tests run inside a transaction on a single connection that is rolled back afterw
 see each other's schema but never each other's rows.
 """
 
+import asyncio
 import os
 import shutil
 import tempfile
@@ -191,6 +192,8 @@ class FakeEngine:
     """Stands in for the Cognee seam: records the calls, touches no embedded store."""
 
     def __init__(self) -> None:
+        # One ingest at a time, as with the real engine; Ingest holds this around each call.
+        self.turn = asyncio.Lock()
         self.enrolled: list[tuple[str, str]] = []
         self.cognified: list[str] = []
         self.cleared: list[tuple[UUID, str]] = []
@@ -279,6 +282,7 @@ class RecordingIngest:
     def __init__(self) -> None:
         self.queued: list[UUID] = []
         self.notes: list[UUID] = []
+        self.recovered: list[UUID] = []
 
     async def material(self, material_id: UUID) -> None:
         self.queued.append(material_id)
@@ -288,6 +292,9 @@ class RecordingIngest:
 
     async def recover_notes(self) -> None:
         pass
+
+    async def recover_materials(self) -> list[UUID]:
+        return self.recovered
 
     async def cognify_pending(self) -> bool:
         return False

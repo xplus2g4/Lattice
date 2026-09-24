@@ -38,44 +38,67 @@ class Ingest:
         """Cognify one Material into the course's global Dataset. Under the Ceiling it fails
         without touching the engine; the instructor retries after the reset. The Spend is
         the course's: no Principal, this Material."""
-        async with self.sessionmaker() as session:
-            material = await materials.get(session, material_id)
-            if material is None:
-                return
-            try:
-                await check_ceiling(session, self.settings)
-            except CeilingReached as exc:
-                await self._finish_material(
-                    session, material, f"Ceiling reached; retry after {exc.reset_at.isoformat()}"
-                )
+        # Wait for the engine before opening a session or claiming "cognifying": while another
+        # file has the turn this one is still queued, and holds no connection from the pool.
+        async with self.engine.turn:
+            async with self.sessionmaker() as session:
+                material = await materials.get(session, material_id)
+                if material is None:
+                    return
+                try:
+                    await check_ceiling(session, self.settings)
+                except CeilingReached as exc:
+                    await self._finish_material(
+                        session,
+                        material,
+                        f"Ceiling reached; retry after {exc.reset_at.isoformat()}",
+                    )
+                    await session.commit()
+                    return
+                path = Path(material.storage_uri)
+                await materials.set_status(session, material, "cognifying")
                 await session.commit()
-                return
-            path = Path(material.storage_uri)
-            await materials.set_status(session, material, "cognifying")
-            await session.commit()
 
-            code = material.course.code
-            attribution = Attribution(
-                user_id=None,
-                course_id=material.course_id,
-                material_id=material.id,
-                course_code=code,
+                code = material.course.code
+                attribution = Attribution(
+                    user_id=None,
+                    course_id=material.course_id,
+                    material_id=material.id,
+                    course_code=code,
+                )
+                started = time.monotonic()
+                try:
+                    dataset = await self.engine.global_dataset(code)
+                    instructor = await self.engine.instructor()
+                    async with collect(self.sessionmaker, attribution):
+                        await self.engine.replace(dataset, instructor, path.resolve(), chunk_size)
+                except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
+                    error = f"{type(exc).__name__}: {exc}"
+                else:
+                    error = None
+                telemetry.COGNIFY_DURATION.labels(course=code, kind="material").observe(
+                    time.monotonic() - started
+                )
+                await self._finish_material(session, material, error)
+                await session.commit()
+
+    async def recover_materials(self) -> list[UUID]:
+        """Materials the last process left queued or cognifying: their background task died
+        with it. Re-queued here, in upload order, and handed back for start-up to schedule."""
+        async with self.sessionmaker() as session:
+            ids = list(
+                await session.scalars(
+                    select(Material.id)
+                    .where(Material.status.in_(("queued", "cognifying")))
+                    .order_by(Material.created_at)
+                )
             )
-            started = time.monotonic()
-            try:
-                dataset = await self.engine.global_dataset(code)
-                instructor = await self.engine.instructor()
-                async with collect(self.sessionmaker, attribution):
-                    await self.engine.replace(dataset, instructor, path.resolve(), chunk_size)
-            except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
-                error = f"{type(exc).__name__}: {exc}"
-            else:
-                error = None
-            telemetry.COGNIFY_DURATION.labels(course=code, kind="material").observe(
-                time.monotonic() - started
-            )
-            await self._finish_material(session, material, error)
+            if ids:
+                await session.execute(
+                    update(Material).where(Material.id.in_(ids)).values(status="queued", error=None)
+                )
             await session.commit()
+        return ids
 
     async def _finish_material(
         self, session: AsyncSession, material: Material, error: str | None
@@ -151,21 +174,24 @@ class Ingest:
             error = None
             started = time.monotonic()
             try:
-                principal = await self.engine.principal(owner)
-                _, private = await self.engine.enrol(course, principal)
-                async with collect(self.sessionmaker, attribution):
-                    if storage_uri is not None:
-                        # A PDF Note: hand the stored file to the engine's own loader. The
-                        # name is <sha256>.pdf, so a re-cognify replaces rather than
-                        # duplicates.
-                        await self.engine.replace(private, principal, Path(storage_uri).resolve())
-                    else:
-                        path = self._note_path(course, note_id, principal.id)
-                        path.write_text(body, encoding="utf-8")
-                        if body.strip():
-                            await self.engine.replace(private, principal, path.resolve())
+                async with self.engine.turn:
+                    principal = await self.engine.principal(owner)
+                    _, private = await self.engine.enrol(course, principal)
+                    async with collect(self.sessionmaker, attribution):
+                        if storage_uri is not None:
+                            # A PDF Note: hand the stored file to the engine's own loader. The
+                            # name is <sha256>.pdf, so a re-cognify replaces rather than
+                            # duplicates.
+                            await self.engine.replace(
+                                private, principal, Path(storage_uri).resolve()
+                            )
                         else:
-                            await self.engine.clear(private, principal, path.name)
+                            path = self._note_path(course, note_id, principal.id)
+                            path.write_text(body, encoding="utf-8")
+                            if body.strip():
+                                await self.engine.replace(private, principal, path.resolve())
+                            else:
+                                await self.engine.clear(private, principal, path.name)
             except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
                 error = f"{type(exc).__name__}: {exc}"
             telemetry.COGNIFY_DURATION.labels(course=course, kind="note").observe(

@@ -95,6 +95,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await upgrade_async(settings.database_url)
             with FileLock(settings.cognee_root.resolve() / "note-ingest.lock", timeout=0):
                 await app.state.ingest.recover_notes()
+                # Materials have no polling loop yet: whatever the last process left mid-ingest
+                # is scheduled again here and takes its turn exactly as a fresh upload would.
+                recovered = await app.state.ingest.recover_materials()
                 async with asyncio.TaskGroup() as workers:
                     tasks = [
                         workers.create_task(ingest_notes()),
@@ -102,6 +105,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                         workers.create_task(app.state.course_summaries.run_forever()),
                         workers.create_task(app.state.watchdog.run_forever()),
                     ]
+                    for material_id in recovered:
+                        workers.create_task(app.state.ingest.material(material_id))
                     try:
                         yield
                     finally:

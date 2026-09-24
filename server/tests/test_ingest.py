@@ -133,3 +133,42 @@ async def test_a_file_note_hands_the_stored_pdf_to_the_engine(
     assert engine.cognified == [str(pdf)]
     # No Markdown stand-in is written for a PDF Note; the stored file is what gets cognified.
     assert list((settings.uploads_dir / "cs3216" / "notes").rglob("*.md")) == []
+
+
+async def test_materials_left_mid_ingest_are_requeued_on_restart(
+    session: AsyncSession, sessionmaker: async_sessionmaker, engine, settings, tmp_path
+) -> None:
+    """The background task that owned a queued or cognifying Material died with the process."""
+    interrupted = await a_material(session, tmp_path)
+    interrupted.status = "cognifying"
+    finished = Material(
+        course_id=interrupted.course_id,
+        created_by=interrupted.created_by,
+        title="week2.pdf",
+        filename="week2.pdf",
+        storage_uri=str(tmp_path / "week2.pdf"),
+        sha256="2" * 64,
+        status="ready",
+    )
+    session.add(finished)
+    await session.commit()
+
+    restarted = Ingest(sessionmaker, engine, settings)
+    assert await restarted.recover_materials() == [interrupted.id]
+
+    await session.refresh(interrupted)
+    await session.refresh(finished)
+    assert (interrupted.status, finished.status) == ("queued", "ready")
+    await restarted.material(interrupted.id)
+    await session.refresh(interrupted)
+    assert interrupted.status == "ready"
+
+
+async def test_startup_schedules_the_recovered_materials(app, ingest) -> None:
+    """Start-up hands each recovered id to the same ingest the upload endpoint uses."""
+    ingest.recovered = [uuid4(), uuid4()]
+
+    async with app.router.lifespan_context(app):
+        pass
+
+    assert ingest.queued == ingest.recovered

@@ -5,6 +5,7 @@ Stage 2 (pgvector plus an own concept graph) replaces this module and nothing ab
 
 import asyncio
 import json
+import logging
 import re
 import secrets
 import tempfile
@@ -38,6 +39,8 @@ from lattice.page_notes import PageNote
 from lattice.retrieval import Evidence, TierResult
 from lattice.spend import register as register_spend_logger
 
+logger = logging.getLogger(__name__)
+
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
 # Cognee's PDF loader prefixes each non-empty page with this line; chunking ignores it.
@@ -69,7 +72,9 @@ class Engine:
         self._principals: dict[str, User] = {}
         self._datasets: dict[tuple[str, UUID], Dataset] = {}
         self._enrolled: set[tuple[UUID, str]] = set()
-        self._ingest_lock = asyncio.Lock()
+        # Cognee's embedded stores take one pipeline at a time. Callers hold this around every
+        # ingest call, so a Material can stay "queued" until it is actually its turn.
+        self.turn = asyncio.Lock()
 
     async def start(self) -> None:
         """Create Cognee's relational schema if this is a fresh root, and put the Spend
@@ -135,15 +140,26 @@ class Engine:
     async def replace(
         self, dataset: Dataset, user: User, path: Path, chunk_size: int | None = None
     ) -> None:
-        """Drop any earlier data with this file's name, then add and cognify.
+        """Drop any earlier data with this file's name, then add and cognify. Under `turn`.
 
         `chunk_size` is in tokens; `None` takes Cognee's default (8,191 with the current
         embedding config). The API never sets it; the evaluation harness sweeps it.
+
+        A failed Cognify drops the file again: Cognee re-runs every item without a completed
+        marker on the next Cognify of the Dataset, so one failed file would otherwise fail
+        every later file in the course (seen with cs4234 on 2026-09-23).
         """
-        async with self._ingest_lock:
-            await self._remove_named(dataset, user, path.name)
+        assert self.turn.locked(), "hold Engine.turn around ingest calls"
+        await self._remove_named(dataset, user, path.name)
+        try:
             await cognee.add(str(path), dataset_id=dataset.id, user=user)
             await cognee.cognify(datasets=[dataset.id], user=user, chunk_size=chunk_size)
+        except Exception:
+            try:
+                await self._remove_named(dataset, user, path.name)
+            except Exception:  # noqa: BLE001 - the Cognify failure is the one to report
+                logger.warning("could not drop %s after a failed Cognify", path.name, exc_info=True)
+            raise
 
     async def _remove_named(self, dataset: Dataset, user: User, filename: str) -> None:
         for data in await get_dataset_data(dataset.id):
@@ -151,14 +167,16 @@ class Engine:
                 await cognee.datasets.delete_data(dataset.id, data.id, user=user, mode="hard")
 
     async def clear(self, dataset: Dataset, user: User, filename: str) -> None:
-        async with self._ingest_lock:
-            await self._remove_named(dataset, user, filename)
+        """Drop the data under this file's name. Under `turn`."""
+        assert self.turn.locked(), "hold Engine.turn around ingest calls"
+        await self._remove_named(dataset, user, filename)
 
     async def cognify_note(self, note: PageNote) -> None:
         user = await self.principal(note.owner)
         _, dataset = await self.enrol(note.anchor.course, user)
         filename = f"page-note-{note.id}.md"
-        async with self._ingest_lock:
+        # Self-contained: nothing above Ingest calls this, so it takes its own turn.
+        async with self.turn:
             await self._remove_named(dataset, user, filename)
             if not note.body_md.strip():
                 return

@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import UUID
@@ -130,3 +131,24 @@ def test_clearing_a_page_note_removes_only_its_own_private_content(engine, monke
     assert deleted.await_args.args[:2] == (PRIVATE, CHUNK)
     assert deleted.await_count == 1
     added.assert_not_awaited()
+
+
+def test_replace_forgets_the_file_when_cognify_fails(engine, monkeypatch):
+    """Cognee re-runs every item without a completed marker on the next Cognify of the Dataset,
+    so a file whose Cognify failed would fail every later file in the course too."""
+    added = SimpleNamespace(id=CHUNK, name="deck")
+    # Nothing under this name before the add; the half-cognified item afterwards.
+    monkeypatch.setattr(module, "get_dataset_data", AsyncMock(side_effect=[[], [added]]))
+    monkeypatch.setattr(module.cognee, "add", AsyncMock())
+    monkeypatch.setattr(module.cognee, "cognify", AsyncMock(side_effect=RuntimeError("timeout")))
+    deleted = AsyncMock()
+    monkeypatch.setattr(module.cognee.datasets, "delete_data", deleted)
+    dataset, user = SimpleNamespace(id=GLOBAL), SimpleNamespace(id=PRIVATE)
+
+    async def replace():
+        async with engine.turn:
+            await engine.replace(dataset, user, Path("/uploads/deck.pdf"))
+
+    with pytest.raises(RuntimeError, match="timeout"):
+        asyncio.run(replace())
+    deleted.assert_awaited_once_with(GLOBAL, CHUNK, user=user, mode="hard")
