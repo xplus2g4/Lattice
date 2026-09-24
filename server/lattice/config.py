@@ -34,8 +34,10 @@ class Settings(BaseSettings):
     uploads_dir: Path = Path("data/uploads")
     max_upload_mb: int = 25
 
-    # How often the course summaries, one vector per course, are recomputed.
+    # How often the course summaries, one vector per course, are recomputed, and how many
+    # of the nearest courses `/ask` also searches (0 turns the related lane off).
     course_summary_refresh_s: int = 3600
+    related_courses_k: int = 3
 
 
 @lru_cache

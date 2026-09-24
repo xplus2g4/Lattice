@@ -202,7 +202,8 @@ def create_mcp(app, settings: Settings) -> FastMCP:
     @mcp.tool(
         name="ask_course",
         description=(
-            "Ask within one course's official Materials and your private Notes. Returns "
+            "Ask within one course's official Materials and your private Notes, plus the "
+            "official Materials of up to three related courses as reference. Returns "
             "separate tier answers/evidence and records Session Turns. CHUNKS returns retrieval "
             "without answer generation. Generation uses the configured LLM provider; "
             "no cross-course Sessions."
@@ -225,6 +226,7 @@ def create_mcp(app, settings: Settings) -> FastMCP:
                     course,
                     owner,
                     AskRequest(question=question, session_id=session_id, query_type=query_type),
+                    related_k=settings.related_courses_k,
                 ),
             )
         )
