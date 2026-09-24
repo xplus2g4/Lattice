@@ -1,18 +1,11 @@
-/** The API surface the app codes against.
- *
- * Every call is served by `#/lib/http-backend` against the running API; the
- * session cookie carries identity, so `user` arguments only key caches and
- * fills. `VITE_MOCK_API=1` swaps in `#/lib/mock-backend` to run the shell
- * without a server behind it.
- */
-import * as httpBackend from './http-backend'
-import * as mockBackend from './mock-backend'
 /** The API surface the app codes against: the persistent RPC API. */
 import { ApiError } from './api-error'
+import { apiFetch } from './http'
 import type {
   AskOut as RpcAskOut,
   AskRequest as RpcAskRequest,
   CourseOut,
+  CourseSearchOut,
   MaterialOut,
   NoteOut,
   SessionOut,
@@ -21,15 +14,13 @@ import type {
   ValidationError,
 } from './generated'
 
-const backend =
-  import.meta.env.VITE_MOCK_API === '1' ? mockBackend : httpBackend
-
 export { ApiError } from './api-error'
 
 // The wire types are generated from contracts/openapi.json (ADR 0005); never redeclare them
 // here. The view models below normalize RPC records for both the reader and study routes;
-// this module also owns the X-User transport and how a FastAPI error becomes an Error.
-const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
+// this module also owns how a FastAPI error becomes an Error. Transport is `apiFetch`:
+// the session cookie carries identity (see `#/lib/auth`), and the X-User header stays so
+// dev_header_auth and the mocked transport keep working.
 export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
 // FastAPI inlines these unions into each field rather than naming them, so name them here.
 export type QueryType = NonNullable<RpcAskRequest['query_type']>
@@ -169,23 +160,6 @@ function formatDetail(status: number, statusText: string, body: unknown) {
   return `${status} ${statusText}`
 }
 
-/** Existence + enrolment probe for a course page; 404 ApiError when the code
- * belongs to no course. */
-export function getCourse(user: string, code: string) {
-  return backend.getCourse(user, code)
-}
-
-/** Enrol in a course by code, creating it (owned by the caller) when it does
- * not exist yet — the "add a course" flow on the home screen. */
-export function joinCourse(user: string, code: string) {
-  return backend.joinCourse(user, code)
-}
-
-export function listSessions(user: string, course: string) {
-  return backend.listSessions(user, course)
-}
-
-export function downloadMaterial(
 async function fetchResponse(
   user: string,
   path: string,
@@ -193,7 +167,7 @@ async function fetchResponse(
 ) {
   const headers = new Headers(init.headers)
   headers.set('X-User', user)
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers })
+  const response = await apiFetch(path, { ...init, headers })
   if (!response.ok) {
     const text = await response.text()
     let body: unknown = text
@@ -374,8 +348,29 @@ export async function listCourses(user: string): Promise<Array<CourseSummary>> {
   )
 }
 
-/** `id` is the server uuid of an existing Note; null writes a fresh one. */
-export function saveNote(
+/** Existence + enrolment probe for a course page; 404 ApiError when the code
+ * belongs to no course. */
+export async function getCourse(
+  user: string,
+  code: string,
+): Promise<CourseInfo> {
+  // Search answers both halves of the probe: an exact-code hit means the course
+  // exists and the row carries the caller's enrolment state.
+  const wire = await request<CourseSearchOut>(
+    user,
+    query('/courses.search', { q: code }),
+  )
+  const hit = wire.results.find((r) => r.course.code === code.toLowerCase())
+  if (!hit) throw new ApiError(404, 'no such course')
+  return {
+    code: hit.course.code,
+    name: hit.course.name,
+    enrolled: hit.enrolled,
+  }
+}
+
+/** Enrol in a course by code, creating it (owned by the caller) when it does
+ * not exist yet — the "add a course" flow on the home screen. */
 export async function joinCourse(user: string, course: string): Promise<void> {
   try {
     await request(user, '/enrolments.join', json({ course }))
@@ -397,7 +392,6 @@ export async function joinCourse(user: string, course: string): Promise<void> {
 export async function listSessions(
   user: string,
   course: string,
-  id: string | null,
 ): Promise<Array<SessionSummary>> {
   const rows = await request<Array<SessionOut>>(
     user,
@@ -467,13 +461,15 @@ export async function listNotes(
   )
   return rows.map((row) => noteView(user, course, row))
 }
+/** `id` is the server uuid of an existing Note; anything else writes a fresh one. */
 export async function saveNote(
   user: string,
   course: string,
-  id: string,
+  id: string | null,
   body_md: string,
 ): Promise<Note> {
   const note =
+    id &&
     /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(id)
       ? id
       : undefined

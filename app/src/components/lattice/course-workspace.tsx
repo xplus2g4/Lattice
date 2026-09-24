@@ -6,37 +6,24 @@ import { useEffect, useState } from 'react'
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
 import { AskPanel } from '#/components/lattice/ask-panel'
-import { CourseGate } from '#/components/lattice/course-gate'
 import { MaterialViewer } from '#/components/lattice/material-viewer'
 import { MaterialsPanel } from '#/components/lattice/materials-panel'
 import { NotesPanel } from '#/components/lattice/notes-panel'
-import { authed } from '#/components/lattice/require-auth'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
-export const Route = createFileRoute('/courses/$courseId')({
-  validateSearch: (search: Record<string, unknown>) => ({
-    material:
-      typeof search.material === 'string' &&
-      search.material.toLowerCase().endsWith('.pdf')
-        ? search.material
-        : undefined,
-  }),
-  component: authed(CourseRoute),
-})
+import type { PageRange } from '#/components/lattice/material-viewer'
 
-function CourseRoute() {
-  const { courseId } = Route.useParams()
-  return (
-    <CourseGate courseId={courseId}>
-      <CourseWorkspace />
-    </CourseGate>
-  )
-}
-
-function CourseWorkspace() {
-  const { courseId } = Route.useParams()
-  const { material } = Route.useSearch()
+export function CourseWorkspace({
+  course,
+  material,
+  page,
+  pageEnd,
+  jump,
+}: {
+  course: string
+  material?: string
+} & PageRange) {
   const user = useUser()
   const { markOpened } = useLibrary(user)
   const [mobileView, setMobileView] = useState<'material' | 'ask'>('material')

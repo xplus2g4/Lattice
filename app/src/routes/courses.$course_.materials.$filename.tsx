@@ -14,23 +14,23 @@ import { authed } from '#/components/lattice/require-auth'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
-export const Route = createFileRoute('/courses/$courseId_/materials/$filename')(
+export const Route = createFileRoute('/courses/$course_/materials/$filename')(
   {
     component: authed(GatedViewer),
   },
 )
 
 function GatedViewer() {
-  const { courseId } = Route.useParams()
+  const { course } = Route.useParams()
   return (
-    <CourseGate courseId={courseId}>
+    <CourseGate courseId={course}>
       <MaterialViewerRoute />
     </CourseGate>
   )
 }
 
 function MaterialViewerRoute() {
-  const { courseId, filename } = Route.useParams()
+  const { course, filename } = Route.useParams()
   const { markOpened } = useLibrary(useUser())
 
   useEffect(() => {

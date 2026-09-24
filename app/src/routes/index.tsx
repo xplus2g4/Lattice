@@ -176,8 +176,8 @@ function AddCourse({ user }: { user: string }) {
     onSuccess: () => {
       addCourse(code)
       void navigate({
-        to: '/courses/$courseId',
-        params: { courseId: code },
+        to: '/courses/$course',
+        params: { course: code },
         search: { material: undefined },
       })
     },
