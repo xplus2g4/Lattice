@@ -23,7 +23,10 @@ class Evidence(BaseModel):
 
 
 class TierResult(BaseModel):
-    tier: Literal["course", "notes"]
+    # `related`: the global tier of a nearest-neighbour course, searched as reference material.
+    tier: Literal["course", "notes", "related"]
     dataset_name: str
+    # The course the result came from; for `related` it is not the Session's course.
+    course: str | None = None
     answer: str | None
     evidence: list[Evidence]

@@ -1869,6 +1869,17 @@
             ],
             "title": "Answer"
           },
+          "course": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Course"
+          },
           "dataset_name": {
             "title": "Dataset Name",
             "type": "string"
@@ -1883,7 +1894,8 @@
           "tier": {
             "enum": [
               "course",
-              "notes"
+              "notes",
+              "related"
             ],
             "title": "Tier",
             "type": "string"

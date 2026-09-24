@@ -16,6 +16,7 @@ from lattice.engine import IsolationError, _tier_result
 COURSE = uuid4()
 MINE = uuid4()
 SOMEONE_ELSE = uuid4()
+RELATED = uuid4()
 DATASETS = {COURSE: "course", MINE: "notes"}
 
 
@@ -65,6 +66,17 @@ def test_keeps_citations_that_name_no_dataset():
     """Graph nodes and edges carry no dataset_id; the result's own dataset covers them."""
     evidence = [{"kind": "graph_edge", "artifact_id": "e1", "relationship_name": "taught_in"}]
     assert len(_tier_result(result(COURSE, evidence), DATASETS).evidence) == 1
+
+
+def test_accepts_a_related_courses_global_dataset():
+    """The related lane searches another course's global tier under its own datasets map."""
+    assert _tier_result(result(RELATED), {RELATED: "related"}).tier == "related"
+
+
+def test_the_related_lane_refuses_even_the_callers_own_datasets():
+    """A per-lane map means anything from another dataset, the caller's included, is refused."""
+    with pytest.raises(IsolationError):
+        _tier_result(result(COURSE), {RELATED: "related"})
 
 
 def test_still_dedupes_citations():

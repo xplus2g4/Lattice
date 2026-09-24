@@ -2,9 +2,14 @@
 
 import pytest
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from lattice.config import get_settings
+from lattice.db.repo import course_summaries, courses
+from lattice.grounding import NOT_COVERED, RELATED_POLICY
 from lattice.retrieval import Evidence, TierResult
-from tests.test_materials import BOB, join
+from tests.conftest import basis
+from tests.test_materials import BOB, join, upload
 
 pytestmark = pytest.mark.asyncio
 
@@ -151,3 +156,110 @@ async def test_only_an_answer_can_be_rated(student: AsyncClient, answering) -> N
 async def test_asking_needs_an_identity(client: AsyncClient) -> None:
     response = await client.post("/ask", json={"course": "cs3216", "question": "hello"})
     assert response.status_code == 401
+
+
+async def summarised(session: AsyncSession, code: str) -> None:
+    """Give a course a summary so it can be a related course. Every summary here is the same
+    vector, so whichever other course has one is the nearest."""
+    course = await courses.by_code(session, code)
+    assert course is not None
+    await course_summaries.upsert(
+        session,
+        course,
+        summary_text=code,
+        embedding=basis(0),
+        embedding_model="fake-embedding",
+        source_digest="0" * 64,
+    )
+
+
+async def test_related_courses_are_searched_as_reference_material(
+    student: AsyncClient, answering, session: AsyncSession
+) -> None:
+    """The nearest courses' global tiers are searched too, as the instructor principal, and
+    their answers come back labelled `related` with the course they came from."""
+    await join(student)
+    await join(student, "cs2040")
+    week5 = (
+        await upload(student, content=b"open addressing", filename="week5.pdf", course="cs2040")
+    )["material"]
+    for code in ("cs3216", "cs2040"):
+        await summarised(session, code)
+    answering.results.append(
+        TierResult(
+            tier="related",
+            dataset_name="cs2040-global",
+            answer="CS2040 covers open addressing.",
+            evidence=[Evidence(kind="segment", chunk_id="chunk-3", document_name=week5["sha256"])],
+        )
+    )
+
+    answered = await ask(student)
+
+    turn = answered["turn"]
+    results = turn["content_json"]["results"]
+    assert [(r["tier"], r["course"]) for r in results] == [
+        ("course", "cs3216"),
+        ("notes", "cs3216"),
+        ("related", "cs2040"),
+    ]
+    # The transcript text is the course's own answer; the related one lives in results.
+    assert "open addressing" not in turn["content_json"]["text"]
+    assert turn["cited_chunk_ids"] == ["chunk-1", "chunk-2", "chunk-3"]
+    # Evidence names the Material by filename: the client cannot list cs2040's Materials.
+    assert results[2]["evidence"][0]["document_name"] == "week5.pdf"
+    # Searched as the instructor, over cs2040's global dataset and nothing else, and told to
+    # answer as reference material: a few bullet points, not a second essay.
+    assert answering.searched_as == ["ada@example.com", "instructor@lattice.example"]
+    assert list(answering.searched[1].values()) == ["related"]
+    assert answering.system_prompts == [None, RELATED_POLICY]
+    assert "at most three bullet points" in RELATED_POLICY
+    assert "key term in bold, as **term**" in RELATED_POLICY
+    assert NOT_COVERED in RELATED_POLICY
+
+
+async def test_a_related_course_that_declines_is_left_out(
+    student: AsyncClient, answering, session: AsyncSession
+) -> None:
+    """Reference material with nothing on the question adds nothing, so unlike the course's
+    own tiers a declining related course is dropped rather than shown declining."""
+    await join(student)
+    await join(student, "cs2040")
+    for code in ("cs3216", "cs2040"):
+        await summarised(session, code)
+    answering.results.append(
+        TierResult(tier="related", dataset_name="cs2040-global", answer=NOT_COVERED, evidence=[])
+    )
+
+    answered = await ask(student)
+
+    results = answered["turn"]["content_json"]["results"]
+    assert [r["tier"] for r in results] == ["course", "notes"]
+    assert len(answering.searched) == 2
+
+
+async def test_related_courses_are_off_when_k_is_zero(
+    student: AsyncClient, answering, session: AsyncSession, app, settings
+) -> None:
+    await join(student)
+    await join(student, "cs2040")
+    for code in ("cs3216", "cs2040"):
+        await summarised(session, code)
+    app.dependency_overrides[get_settings] = lambda: settings.model_copy(
+        update={"related_courses_k": 0}
+    )
+
+    await ask(student)
+    assert len(answering.searched) == 1
+
+
+async def test_a_course_without_a_summary_has_no_related_courses(
+    student: AsyncClient, answering, session: AsyncSession
+) -> None:
+    """Nothing to compare by yet: the refresh has not seen a ready Material in this course."""
+    await join(student)
+    await join(student, "cs2040")
+    await summarised(session, "cs2040")
+
+    await ask(student)
+    assert len(answering.searched) == 1

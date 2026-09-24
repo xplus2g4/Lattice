@@ -57,6 +57,7 @@ export function evidence(over: Partial<Citation> = {}): Citation {
 export function tierResult(over: Partial<TierResult> = {}): TierResult {
   return {
     tier: 'global',
+    course: 'cs101',
     answer: 'A hash table maps keys to buckets.',
     citations: [evidence()],
     ...over,
@@ -82,8 +83,10 @@ export function assistantTurn(over: Partial<Turn> = {}): Turn {
   return {
     id: 'turn-1',
     role: 'assistant',
-    // The API composes the Turn's text from its tiers (study.py); so does the fixture.
+    // The API composes the Turn's text from the course's own tiers (study.py); related
+    // courses stay out of it and are shown apart. So does the fixture.
     content: results
+      .filter((r) => r.tier !== 'related')
       .map((r) => r.answer)
       .filter(Boolean)
       .join('\n\n'),

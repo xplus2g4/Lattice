@@ -1,6 +1,6 @@
 # Key flows
 
-The five flows that move data through the system: enrol, ingest a material, save a note, ask, and ask with related concepts.
+The six flows that move data through the system: enrol, ingest a material, save a note, ask, refresh Course summaries, and ask with related concepts.
 
 ## Enrol
 
@@ -47,6 +47,18 @@ POST /ask {course, session_id, question}
        completion per dataset, not a fused answer; dataset_id → tier
      - dataset_ids, not names: a name resolves only among datasets the caller owns, so a
        student cannot reach the instructor-owned {course}-global by name
+  5a. related = the RELATED_COURSES_K courses nearest by Course summary (course_summaries,
+      cosine distance, at least MIN_SIMILARITY=0.75 similar: a hard-coded guess, see
+      backlog.md; none when this course has no summary yet). For each, one more
+      cognee.search, concurrently with step 5, as the instructor principal over that
+      course's {code}-global alone, with a datasets map of its own so an IsolationError
+      refuses anything else, and under RELATED_POLICY (grounding.py): at most three
+      one-sentence bullet points, each opening with its key term in bold, since it is
+      reference material beside the answer. Results
+      carry tier=related and course=code; segment evidence has document_name resolved to
+      the Material's filename, since the client cannot list another course's Materials, and
+      the client links each reference to that course's reader in a new tab. A related
+      course that declines is dropped. The transcript text stays the course's own answer.
   6. build CONTEXT blocks tagged [source: course|notes] [week, slide]; wrap as data
   7. LLM → structured Answer {answer_md, confidence, not_covered, citations[], related[], used_notes}
   8. validate: drop citations whose chunk_id ∉ hits; strip HTML/links; set used_notes from provenance
@@ -54,6 +66,22 @@ POST /ask {course, session_id, question}
 ```
 
 Cross-dataset `search()` does honour permissions, so `ASK_TWO_CALL_MODE` stays off ([findings](../research/cognee-1.5.4-first-cut-findings.md); backlog issues 1 and 2 are closed). It remains the fallback: setting `ASK_TWO_CALL_MODE=1` makes step 5 two calls, global then private, merged in the API. The contract of `/ask` is unchanged either way.
+
+## Refresh Course summaries
+
+A timer in the API process (`COURSE_SUMMARY_REFRESH_S`, default one hour, first pass at start-up, under the same lock as Note ingest so one process runs it) recomputes the summary of every course whose ready Materials or embedding model changed:
+
+```
+for each course:
+  ready = Materials with status=ready            (none → drop the course's row; never a Related course)
+  digest = sha256 over (sha256, title, week, kind, Topic labels) of every ready Material
+  unchanged digest and model → skip
+  profile per Material = title, week, kind, Topic labels, first Page's text (pypdf), ≤ 1,500 chars
+  vectors = the embedding model Cognify uses over the profiles; no LLM call
+  course_summaries ⟵ unit-length mean of the vectors, the profiles, the model name, the digest
+```
+
+Per Material rather than one long text, so a course's later Materials are not crowded out of the vector ([ADR 0008](../adr/0008-related-courses-from-summary-neighbours.md)).
 
 ## Ask with related concepts (Phase 2)
 

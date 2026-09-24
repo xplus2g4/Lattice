@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession as DbSession
 
-from lattice.api.deps import COURSE_CODE, CurrentUser, EngineDep, SessionDep
+from lattice.api.deps import COURSE_CODE, CurrentUser, EngineDep, SessionDep, SettingsDep
 from lattice.api.schemas import AskOut, SessionOut, TurnOut
 from lattice.db.models import Session, User
 from lattice.db.repo import courses, sessions
@@ -38,7 +38,13 @@ async def _own_session(db: DbSession, user: User, session_id: UUID) -> Session:
 
 
 @router.post("/ask")
-async def ask(body: AskRequest, user: CurrentUser, db: SessionDep, engine: EngineDep) -> AskOut:
+async def ask(
+    body: AskRequest,
+    user: CurrentUser,
+    db: SessionDep,
+    engine: EngineDep,
+    settings: SettingsDep,
+) -> AskOut:
     """Both Turns are persisted, so a reload replays the conversation the student had."""
     try:
         session, answer = await answer_course(
@@ -51,6 +57,7 @@ async def ask(body: AskRequest, user: CurrentUser, db: SessionDep, engine: Engin
                 query_type=body.query_type,
                 session_id=None if body.session is None else str(body.session),
             ),
+            related_k=settings.related_courses_k,
         )
     except (courses.CourseAccessError, SessionAccessError) as exc:
         raise HTTPException(exc.status_code, str(exc)) from None

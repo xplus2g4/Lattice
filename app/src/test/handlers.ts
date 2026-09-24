@@ -110,8 +110,14 @@ function turnOut(t: Turn, sessionId: string): TurnOut {
       text: t.content,
       query_type: t.query_type,
       results: t.results.map((r) => ({
-        tier: r.tier === 'global' ? 'course' : 'notes',
+        tier:
+          r.tier === 'global'
+            ? 'course'
+            : r.tier === 'private'
+              ? 'notes'
+              : 'related',
         dataset_name: r.tier,
+        course: r.course,
         answer: r.answer,
         evidence: r.citations.map((c) => ({
           kind:

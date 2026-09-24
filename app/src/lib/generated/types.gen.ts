@@ -1072,6 +1072,10 @@ export type TierResult = {
    */
   answer: string | null
   /**
+   * Course
+   */
+  course?: string | null
+  /**
    * Dataset Name
    */
   dataset_name: string
@@ -1082,7 +1086,7 @@ export type TierResult = {
   /**
    * Tier
    */
-  tier: 'course' | 'notes'
+  tier: 'course' | 'notes' | 'related'
 }
 
 /**
