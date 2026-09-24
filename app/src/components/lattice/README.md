@@ -4,7 +4,7 @@ Product-specific modules that compose the shadcn primitives in `../ui`.
 
 - Home: `course-card` renders a `CourseSummary` from the API.
 - Course workspace (`/courses/$courseId`): `materials-panel` (upload + ingest
-  status), `notes-panel` (list + editor dialog), `ask-panel` (session turns,
+  status), `notes-panel` (list + editor dialog + PDF upload), `ask-panel` (session turns,
   citations, history). `status-badge` renders ingest status.
 - All data comes from `#/lib/api` (the real backend); `#/lib/library` holds the
   client-side course list and last-opened material, and `#/lib/user` holds the

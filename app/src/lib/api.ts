@@ -6,6 +6,7 @@ import type {
   CourseOut,
   MaterialOut,
   NoteOut,
+  NoteUploadOut,
   SessionOut,
   TurnOut,
   UploadOut,
@@ -61,6 +62,10 @@ export interface Note {
   owner: string
   id: string
   body_md: string
+  /** Set when the Note is an uploaded PDF; then body_md is empty. */
+  filename: string | null
+  /** Also the name Cognee knows a PDF Note by, so citations carry it. */
+  sha256: string | null
   status: IngestStatus
   error: string | null
   updated_at: string
@@ -212,6 +217,8 @@ function noteView(user: string, course: string, row: NoteOut): Note {
     owner: user,
     id: row.id,
     body_md: row.body_md,
+    filename: row.filename,
+    sha256: row.sha256,
     status: ingestStatus(row.status),
     error: row.error,
     updated_at: row.updated_at,
@@ -443,6 +450,50 @@ export async function saveNote(
       '/notes.save',
       json({ course, note, body_md }),
     ),
+  )
+}
+export async function uploadNote(
+  user: string,
+  course: string,
+  file: File,
+): Promise<Note> {
+  const form = new FormData()
+  form.append('course', course)
+  form.append('file', file)
+  const saved = await request<NoteUploadOut>(user, '/notes.upload', {
+    method: 'POST',
+    body: form,
+  })
+  return noteView(user, course, saved.note)
+}
+
+export interface UploadResult {
+  file: File
+  error: string | null
+}
+/** The most files one selection may hold: each becomes its own request and Cognify run. */
+export const MAX_UPLOAD_FILES = 10
+/**
+ * Every file at once; a failure is reported per file rather than aborting the batch.
+ * A selection over MAX_UPLOAD_FILES is refused whole, before any request is sent.
+ */
+export function uploadEach(
+  files: ArrayLike<File>,
+  upload: (file: File) => Promise<unknown>,
+): Promise<Array<UploadResult>> {
+  if (files.length > MAX_UPLOAD_FILES)
+    return Promise.reject(
+      new Error(`Select at most ${MAX_UPLOAD_FILES} files at a time.`),
+    )
+  return Promise.all(
+    Array.from(files, async (file) => {
+      try {
+        await upload(file)
+        return { file, error: null }
+      } catch (e) {
+        return { file, error: e instanceof Error ? e.message : String(e) }
+      }
+    }),
   )
 }
 export async function ask(

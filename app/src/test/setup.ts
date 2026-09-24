@@ -1,9 +1,20 @@
 import '@testing-library/jest-dom/vitest'
+import { File } from 'node:buffer'
 import { afterAll, afterEach, beforeAll, vi } from 'vitest'
 import { cleanup } from '@testing-library/react'
 
 import { resetStore } from './handlers'
 import { server } from './server'
+
+// Uploads cross two runtimes here: jsdom supplies `File` and `FormData`, but `fetch` and
+// `Request` are Node's, and Node's multipart serialiser keeps a filename only for its own
+// `File` class; anything else becomes an anonymous "blob". jsdom's `FormData` in turn
+// refuses Node's `File`. So both globals come from Node, and an upload reaches the mock
+// handlers with the name the test gave it. Node keeps its `FormData` class private once
+// the global is shadowed; a parsed Response is the one place it is still handed out.
+const NodeFormData = (await new Response(new URLSearchParams()).formData())
+  .constructor as typeof FormData
+Object.assign(globalThis, { File, FormData: NodeFormData })
 
 Object.defineProperty(window, 'scrollTo', {
   configurable: true,

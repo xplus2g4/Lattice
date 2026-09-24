@@ -5,6 +5,7 @@ import type {
   CourseOut,
   MaterialOut,
   NoteOut,
+  NoteUploadOut,
   SessionOut,
   TurnOut,
   UploadOut,
@@ -81,6 +82,8 @@ function noteOut(n: Note): NoteOut {
     material_id: null,
     page: null,
     body_md: n.body_md,
+    filename: n.filename,
+    sha256: n.sha256,
     revision: 1,
     cognified_revision: n.status === 'ready' ? 1 : 0,
     status:
@@ -218,6 +221,8 @@ export const handlers = [
       owner: request.headers.get('X-User') ?? '',
       id: body.note ?? idFor(`note-${nextNote++}`),
       body_md: body.body_md,
+      filename: null,
+      sha256: null,
       status: 'queued',
       error: null,
       updated_at: new Date().toISOString(),
@@ -234,6 +239,27 @@ export const handlers = [
       saved,
     ]
     return HttpResponse.json(noteOut(saved), { status: 202 })
+  }),
+  http.post('*/notes.upload', async ({ request }) => {
+    // Raw multipart text for the same reason as materials.upload: jsdom's File breaks
+    // undici's parser.
+    const body = await request.text()
+    const filename = /filename="([^"]*)"/.exec(body)?.[1] ?? 'unknown'
+    const course = /name="course"\r?\n\r?\n([^\r\n]+)/.exec(body)?.[1] ?? ''
+    const saved: Note = {
+      course,
+      owner: request.headers.get('X-User') ?? '',
+      id: idFor(`note-${nextNote++}`),
+      body_md: '',
+      filename,
+      sha256: idFor(filename).replace(/-/g, '').padEnd(64, '0'),
+      status: 'queued',
+      error: null,
+      updated_at: new Date().toISOString(),
+    }
+    store.notes = [...store.notes, saved]
+    const result: NoteUploadOut = { note: noteOut(saved), deduplicated: false }
+    return HttpResponse.json(result, { status: 202 })
   }),
   http.post('*/ask', async ({ request }) => {
     const body = (await request.json()) as {

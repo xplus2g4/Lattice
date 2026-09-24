@@ -33,6 +33,8 @@ export function note(over: Partial<Note> = {}): Note {
     owner: 'alice@example.com',
     id: 'n1',
     body_md: 'hash tables are week 3',
+    filename: null,
+    sha256: null,
     status: 'ready',
     error: null,
     updated_at: AT,
