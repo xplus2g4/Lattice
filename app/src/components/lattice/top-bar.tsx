@@ -13,7 +13,7 @@ import { getMe } from '#/lib/api'
 import { useUser } from '#/lib/user'
 
 /** The Lattice glyph: a rounded teal tile with a lattice of crossing lines. */
-function LogoMark() {
+export function LogoMark() {
   return (
     <svg
       width="28"
