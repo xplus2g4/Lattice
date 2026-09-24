@@ -471,11 +471,20 @@ export interface UploadResult {
   file: File
   error: string | null
 }
-/** Every file at once; a failure is reported per file rather than aborting the batch. */
+/** The most files one selection may hold: each becomes its own request and Cognify run. */
+export const MAX_UPLOAD_FILES = 10
+/**
+ * Every file at once; a failure is reported per file rather than aborting the batch.
+ * A selection over MAX_UPLOAD_FILES is refused whole, before any request is sent.
+ */
 export function uploadEach(
   files: ArrayLike<File>,
   upload: (file: File) => Promise<unknown>,
 ): Promise<Array<UploadResult>> {
+  if (files.length > MAX_UPLOAD_FILES)
+    return Promise.reject(
+      new Error(`Select at most ${MAX_UPLOAD_FILES} files at a time.`),
+    )
   return Promise.all(
     Array.from(files, async (file) => {
       try {

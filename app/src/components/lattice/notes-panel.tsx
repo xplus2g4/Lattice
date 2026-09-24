@@ -103,6 +103,11 @@ export function NotesPanel({ course, user }: Enrolment) {
           {notes.error.message}
         </p>
       )}
+      {upload.error && (
+        <p className="px-4 pb-1 text-xs text-destructive">
+          {upload.error.message}
+        </p>
+      )}
       {upload.data
         ?.filter((r) => r.error)
         .map((r) => (
