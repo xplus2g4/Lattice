@@ -186,6 +186,8 @@ class FakeEngine:
         self.cleared: list[tuple[UUID, str]] = []
         self.searched: list[dict[UUID, str]] = []
         self.searched_as: list[str] = []
+        # The prompt each search was given; None when the caller left it at the default.
+        self.system_prompts: list[str | None] = []
         self.results: list[TierResult] = []
         self.fail_with: Exception | None = None
         # Embeddings: a basis vector per keyword, so a test decides which courses are near.
@@ -236,11 +238,13 @@ class FakeEngine:
         question: str,
         query_type: str,
         session_id: str,
+        system_prompt: str | None = None,
     ) -> list[TierResult]:
         if self.fail_with is not None:
             raise self.fail_with
         self.searched.append(datasets)
         self.searched_as.append(user.email)
+        self.system_prompts.append(system_prompt)
         tiers = set(datasets.values())
         return [result for result in self.results if result.tier in tiers]
 

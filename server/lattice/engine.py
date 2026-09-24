@@ -176,11 +176,13 @@ class Engine:
         question: str,
         query_type: str,
         session_id: str,
+        system_prompt: str = GROUNDING_POLICY,
     ) -> list[TierResult]:
         """One call across every non-empty dataset; Cognee returns one completion per dataset.
 
         A dataset with nothing cognified makes the whole call raise `NoDataError` (observed:
         a fresh private dataset before the first note), so empty datasets are left out.
+        The prompt is the grounding policy unless the caller answers for another tier.
         """
         searchable = [d for d in datasets if await has_dataset_data(d)]
         if not searchable:
@@ -192,7 +194,7 @@ class Engine:
                 user=user,
                 dataset_ids=searchable,
                 session_id=session_id,
-                system_prompt=GROUNDING_POLICY,
+                system_prompt=system_prompt,
                 verbose=True,
                 include_references=True,
             )

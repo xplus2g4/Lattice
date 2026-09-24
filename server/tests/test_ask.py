@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.config import get_settings
 from lattice.db.repo import course_summaries, courses
-from lattice.grounding import NOT_COVERED
+from lattice.grounding import NOT_COVERED, RELATED_POLICY
 from lattice.retrieval import Evidence, TierResult
 from tests.conftest import basis
 from tests.test_materials import BOB, join, upload
@@ -208,9 +208,13 @@ async def test_related_courses_are_searched_as_reference_material(
     assert turn["cited_chunk_ids"] == ["chunk-1", "chunk-2", "chunk-3"]
     # Evidence names the Material by filename: the client cannot list cs2040's Materials.
     assert results[2]["evidence"][0]["document_name"] == "week5.pdf"
-    # Searched as the instructor, over cs2040's global dataset and nothing else.
+    # Searched as the instructor, over cs2040's global dataset and nothing else, and told to
+    # answer as reference material: a few bullet points, not a second essay.
     assert answering.searched_as == ["ada@example.com", "instructor@lattice.example"]
     assert list(answering.searched[1].values()) == ["related"]
+    assert answering.system_prompts == [None, RELATED_POLICY]
+    assert "at most three bullet points" in RELATED_POLICY
+    assert NOT_COVERED in RELATED_POLICY
 
 
 async def test_a_related_course_that_declines_is_left_out(

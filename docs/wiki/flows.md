@@ -52,9 +52,12 @@ POST /ask {course, session_id, question}
       backlog.md; none when this course has no summary yet). For each, one more
       cognee.search, concurrently with step 5, as the instructor principal over that
       course's {code}-global alone, with a datasets map of its own so an IsolationError
-      refuses anything else. Results carry tier=related and course=code; segment evidence
-      has document_name resolved to the Material's filename, since the client cannot list
-      another course's Materials. The transcript text stays the course's own answer.
+      refuses anything else, and under RELATED_POLICY (grounding.py): at most three
+      one-sentence bullet points, since it is reference material beside the answer. Results
+      carry tier=related and course=code; segment evidence has document_name resolved to
+      the Material's filename, since the client cannot list another course's Materials, and
+      the client links each reference to that course's reader in a new tab. A related
+      course that declines is dropped. The transcript text stays the course's own answer.
   6. build CONTEXT blocks tagged [source: course|notes] [week, slide]; wrap as data
   7. LLM → structured Answer {answer_md, confidence, not_covered, citations[], related[], used_notes}
   8. validate: drop citations whose chunk_id ∉ hits; strip HTML/links; set used_notes from provenance

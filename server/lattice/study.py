@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from lattice.db.models import Course, Session, Turn, User
 from lattice.db.repo import course_summaries, courses, materials, sessions, users
 from lattice.engine import QUERY_TYPES, Engine
-from lattice.grounding import NOT_COVERED
+from lattice.grounding import NOT_COVERED, RELATED_POLICY
 from lattice.retrieval import TierResult
 
 QueryType = Literal["GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS"]
@@ -157,6 +157,7 @@ async def answer_course(
                 body.question,
                 body.query_type,
                 f"{session.id}-related-{lane.code}",
+                system_prompt=RELATED_POLICY,
             )
             for lane in lanes
         ),
