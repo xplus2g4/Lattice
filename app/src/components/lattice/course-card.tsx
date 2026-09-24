@@ -85,7 +85,11 @@ function CourseStatus({
   if (failed > 0) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full bg-[#FDECEA] px-2.5 py-1 text-xs font-semibold text-[#B3261E]">
-        <HugeiconsIcon icon={Alert02Icon} className="size-4" strokeWidth={2.5} />
+        <HugeiconsIcon
+          icon={Alert02Icon}
+          className="size-4"
+          strokeWidth={2.5}
+        />
         {failed} failed
       </span>
     )

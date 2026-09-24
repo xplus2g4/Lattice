@@ -24,7 +24,10 @@ const WEEK = 7 * DAY
 
 /** A short relative time like "just now", "5 minutes ago", "3 days ago". Falls back to a
  * date for anything older than a few weeks. Returns null for a missing or unparseable time. */
-export function relativeTime(iso: string | undefined | null, now = Date.now()): string | null {
+export function relativeTime(
+  iso: string | undefined | null,
+  now = Date.now(),
+): string | null {
   if (!iso) return null
   const then = new Date(iso).getTime()
   if (Number.isNaN(then)) return null
@@ -60,10 +63,15 @@ const asked =
 /** The candidate greetings for an hour of the day, most specific band first. */
 function greetingSet(hours: number): Array<Phrase> {
   if (hours >= 22 || hours < 5)
-    return [asked('Burning the midnight oil'), asked('Night owl'), asked('Still up')]
+    return [
+      asked('Burning the midnight oil'),
+      asked('Night owl'),
+      asked('Still up'),
+    ]
   if (hours < 8) return [asked('Up early'), named('Rise and shine')]
   if (hours < 12) return [named('Good morning'), named('Morning')]
-  if (hours < 17) return [named('Good afternoon'), named('Hope your day’s going well')]
+  if (hours < 17)
+    return [named('Good afternoon'), named('Hope your day’s going well')]
   if (hours < 21) return [named('Good evening'), named('Evening')]
   return [asked('Winding down'), named('Good evening')]
 }

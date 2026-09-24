@@ -54,7 +54,11 @@ function Chevron() {
 
 export function TopBar() {
   const user = useUser()
-  const me = useQuery({ queryKey: ['me'], queryFn: () => getMe(), retry: false })
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: () => getMe(),
+    retry: false,
+  })
   const isInstructor = ['instructor', 'admin'].includes(
     me.data?.user.role ?? '',
   )

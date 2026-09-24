@@ -107,7 +107,11 @@ function Home() {
 
 function Hero() {
   // The account's own name, not a guess from the email; absent for accounts with no name.
-  const me = useQuery({ queryKey: ['me'], queryFn: () => getMe(), retry: false })
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: () => getMe(),
+    retry: false,
+  })
   const name = me.data?.user.name?.trim().split(/\s+/)[0] ?? ''
   // Read the clock on the client, after mount: the server renders in its own timezone, so
   // computing the greeting there could show the wrong part of the day until hydration.
@@ -180,7 +184,9 @@ function ResumeCard({
               <span className="h-1.5 w-[240px] max-w-full overflow-hidden rounded-full bg-[#E3E8E6]">
                 <span
                   className="block h-full rounded-full bg-[#0F7F6E]"
-                  style={{ width: `${Math.min(100, (current / total) * 100)}%` }}
+                  style={{
+                    width: `${Math.min(100, (current / total) * 100)}%`,
+                  }}
                 />
               </span>
               <span className="shrink-0 text-xs text-[#5B6B67]">
@@ -244,7 +250,11 @@ function AddCourseTile() {
       className="flex min-h-[236px] flex-col rounded-[18px] border-[1.5px] border-dashed border-[#C4D3CF] bg-transparent p-5 transition-colors focus-within:border-[#0F7F6E]"
     >
       <span className="flex size-9 items-center justify-center rounded-lg bg-[#E6F5F1] text-[#0F7F6E]">
-        <HugeiconsIcon icon={PlusSignIcon} className="size-5" strokeWidth={2.5} />
+        <HugeiconsIcon
+          icon={PlusSignIcon}
+          className="size-5"
+          strokeWidth={2.5}
+        />
       </span>
       <h3 className="mt-3 text-[18px] font-semibold text-[#0E2622]">
         Add a course
@@ -304,12 +314,7 @@ function FirstRun() {
       </header>
 
       <div className="grid gap-5 lg:grid-cols-3">
-        <StepCard
-          n={1}
-          title="Create a course"
-          highlighted
-          badge="START HERE"
-        >
+        <StepCard n={1} title="Create a course" highlighted badge="START HERE">
           <form onSubmit={onSubmit} className="mt-3 space-y-2">
             <div className="flex gap-2">
               <label htmlFor="firstrun-course" className="sr-only">
