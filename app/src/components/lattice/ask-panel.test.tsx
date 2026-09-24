@@ -1,16 +1,20 @@
-import { screen } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { HttpResponse, http } from 'msw'
 import { describe, expect, it } from 'vitest'
 
 import {
   assistantTurn,
   evidence,
   material,
+  note,
   session,
   tierResult,
   userTurn,
 } from '#/test/fixtures'
-import { resetStore } from '#/test/handlers'
+import { answerNextAskWith, resetStore } from '#/test/handlers'
 import { renderRoute } from '#/test/render'
+import { server } from '#/test/server'
 
 function withAnswer(answer: string, citations = [evidence()]) {
   resetStore({
@@ -94,5 +98,96 @@ describe('an answer', () => {
     )
     expect(screen.queryByText(/chunk_id|data_id|Evidence:/)).toBeNull()
     expect(document.body).not.toHaveTextContent(sha)
+  })
+
+  it('reads as one answer across Materials and Notes, with one list of references', async () => {
+    resetStore({
+      materials: [material({ filename: 'week1.pdf' })],
+      notes: [note({ id: 'n1', body_md: '# My mnemonic\n\nviolet abacus' })],
+      sessions: {
+        'sess-1': session({
+          turns: [
+            userTurn('how are collisions resolved?'),
+            assistantTurn({
+              results: [
+                tierResult({
+                  answer: 'Chaining.',
+                  citations: [
+                    evidence({ filename: 'a'.repeat(64), page_start: 3 }),
+                  ],
+                }),
+                tierResult({
+                  tier: 'private',
+                  answer: 'Your mnemonic is violet abacus.',
+                  citations: [
+                    evidence({ filename: 'n1.md', chunk_id: 'c-n1' }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      },
+    })
+    localStorage.setItem('lattice.session.cs101.alice@example.com', 'sess-1')
+    renderRoute('/courses/cs101')
+
+    expect(await screen.findByText('Chaining.')).toBeInTheDocument()
+    expect(
+      screen.getByText('Your mnemonic is violet abacus.'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Course materials')).toBeNull()
+    expect(screen.queryByText('Your notes')).toBeNull()
+    expect(screen.getAllByText('References')).toHaveLength(1)
+    expect(
+      screen.getByRole('link', { name: 'week1.pdf, p. 3' }),
+    ).toBeInTheDocument()
+    expect(screen.getByText('My mnemonic')).toBeInTheDocument()
+  })
+})
+
+describe('the ask bar', () => {
+  it('clears and locks the field while asking, then hands it back', async () => {
+    resetStore({ materials: [material()] })
+    answerNextAskWith(
+      assistantTurn({ results: [tierResult({ answer: 'Buckets.' })] }),
+      { after: 150 },
+    )
+    const user = userEvent.setup()
+    renderRoute('/courses/cs101')
+
+    const field = await screen.findByPlaceholderText(/Ask about CS101/)
+    await user.type(field, 'what is a bucket?')
+    await user.keyboard('{Control>}{Enter}{/Control}')
+
+    expect(field).toBeDisabled()
+    expect(field).toHaveValue('')
+    expect(screen.getByText('what is a bucket?')).toBeInTheDocument()
+    expect(screen.getByText('Thinking…')).toBeInTheDocument()
+
+    expect(await screen.findByText('Buckets.')).toBeInTheDocument()
+    // The answer lands a beat before the mutation settles and the field unlocks.
+    await waitFor(() => expect(field).toBeEnabled())
+    expect(field).toHaveValue('')
+    expect(field).toHaveFocus()
+  })
+
+  it('puts the question back when the ask fails', async () => {
+    resetStore({ materials: [material()] })
+    server.use(
+      http.post('*/ask', () =>
+        HttpResponse.json({ detail: 'search unavailable' }, { status: 502 }),
+      ),
+    )
+    const user = userEvent.setup()
+    renderRoute('/courses/cs101')
+
+    const field = await screen.findByPlaceholderText(/Ask about CS101/)
+    await user.type(field, 'what is a bucket?')
+    await user.click(screen.getByRole('button', { name: 'Ask Lattice' }))
+
+    expect(await screen.findByText(/search unavailable/)).toBeInTheDocument()
+    expect(field).toBeEnabled()
+    expect(field).toHaveValue('what is a bucket?')
   })
 })

@@ -1,4 +1,4 @@
-import { HttpResponse, http } from 'msw'
+import { HttpResponse, delay, http } from 'msw'
 
 import type { Material, Note, Session, Turn } from '#/lib/api'
 import type {
@@ -24,18 +24,22 @@ export interface Store {
 }
 export const store: Store = { materials: [], notes: [], sessions: {} }
 let nextAnswer: Turn | null = null
+let nextAnswerAfterMs = 0
 let nextNote = 1
 
 /** Shape the next answer without replacing the handler, which would skip the session
- * bookkeeping the client depends on and leave `/ask` returning an id nothing can read. */
-export function answerNextAskWith(turn: Turn) {
+ * bookkeeping the client depends on and leave `/ask` returning an id nothing can read.
+ * `after` holds the answer back, so a test can look at the panel while it is asking. */
+export function answerNextAskWith(turn: Turn, { after = 0 } = {}) {
   nextAnswer = turn
+  nextAnswerAfterMs = after
 }
 export function resetStore(next: Partial<Store> = {}) {
   store.materials = next.materials ?? []
   store.notes = next.notes ?? []
   store.sessions = next.sessions ?? {}
   nextAnswer = null
+  nextAnswerAfterMs = 0
   nextNote = 1
 }
 function idFor(value: string): string {
@@ -265,6 +269,8 @@ export const handlers = [
       turns: [...current.turns, userTurn(body.question), answered],
     }
     nextAnswer = null
+    if (nextAnswerAfterMs > 0) await delay(nextAnswerAfterMs)
+    nextAnswerAfterMs = 0
     return HttpResponse.json({
       session: current.id,
       turn: turnOut(answered, current.id),

@@ -304,10 +304,14 @@ function turnView(row: TurnOut): Turn {
       ],
     })
   }
+  const role = row.role === 'user' ? 'user' : 'assistant'
+  const text = string(content.text)
   return {
     id: row.id,
-    role: row.role === 'user' ? 'user' : 'assistant',
-    content: string(content.text) ?? '',
+    role,
+    // An answer persisted before the server stripped Cognee's Evidence block still ends in
+    // one; its Page badges are already lifted per tier above.
+    content: (role === 'assistant' ? liftEvidence(text).answer : text) ?? '',
     query_type: string(content.query_type),
     results,
     used_notes: row.used_notes,
