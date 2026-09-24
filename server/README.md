@@ -95,11 +95,26 @@ unless they set `notes_opt_out`, tracked on the Note as `status` (`dirty`, `inde
 clears the searchable private content. The API coalesces dirty Notes and recovers interrupted
 ingest; the general Worker job queue remains a separate deployment step.
 
-Set `MCP_ENABLED=true` with development identity enabled to mount `/mcp/` over Streamable HTTP.
-It is loopback-only, rejects forwarded identity, and uses the same Postgres records, Enrolment
-checks and `notes_opt_out` setting as RPC. Run one API process per Cognee root. Existing local
-`.page-notes` JSON records are not automatically imported or deleted; migrate them explicitly
-before relying on the database as their only copy.
+MCP runs in a separate process from the API. Set `MCP_ENABLED=true` and
+`DEV_HEADER_AUTH=true` in `.env`, keep the API running, then launch from another terminal:
+
+```sh
+uv run --locked python -m lattice.mcp  # http://127.0.0.1:8001/mcp/
+```
+
+Point MCP clients at that URL with an `X-User: <email>` header. `MCP_API_URL` defaults to
+`http://127.0.0.1:8000`; change it if the API uses another port. For a custom MCP port, run
+`uv run --locked uvicorn lattice.mcp:create_app --factory --host 127.0.0.1 --port 8001 --no-proxy-headers`.
+The adapter is loopback-only and rejects forwarded identity. It forwards each caller to the
+API's authenticated `/study/*` operations, preserving Enrolment, Note revisions, Sessions and
+`notes_opt_out`. Tool discovery works while the API is unavailable; tool calls need the API.
+`MCP_ENABLED` only gates the separate adapter; the API never mounts `/mcp/`.
+
+The adapter opens no Postgres or Cognee stores and runs no ingestion loop. Keep one API process
+per Cognee root; it owns storage and Cognify, including Notes saved through MCP. With Docker,
+run the adapter on the host against the published API port. Existing local `.page-notes` JSON
+records are not automatically imported or deleted; migrate them explicitly before relying on
+the database as their only copy.
 
 `/ask` appends two Turns to a Session — the question, then the answer with its Tier results and
 the chunks they cite — so `/sessions.get` replays a conversation after a reload and `/sessions.list`

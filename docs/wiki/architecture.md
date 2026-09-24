@@ -49,6 +49,6 @@ TanStack Start (React, TanStack Router + Query, Nitro) · FastAPI (Python 3.14, 
 - No cross-course queries; a session is always scoped to one course.
 - No temporal versioning of materials (a re-upload replaces). Graphiti-style bi-temporal facts are a Stage 3 concern.
 - No super-user retrieval path in the API; admin debugging uses a CLI with an explicit principal.
-- No Cognee REST server or Cognee MCP server exposed; the library runs in-process behind the API. An opt-in, loopback-only Lattice MCP adapter shares the API's application records and access checks.
+- No Cognee REST server or Cognee MCP server exposed; the library runs in-process behind the API. An opt-in, loopback-only Lattice MCP adapter runs in a separate process and calls authenticated API operations over HTTP; only the API opens the embedded stores.
 - No separate vector DB; pgvector in the app Postgres is the vector store.
 - No message broker; the job queue is a table.

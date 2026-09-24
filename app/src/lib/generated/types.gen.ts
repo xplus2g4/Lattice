@@ -5,6 +5,44 @@ export type ClientOptions = {
 }
 
 /**
+ * AnswerTurn
+ */
+export type AnswerTurn = {
+  /**
+   * Content
+   */
+  content: string
+  /**
+   * Created At
+   */
+  created_at: string
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Latency Ms
+   */
+  latency_ms: number | null
+  /**
+   * Query Type
+   */
+  query_type: string
+  /**
+   * Results
+   */
+  results: Array<TierResult>
+  /**
+   * Role
+   */
+  role?: 'assistant'
+  /**
+   * Used Notes
+   */
+  used_notes: boolean
+}
+
+/**
  * AskOut
  */
 export type AskOut = {
@@ -36,6 +74,17 @@ export type AskRequest = {
    * Session
    */
   session?: string | null
+}
+
+/**
+ * AskResponse
+ */
+export type AskResponse = {
+  /**
+   * Session Id
+   */
+  session_id: string
+  turn: AnswerTurn
 }
 
 /**
@@ -98,6 +147,29 @@ export type CourseOut = {
    * Term
    */
   term: string | null
+}
+
+/**
+ * CourseQuestion
+ */
+export type CourseQuestion = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Query Type
+   */
+  query_type?:
+    'GRAPH_COMPLETION' | 'RAG_COMPLETION' | 'HYBRID_COMPLETION' | 'CHUNKS'
+  /**
+   * Question
+   */
+  question: string
+  /**
+   * Session Id
+   */
+  session_id?: string | null
 }
 
 /**
@@ -172,6 +244,84 @@ export type EnrolmentOut = {
 }
 
 /**
+ * Evidence
+ */
+export type Evidence = {
+  /**
+   * Chunk Id
+   */
+  chunk_id?: string | null
+  /**
+   * Chunk Index
+   */
+  chunk_index?: number | null
+  /**
+   * Data Id
+   */
+  data_id?: string | null
+  /**
+   * Dataset Id
+   */
+  dataset_id?: string | null
+  /**
+   * Document Name
+   */
+  document_name?: string | null
+  /**
+   * Kind
+   */
+  kind: string
+  /**
+   * Label
+   */
+  label?: string | null
+  /**
+   * Page End
+   */
+  page_end?: number | null
+  /**
+   * Page Start
+   */
+  page_start?: number | null
+  /**
+   * Relationship Name
+   */
+  relationship_name?: string | null
+}
+
+/**
+ * Finding
+ */
+export type Finding = {
+  /**
+   * Citations
+   */
+  citations: Array<ReviewChunk>
+  /**
+   * Correction
+   */
+  correction: string | null
+  /**
+   * Evidence Limited
+   *
+   * Retrieved Chunks were omitted to keep review within its budget.
+   */
+  evidence_limited?: boolean
+  /**
+   * Excerpt
+   */
+  excerpt: string
+  /**
+   * Explanation
+   */
+  explanation: string
+  /**
+   * Verdict
+   */
+  verdict: 'supported' | 'contradicted' | 'insufficient_evidence'
+}
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -179,6 +329,32 @@ export type HttpValidationError = {
    * Detail
    */
   detail?: Array<ValidationError>
+}
+
+/**
+ * MaterialContext
+ */
+export type MaterialContext = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Material Id
+   */
+  material_id: string
+  /**
+   * Page Count
+   */
+  page_count: number
+  /**
+   * Topic
+   */
+  topic?: null
 }
 
 /**
@@ -251,6 +427,20 @@ export type MaterialRef = {
    * Material
    */
   material: string
+}
+
+/**
+ * MaterialRequest
+ */
+export type MaterialRequest = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Filename
+   */
+  filename: string
 }
 
 /**
@@ -395,6 +585,40 @@ export type NoteRef = {
 }
 
 /**
+ * NoteReview
+ */
+export type NoteReview = {
+  /**
+   * Draft Hash
+   */
+  draft_hash: string
+  /**
+   * Findings
+   */
+  findings: Array<Finding>
+  /**
+   * Input Characters
+   */
+  input_characters: number
+  /**
+   * Limitation
+   */
+  limitation?: string
+  /**
+   * Reviewed Characters
+   */
+  reviewed_characters: number
+  /**
+   * Summary
+   */
+  summary: string
+  /**
+   * Truncated
+   */
+  truncated: boolean
+}
+
+/**
  * NoteUploadOut
  */
 export type NoteUploadOut = {
@@ -403,6 +627,83 @@ export type NoteUploadOut = {
    */
   deduplicated: boolean
   note: NoteOut
+}
+
+/**
+ * PageAnchor
+ */
+export type PageAnchor = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Filename
+   */
+  filename: string
+  /**
+   * Material Id
+   */
+  material_id: string
+  /**
+   * Page Number
+   */
+  page_number: number
+}
+
+/**
+ * PageNote
+ */
+export type PageNote = {
+  anchor: PageAnchor
+  /**
+   * Attempts
+   */
+  attempts?: number
+  /**
+   * Body Md
+   */
+  body_md: string
+  /**
+   * Cognified Revision
+   */
+  cognified_revision: number
+  /**
+   * Cognify Enabled
+   */
+  cognify_enabled?: boolean
+  /**
+   * Content Hash
+   */
+  content_hash: string
+  /**
+   * Error
+   */
+  error?: string | null
+  /**
+   * Id
+   */
+  id: string
+  /**
+   * Owner
+   */
+  owner: string
+  /**
+   * Revision
+   */
+  revision: number
+  /**
+   * Run After
+   */
+  run_after: string | null
+  /**
+   * Status
+   */
+  status: 'empty' | 'queued' | 'cognifying' | 'ready' | 'failed' | 'stored'
+  /**
+   * Updated At
+   */
+  updated_at: string | null
 }
 
 /**
@@ -624,6 +925,46 @@ export type ReplaceTopics = {
 }
 
 /**
+ * ReviewChunk
+ */
+export type ReviewChunk = {
+  /**
+   * Chunk Id
+   */
+  chunk_id: string
+  /**
+   * Chunk Index
+   */
+  chunk_index: number | null
+  /**
+   * Dataset Id
+   */
+  dataset_id: string
+  /**
+   * Material Name
+   */
+  material_name: string
+  /**
+   * Text
+   */
+  text: string
+}
+
+/**
+ * ReviewRequest
+ */
+export type ReviewRequest = {
+  /**
+   * Body Md
+   */
+  body_md: string
+  /**
+   * Course
+   */
+  course: string
+}
+
+/**
  * SaveNote
  */
 export type SaveNote = {
@@ -651,6 +992,21 @@ export type SaveNote = {
    * Page
    */
   page?: number | null
+}
+
+/**
+ * SavePageNote
+ */
+export type SavePageNote = {
+  anchor: PageAnchor
+  /**
+   * Body Md
+   */
+  body_md: string
+  /**
+   * Expected Revision
+   */
+  expected_revision: number
 }
 
 /**
@@ -705,6 +1061,28 @@ export type SubmitQuiz = {
    * Score
    */
   score?: number | null
+}
+
+/**
+ * TierResult
+ */
+export type TierResult = {
+  /**
+   * Answer
+   */
+  answer: string | null
+  /**
+   * Dataset Name
+   */
+  dataset_name: string
+  /**
+   * Evidence
+   */
+  evidence: Array<Evidence>
+  /**
+   * Tier
+   */
+  tier: 'course' | 'notes'
 }
 
 /**
@@ -2313,6 +2691,171 @@ export type ListSessionsSessionsListGetResponses = {
 
 export type ListSessionsSessionsListGetResponse =
   ListSessionsSessionsListGetResponses[keyof ListSessionsSessionsListGetResponses]
+
+export type AskStudyAskPostData = {
+  body: CourseQuestion
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/study/ask'
+}
+
+export type AskStudyAskPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type AskStudyAskPostError =
+  AskStudyAskPostErrors[keyof AskStudyAskPostErrors]
+
+export type AskStudyAskPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: AskResponse
+}
+
+export type AskStudyAskPostResponse =
+  AskStudyAskPostResponses[keyof AskStudyAskPostResponses]
+
+export type MaterialContextStudyMaterialContextPostData = {
+  body: MaterialRequest
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/study/materialContext'
+}
+
+export type MaterialContextStudyMaterialContextPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type MaterialContextStudyMaterialContextPostError =
+  MaterialContextStudyMaterialContextPostErrors[keyof MaterialContextStudyMaterialContextPostErrors]
+
+export type MaterialContextStudyMaterialContextPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: MaterialContext
+}
+
+export type MaterialContextStudyMaterialContextPostResponse =
+  MaterialContextStudyMaterialContextPostResponses[keyof MaterialContextStudyMaterialContextPostResponses]
+
+export type ReviewNoteStudyNoteReviewPostData = {
+  body: ReviewRequest
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/study/note.review'
+}
+
+export type ReviewNoteStudyNoteReviewPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ReviewNoteStudyNoteReviewPostError =
+  ReviewNoteStudyNoteReviewPostErrors[keyof ReviewNoteStudyNoteReviewPostErrors]
+
+export type ReviewNoteStudyNoteReviewPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: NoteReview
+}
+
+export type ReviewNoteStudyNoteReviewPostResponse =
+  ReviewNoteStudyNoteReviewPostResponses[keyof ReviewNoteStudyNoteReviewPostResponses]
+
+export type GetPageNoteStudyPageNoteGetPostData = {
+  body: PageAnchor
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/study/pageNote.get'
+}
+
+export type GetPageNoteStudyPageNoteGetPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GetPageNoteStudyPageNoteGetPostError =
+  GetPageNoteStudyPageNoteGetPostErrors[keyof GetPageNoteStudyPageNoteGetPostErrors]
+
+export type GetPageNoteStudyPageNoteGetPostResponses = {
+  /**
+   * Successful Response
+   */
+  200: PageNote
+}
+
+export type GetPageNoteStudyPageNoteGetPostResponse =
+  GetPageNoteStudyPageNoteGetPostResponses[keyof GetPageNoteStudyPageNoteGetPostResponses]
+
+export type SavePageNoteStudyPageNoteSavePostData = {
+  body: SavePageNote
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/study/pageNote.save'
+}
+
+export type SavePageNoteStudyPageNoteSavePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type SavePageNoteStudyPageNoteSavePostError =
+  SavePageNoteStudyPageNoteSavePostErrors[keyof SavePageNoteStudyPageNoteSavePostErrors]
+
+export type SavePageNoteStudyPageNoteSavePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: PageNote
+}
+
+export type SavePageNoteStudyPageNoteSavePostResponse =
+  SavePageNoteStudyPageNoteSavePostResponses[keyof SavePageNoteStudyPageNoteSavePostResponses]
 
 export type ListTopicsTopicsListGetData = {
   body?: never
