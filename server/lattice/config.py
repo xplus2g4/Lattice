@@ -24,6 +24,9 @@ class Settings(BaseSettings):
 
     # Honour the `X-User` header as the caller's identity. Dev only; Bearer replaces it.
     dev_header_auth: bool = False
+    # A fixed invite token that always redeems (as student). Only honoured while
+    # dev_header_auth is on, so it cannot leak into a deployment.
+    dev_invite_code: str = ""
     mcp_enabled: bool = False
 
     # HS256 key for the tokens the web app mints after Google sign-in. Shared with the

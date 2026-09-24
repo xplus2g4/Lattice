@@ -1121,7 +1121,7 @@
         "properties": {
           "token": {
             "maxLength": 256,
-            "minLength": 16,
+            "minLength": 4,
             "title": "Token",
             "type": "string"
           }

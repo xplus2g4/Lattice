@@ -25,6 +25,7 @@ def settings(tmp_path, migrated_database: str) -> Settings:
         cognee_root=tmp_path / "cognee",
         uploads_dir=tmp_path / "uploads",
         instructor_email="prof@example.com",
+        dev_invite_code="123456",
     )
 
 
@@ -153,3 +154,18 @@ async def test_invite_via_header(client: AsyncClient) -> None:
         "/invites.redeem", json={"token": token}, headers={"X-User": "dev@example.com"}
     )
     assert r.status_code == 200
+
+
+async def test_dev_invite_code_admits_students(client: AsyncClient) -> None:
+    """The fixed dev code is reusable and creates students, no invite row needed."""
+    for email in ("one@example.com", "two@example.com"):
+        r = await client.post(
+            "/invites.redeem", json={"token": "123456"}, headers=bearer(email)
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["role"] == "student"
+
+    r = await client.post(
+        "/invites.redeem", json={"token": "654321"}, headers=bearer("bad@example.com")
+    )
+    assert r.status_code == 403

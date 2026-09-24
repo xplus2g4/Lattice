@@ -4,7 +4,12 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from lattice.api.deps import CurrentIdentity, CurrentUser, SessionDep
+from lattice.api.deps import (
+    CurrentIdentity,
+    CurrentUser,
+    SessionDep,
+    SettingsDep,
+)
 from lattice.api.schemas import InviteOut, UserOut
 from lattice.db.repo import invites, users
 
@@ -17,7 +22,7 @@ class CreateInvite(BaseModel):
 
 
 class RedeemInvite(BaseModel):
-    token: str = Field(min_length=16, max_length=256)
+    token: str = Field(min_length=4, max_length=256)
 
 
 @router.post("/invites.create", status_code=201)
@@ -41,15 +46,26 @@ async def create_invite(user: CurrentUser, body: CreateInvite, session: SessionD
 
 @router.post("/invites.redeem")
 async def redeem_invite(
-    identity: CurrentIdentity, body: RedeemInvite, session: SessionDep
+    identity: CurrentIdentity,
+    body: RedeemInvite,
+    session: SessionDep,
+    settings: SettingsDep,
 ) -> UserOut:
     """First-sight account creation: the invite is the only way in, and it burns on use."""
-    invite = await invites.by_token(session, body.token)
-    if not invites.usable(invite):
-        raise HTTPException(403, "invite is invalid, expired or already used")
     user = await users.by_email(session, identity.email)
     if user is not None:
         return UserOut.model_validate(user)
+    if (
+        settings.dev_header_auth
+        and settings.dev_invite_code
+        and body.token == settings.dev_invite_code
+    ):
+        # Dev door: the fixed code lets local setups in without minting invites.
+        user = await users.create(session, identity.email, role="student")
+        return UserOut.model_validate(user)
+    invite = await invites.by_token(session, body.token)
+    if not invites.usable(invite):
+        raise HTTPException(403, "invite is invalid, expired or already used")
     user = await users.create(session, identity.email, role=invite.role)
     await invites.burn(session, invite, user)
     return UserOut.model_validate(user)
