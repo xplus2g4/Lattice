@@ -341,7 +341,7 @@ function TurnView({ turn }: { turn: Turn }) {
   return (
     <div className="space-y-2 rounded border border-border px-3 py-2">
       {turn.results.map((r) => (
-        <TierView key={r.tier} result={r} />
+        <TierView key={`${r.tier}:${r.course ?? ''}`} result={r} />
       ))}
       {turn.results.length === 0 && (
         <p className="text-sm italic text-muted-foreground">
@@ -359,6 +359,7 @@ function TurnView({ turn }: { turn: Turn }) {
 const tierLabel: Record<TierResult['tier'], string> = {
   global: 'Course materials',
   private: 'Your notes',
+  related: 'Related course',
 }
 
 function TierView({ result }: { result: TierResult }) {
@@ -366,6 +367,9 @@ function TierView({ result }: { result: TierResult }) {
     <div>
       <h3 className="text-xs font-semibold uppercase text-muted-foreground">
         {tierLabel[result.tier]}
+        {result.tier === 'related' && result.course
+          ? ` · ${result.course.toUpperCase()}`
+          : ''}
       </h3>
       <p className="text-sm whitespace-pre-wrap">
         {result.answer ?? (

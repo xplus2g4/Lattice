@@ -6,3 +6,5 @@ __pycache__/
 dist/
 .cognee/
 data/
+eval/*/
+!eval/author-questions/

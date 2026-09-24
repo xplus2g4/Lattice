@@ -55,11 +55,8 @@ function mergeSpans(spans: Array<PageSpan>): Array<PageSpan> {
   return out
 }
 
-export function groupReferences(
-  citations: ReadonlyArray<Citation>,
-  materials: ReadonlyArray<Material>,
-  notes: ReadonlyArray<Note>,
-): References {
+/** Chunk citations by the document they cite, spans merged; the rest as concept names. */
+function collect(citations: ReadonlyArray<Citation>) {
   const byName = new Map<string, Array<PageSpan>>()
   const concepts = new Set<string>()
   for (const c of citations) {
@@ -78,6 +75,32 @@ export function groupReferences(
       if (concept) concepts.add(concept)
     }
   }
+  return { byName, concepts: [...concepts] }
+}
+
+/** References from a related course. The server has already named each cited Material by
+ * its filename, and this course cannot list that course's Materials, so each name stands as
+ * its own source; with the course code known it opens in that course's reader. */
+export function relatedReferences(
+  citations: ReadonlyArray<Citation>,
+  course: string | null,
+): References {
+  const { byName, concepts } = collect(citations)
+  const sources = [...byName].map(([name, spans]): Source => ({
+    name,
+    label: name,
+    filename: course ? name : null,
+    spans: mergeSpans(spans),
+  }))
+  return { sources, concepts }
+}
+
+export function groupReferences(
+  citations: ReadonlyArray<Citation>,
+  materials: ReadonlyArray<Material>,
+  notes: ReadonlyArray<Note>,
+): References {
+  const { byName, concepts } = collect(citations)
   const sources = [...byName].map(([name, spans]): Source => {
     const material = materialFor(name, materials)
     const note = material
@@ -100,5 +123,5 @@ export function groupReferences(
       spans: mergeSpans(spans),
     }
   })
-  return { sources, concepts: [...concepts] }
+  return { sources, concepts }
 }

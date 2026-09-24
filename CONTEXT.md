@@ -37,6 +37,10 @@ The smallest retrievable unit of indexed content; what citations resolve to. Eve
 A contiguous run of pages about one idea within a Material, produced at Cognify time. What "the topic the student just read" resolves to.
 _Avoid_: unit, module, section, segment
 
+**Course summary**:
+One vector per course, the mean of one embedding per ready Material, refreshed on a timer; how courses are compared to each other. Not written by an LLM.
+_Avoid_: course embedding, course profile
+
 ### Identity
 
 **Principal**:
@@ -56,6 +60,10 @@ _Avoid_: invitation link, access code
 **Session**:
 A user's conversation within one course. Never spans courses.
 _Avoid_: chat, thread
+
+**Related course**:
+One of the three courses whose Course summary is nearest to the Session's course and above the similarity floor; its global tier is searched as reference material beside the course's own tiers. The Session still never spans courses.
+_Avoid_: neighbour course, similar course, cross-module
 
 **Turn**:
 One user question or one assistant answer within a session; the unit of citation audit and cost accounting.

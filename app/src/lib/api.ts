@@ -95,7 +95,10 @@ export interface Citation {
   page_end?: number | null
 }
 export interface TierResult {
-  tier: 'global' | 'private'
+  /** `related`: the global tier of a nearest-neighbour course, searched as reference. */
+  tier: 'global' | 'private' | 'related'
+  /** The course the result came from; another course's code for `related`. */
+  course: string | null
   answer: string | null
   citations: Array<Citation>
 }
@@ -295,7 +298,8 @@ function turnView(row: TurnOut): Turn {
   const results: Array<TierResult> = []
   for (const value of Array.isArray(content.results) ? content.results : []) {
     const r = record(value)
-    if (r.tier !== 'course' && r.tier !== 'notes') continue
+    if (r.tier !== 'course' && r.tier !== 'notes' && r.tier !== 'related')
+      continue
     const citations: Array<Citation> = []
     for (const item of Array.isArray(r.evidence) ? r.evidence : []) {
       const e = record(item)
@@ -322,7 +326,13 @@ function turnView(row: TurnOut): Turn {
     const lifted = liftEvidence(string(r.answer))
     const cited = new Set(citations.map((c) => c.chunk_id).filter(Boolean))
     results.push({
-      tier: r.tier === 'course' ? 'global' : 'private',
+      tier:
+        r.tier === 'course'
+          ? 'global'
+          : r.tier === 'notes'
+            ? 'private'
+            : 'related',
+      course: string(r.course),
       answer: lifted.answer,
       citations: [
         ...citations,

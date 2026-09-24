@@ -1,5 +1,5 @@
 import asyncio
-from contextlib import AsyncExitStack, asynccontextmanager
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,8 +14,10 @@ from lattice.api import (
     me,
     note_records,
     quiz_records,
+    study_tools,
 )
 from lattice.config import Settings, get_settings
+from lattice.course_summaries import CourseSummaries
 from lattice.db import Database
 from lattice.db.migrate import upgrade_async
 from lattice.engine import Engine
@@ -24,10 +26,6 @@ from lattice.ingest import Ingest
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     settings = settings or get_settings()
-    if settings.mcp_enabled and not settings.dev_header_auth:
-        raise ValueError(
-            "MCP currently requires development header identity and loopback-only access"
-        )
     engine = Engine(settings)
     database = Database(settings)
 
@@ -44,14 +42,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 await upgrade_async(settings.database_url)
             with FileLock(settings.cognee_root.resolve() / "note-ingest.lock", timeout=0):
                 await app.state.ingest.recover_notes()
-                async with AsyncExitStack() as stack:
-                    if settings.mcp_enabled:
-                        await stack.enter_async_context(mcp.session_manager.run())
-                    async with asyncio.TaskGroup() as workers:
-                        task = workers.create_task(ingest_notes())
-                        try:
-                            yield
-                        finally:
+                async with asyncio.TaskGroup() as workers:
+                    tasks = [
+                        workers.create_task(ingest_notes()),
+                        # Under the same lock as Note ingest, so one process refreshes.
+                        workers.create_task(app.state.course_summaries.run_forever()),
+                    ]
+                    try:
+                        yield
+                    finally:
+                        for task in tasks:
                             task.cancel()
         finally:
             await database.dispose()
@@ -68,6 +68,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.database = database
     app.state.ingest = Ingest(database.sessionmaker, engine, settings)
+    app.state.course_summaries = CourseSummaries(database.sessionmaker, engine, settings)
     for router in (
         health.router,
         me.router,
@@ -77,14 +78,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         note_records.router,
         ask.router,
         quiz_records.router,
+        study_tools.router,
     ):
         app.include_router(router)
-    if settings.mcp_enabled:
-        from lattice.mcp import LocalMCP, create_mcp
-
-        mcp = create_mcp(app, settings)
-        app.state.mcp = mcp
-        app.mount("/mcp", LocalMCP(mcp.streamable_http_app(), settings))
     return app
 
 

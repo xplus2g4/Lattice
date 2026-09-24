@@ -9,7 +9,8 @@ Single GCP VM, `docker compose`:
 ```
 caddy      :443 → web:3000, api:8000            TLS, one domain
 web        TanStack Start (Nitro node server, `node .output/server/index.mjs`)
-api        FastAPI + cognee (library)             env: DATABASE_URL, LLM_*, EMBEDDING_*, GCS_*, COGNEE_*
+api        FastAPI + cognee (library)             env: DATABASE_URL, LLM_*, EMBEDDING_*, GCS_*, COGNEE_*,
+                                                       RELATED_COURSES_K, COURSE_SUMMARY_REFRESH_S
 worker     same image, `python -m lattice.worker`
 postgres   pgvector image, volume pgdata
 ladybug    no container — file DB on volume graphdata, mounted into api and worker
@@ -18,6 +19,15 @@ neo4j      compose profile `neo4j`, off by default
 
 Both `api` and `worker` import Cognee, so both mount `graphdata` and point at the same Postgres. Cognee's own config (`ENABLE_BACKEND_ACCESS_CONTROL`, storage backends, LLM/embedding providers) comes from env, identical in both containers.
 
+The migration that creates `course_summaries` runs `CREATE EXTENSION IF NOT EXISTS vector`, so the database must come from the pgvector image (compose and CI do) and the migrating role must be allowed to create extensions; on a managed Postgres, enable `vector` by hand before the first `alembic upgrade head`. Course summaries are embedded through the same OpenAI model as everything else, so the API needs `EMBEDDING_API_KEY` to refresh them; `RELATED_COURSES_K=0` switches the Related-course lane off without touching the summaries.
+
+For local MCP access, run `uv run --locked python -m lattice.mcp` separately from the API,
+with `MCP_ENABLED=true` and `DEV_HEADER_AUTH=true`. The adapter listens on loopback port 8001
+and calls `MCP_API_URL` (default `http://127.0.0.1:8000`). It needs no shared volumes or database
+connection. The API retains the Cognee root and Note ingestion lock. See
+[server setup](../../server/README.md) for client configuration.
+
+>>>>>>> origin/main
 ## CI and deploys
 
 GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every PR and on merge to `main`:
@@ -39,7 +49,7 @@ Locally `uv run pytest` skips canaries only when no key is configured. Tests dis
 
 ## Backups
 
-Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The job queue is a Postgres table, so it rides along in the same backup.
+Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The job queue is a Postgres table, so it rides along in the same backup. So does `course_summaries`, but it is derived data: a restore without it is rebuilt by the API's refresh timer on its next pass.
 
 ## Pins
 
@@ -56,3 +66,5 @@ Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The job queue is a Pos
 | Worker crashes mid-job | Job locked | `locked_by` plus heartbeat; stale locks released after timeout; cognify is idempotent per material hash |
 | Per-user budget exhausted | `/ask` refused | 429 with reset time; notes and browsing unaffected |
 | Cross-dataset search not isolating | Data leak risk | Canary test fails CI; switch `ASK_TWO_CALL_MODE=1` ([flows.md](./flows.md)) |
+| Embedding model download blocked at API start-up (fresh container, Hugging Face rate limit) | Course-summary refresh delayed | The pass fails or waits, is logged, and retries on the next tick; existing summaries keep serving Related courses; `/ask` is unaffected ([#83](https://github.com/xplus2g4/Lattice/issues/83)) |
+| Postgres restarted under a running API | Course-summary refresh stalls | The pass holds one connection and has no timeout, so it hangs silently until the API restarts; restart `api` after any Postgres recreate ([#82](https://github.com/xplus2g4/Lattice/issues/82)) |

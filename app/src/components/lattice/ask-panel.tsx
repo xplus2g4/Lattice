@@ -15,10 +15,17 @@ import {
   listNotes,
   listSessions,
 } from '#/lib/api'
-import { groupReferences } from '#/lib/references'
+import { groupReferences, relatedReferences } from '#/lib/references'
 import { useStored } from '#/lib/user'
 
-import type { Enrolment, Material, Note, Session, Turn } from '#/lib/api'
+import type {
+  Enrolment,
+  Material,
+  Note,
+  Session,
+  TierResult,
+  Turn,
+} from '#/lib/api'
 
 export function AskPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
@@ -117,10 +124,13 @@ export function AskPanel({ course, user }: Enrolment) {
   }, [submit.isPending])
 
   const turns = session.data?.turns ?? []
+  // Scroll to the bottom when a question is sent, so its echo and the pending mark are in
+  // view; not when the answer lands, so a student reading further up is not pulled down.
   const scrollRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
-  }, [turns.length, submit.isPending])
+    if (submit.isPending)
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
+  }, [submit.isPending])
 
   return (
     <Tabs
@@ -299,8 +309,8 @@ function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
         </p>
       ) : (
         <>
-          {/* The server composes one answer across tiers (study.py); the references
-              it drew on are listed once too, Materials and Notes alike. */}
+          {/* The server composes one answer across the course's own tiers (study.py); the
+              references it drew on are listed once too, Materials and Notes alike. */}
           {turn.content ? (
             <Markdown>{turn.content}</Markdown>
           ) : (
@@ -309,16 +319,48 @@ function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
           <ReferenceList
             course={sources.course}
             references={groupReferences(
-              turn.results.flatMap((r) => r.citations),
+              turn.results
+                .filter((r) => r.tier !== 'related')
+                .flatMap((r) => r.citations),
               sources.materials,
               sources.notes,
             )}
           />
+          {turn.results
+            .filter((r) => r.tier === 'related')
+            .map((r) => (
+              <RelatedCourseView key={r.course ?? ''} result={r} />
+            ))}
         </>
       )}
       <p className="text-lattice-meta text-muted-foreground">
         {turn.latency_ms ?? '?'} ms
       </p>
+    </div>
+  )
+}
+
+/** A related course's answer stays apart from the course's own, under the code it came
+ * from: a few bullet points, with each reference opening that course's reader in a new
+ * tab so this workspace stays put. */
+function RelatedCourseView({ result }: { result: TierResult }) {
+  return (
+    <div className="border-t border-border pt-3">
+      <p className="text-lattice-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        {`Related course · ${result.course?.toUpperCase() ?? '?'}`}
+      </p>
+      <div className="mt-1.5">
+        {result.answer ? (
+          <Markdown>{result.answer}</Markdown>
+        ) : (
+          <p className="text-sm italic text-muted-foreground">no answer</p>
+        )}
+      </div>
+      <ReferenceList
+        course={result.course ?? ''}
+        references={relatedReferences(result.citations, result.course)}
+        newTab
+      />
     </div>
   )
 }

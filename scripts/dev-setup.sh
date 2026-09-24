@@ -273,7 +273,7 @@ pause
 
 # ── 2. Backend dependencies ───────────────────────────────────────────────
 stage "Backend: install Python and dependencies"
-say "Runs 'uv sync' in server/: fetches Python 3.14, Cognee 1.5.4, fastembed and friends."
+say "Runs 'uv sync' in server/: fetches Python 3.14, Cognee 1.5.4 and friends."
 note "First run downloads a few hundred MB."
 ( cd "$SERVER" && uv sync )
 say "server/.venv is ready."
@@ -284,12 +284,13 @@ stage "DeepSeek: LLM API key"
 ENV_FILE="$SERVER/.env"
 if [[ ! -f "$ENV_FILE" ]]; then
   cp "$SERVER/.env.example" "$ENV_FILE"
-  drop_env LLM_API_KEY   # remove the sk-... placeholder so it is not offered as a default
-  say "Created server/.env from .env.example (DeepSeek V4 Flash, local fastembed embeddings)."
+  drop_env LLM_API_KEY         # remove the sk-... placeholders so they are not offered as defaults
+  drop_env EMBEDDING_API_KEY
+  say "Created server/.env from .env.example (DeepSeek V4 Flash, OpenAI embeddings)."
 else
-  say "server/.env exists; only the key is asked for. Other values are kept."
+  say "server/.env exists; only the keys are asked for. Other values are kept."
 fi
-say "Cognify (entity extraction) and answers run on DeepSeek V4 Flash. Embeddings are local; no second key."
+say "Cognify (entity extraction) and answers run on DeepSeek V4 Flash."
 open_url "https://platform.deepseek.com/api_keys"
 step "Sign in, click 'Create new API key', name it (e.g. lattice-dev), copy the key (starts sk-)."
 step "Top-up is required before the key works; a few dollars covers weeks of development."
@@ -320,7 +321,39 @@ else
 fi
 pause
 
-# ── 4. Ports ──────────────────────────────────────────────────────────────
+# ── 4. OpenAI key ─────────────────────────────────────────────────────────
+stage "OpenAI: embedding API key"
+say "Cognee embeds Chunks with OpenAI text-embedding-3-small: US$0.02 per million tokens,"
+say "cents per course. DeepSeek has no embeddings API, so this is a second key."
+open_url "https://platform.openai.com/api-keys"
+step "Sign in, click 'Create new secret key', name it (e.g. lattice-dev), copy the key (starts sk-)."
+ask_secret EMBEDDING_API_KEY "Paste the OpenAI API key:"
+while [[ -z "$EMBEDDING_API_KEY" || "$EMBEDDING_API_KEY" == "sk-..." ]]; do
+  warn "A key is required; cognify cannot run without it."
+  ask_secret EMBEDDING_API_KEY "Paste the OpenAI API key:"
+done
+write_env EMBEDDING_API_KEY "$EMBEDDING_API_KEY"
+say "Checking the key against OpenAI with a five-token embedding..."
+if ( cd "$SERVER" && uv run --no-sync python - <<'PY'
+import os
+from dotenv import load_dotenv
+load_dotenv(".env")
+import litellm
+r = litellm.embedding(
+    model=os.environ["EMBEDDING_MODEL"], api_key=os.environ["EMBEDDING_API_KEY"],
+    input=["hello"], dimensions=int(os.environ["EMBEDDING_DIMENSIONS"]),
+)
+print("  OpenAI returned a", len(r.data[0]["embedding"]), "dimension vector")
+PY
+); then
+  say "Key works."
+else
+  warn "OpenAI rejected the key (or the account has no balance). Fix it, then re-run this wizard."
+  exit 1
+fi
+pause
+
+# ── 5. Ports ──────────────────────────────────────────────────────────────
 stage "Ports: API and web app"
 say "The API defaults to :8000 and the web app to :3000. The web app is told where the API is via app/.env."
 API_PORT=8000
@@ -338,30 +371,11 @@ ENV_FILE="$SERVER/.env"
 note "server/.env keeps CORS_ORIGINS=[\"http://localhost:3000\"], DEV_HEADER_AUTH=true and DEV_INVITE_CODE=123456 (the dev login door)."
 pause
 
-# ── 5. Web app dependencies ───────────────────────────────────────────────
+# ── 6. Web app dependencies ───────────────────────────────────────────────
 stage "Web app: install dependencies"
 say "Runs 'npm install' in app/."
 ( cd "$APP" && npm install )
 say "app/node_modules is ready."
-pause
-
-# ── 6. Embedding model ────────────────────────────────────────────────────
-stage "Embeddings: download the local model"
-say "Cognee embeds with fastembed on the CPU. The model (~130 MB) is fetched on first cognify;"
-say "fetching it now keeps the first upload from looking stuck."
-if confirm "Download BAAI/bge-small-en-v1.5 now?"; then
-  ( cd "$SERVER" && uv run --no-sync python - <<'PY'
-import os
-from dotenv import load_dotenv
-load_dotenv(".env")
-from fastembed import TextEmbedding
-TextEmbedding(os.environ.get("EMBEDDING_MODEL", "BAAI/bge-small-en-v1.5"))
-print("  model cached")
-PY
-  )
-else
-  note "Skipped; the first material upload will download it."
-fi
 pause
 
 # ── 7. Run it ─────────────────────────────────────────────────────────────

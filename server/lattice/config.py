@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     # dev_header_auth is on, so it cannot leak into a deployment.
     dev_invite_code: str = ""
     mcp_enabled: bool = False
+    mcp_api_url: str = "http://127.0.0.1:8000"
 
     # HS256 key for the tokens the web app mints after Google sign-in. Shared with the
     # web app; empty disables Bearer verification so tests and MCP dev stay header-only.
@@ -43,6 +44,11 @@ class Settings(BaseSettings):
     cognee_root: Path = Path(".cognee")
     uploads_dir: Path = Path("data/uploads")
     max_upload_mb: int = 25
+
+    # How often the course summaries, one vector per course, are recomputed, and how many
+    # of the nearest courses `/ask` also searches (0 turns the related lane off).
+    course_summary_refresh_s: int = 3600
+    related_courses_k: int = 3
 
 
 @lru_cache

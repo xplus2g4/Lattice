@@ -16,6 +16,7 @@ from lattice.engine import IsolationError, _tier_result
 COURSE = uuid4()
 MINE = uuid4()
 SOMEONE_ELSE = uuid4()
+RELATED = uuid4()
 DATASETS = {COURSE: "course", MINE: "notes"}
 
 
@@ -67,6 +68,17 @@ def test_keeps_citations_that_name_no_dataset():
     assert len(_tier_result(result(COURSE, evidence), DATASETS).evidence) == 1
 
 
+def test_accepts_a_related_courses_global_dataset():
+    """The related lane searches another course's global tier under its own datasets map."""
+    assert _tier_result(result(RELATED), {RELATED: "related"}).tier == "related"
+
+
+def test_the_related_lane_refuses_even_the_callers_own_datasets():
+    """A per-lane map means anything from another dataset, the caller's included, is refused."""
+    with pytest.raises(IsolationError):
+        _tier_result(result(COURSE), {RELATED: "related"})
+
+
 def test_still_dedupes_citations():
     """Cognee repeats a segment once per citing edge; the check must not break that."""
     evidence = [segment(COURSE), segment(COURSE), segment(COURSE, "a2")]
@@ -104,7 +116,9 @@ def test_reads_page_labels_from_cognee_scored_results():
     assert (e.page_start, e.page_end) == (2, 2)
 
 
-def test_drops_cognees_plain_text_evidence_block_from_the_answer():
+@pytest.mark.parametrize("wrap", (lambda t: t, lambda t: [t]), ids=("string", "list"))
+def test_drops_cognees_plain_text_evidence_block_from_the_answer(wrap):
+    """Graph completion returns its completion wrapped in a one-element list (observed live)."""
     raw = result(COURSE)
     text = "Chaining.\n\nEvidence:\n- chunk 0 of document abc (data_id: d1, chunk_id: c1)\n"
-    assert _tier_result({**raw, "text_result": text}, DATASETS).answer == "Chaining."
+    assert _tier_result({**raw, "text_result": wrap(text)}, DATASETS).answer == "Chaining."

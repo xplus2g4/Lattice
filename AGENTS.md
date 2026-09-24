@@ -22,7 +22,8 @@ Write an ADR only when all three hold: hard to reverse, surprising without conte
 Skills are harness-agnostic: one directory per skill at `.agents/skills/<name>/SKILL.md`, with its
 supporting files beside it. Claude Code reads them through `.claude/skills`, a checked-in symlink to
 `.agents/skills`, and reads this file through `CLAUDE.md`, which imports it. A new skill needs nothing
-beyond a new directory under `.agents/skills/`; both entry points follow.
+beyond a new directory under `.agents/skills/`; both entry points follow. A skill that belongs with
+the code it drives may live there and be symlinked in (`author-questions` -> `server/eval/`).
 
 ## Agent skills
 
@@ -42,6 +43,6 @@ Single-context: `CONTEXT.md` at the root plus `docs/adr/`. See `docs/agents/doma
 
 - Use `uv run --locked pytest -m "not canary"` in `server/` for checks without paid LLM calls. Persistence tests need Postgres via `TEST_DATABASE_URL`; use a dedicated test database. A local key makes plain `pytest` eligible to spend real LLM calls.
 - Cognee can populate process environment variables when imported. In isolated tests, `_env_file=None` alone is insufficient: pass identity/MCP flags and temporary storage paths explicitly to `Settings`.
-- MCP is opt-in (`MCP_ENABLED=true`, `DEV_HEADER_AUTH=true`) at `/mcp/`, for loopback development only. It shares Postgres records, Enrolment and opt-out checks with RPC. Run one API process per Cognee root. Legacy `UPLOADS_DIR/.page-notes` data is left untouched, not automatically migrated.
+- MCP is a separate loopback adapter; see `server/README.md` for startup. It delegates to the API over HTTP, which owns Postgres, Cognee, Enrolment and opt-out checks. Run one API process per Cognee root. Legacy `UPLOADS_DIR/.page-notes` data is left untouched, not automatically migrated.
 - The additional paid synthetic study evaluation needs `LATTICE_RUN_STUDY_EVAL=1` and an LLM key; run `uv run --locked pytest tests/test_study_evaluation.py -v`. It records Q&A outputs for review and does not substitute for real-course quality evaluation.
 - When relocating existing Cognee storage, stop the API first and check persisted `dataset_database.vector_database_url` values: Cognee 1.5.4 stores absolute LanceDB paths, so changing `COGNEE_ROOT` alone does not rebase existing Datasets. Preserve old content references and record a reversible path mapping.
