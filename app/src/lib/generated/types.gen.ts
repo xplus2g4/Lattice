@@ -330,6 +330,67 @@ export type Finding = {
 }
 
 /**
+ * GenerateGrill
+ */
+export type GenerateGrill = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Material
+   */
+  material: string
+  /**
+   * Page End
+   */
+  page_end: number
+  /**
+   * Page Start
+   */
+  page_start: number
+}
+
+/**
+ * GivenAnswer
+ */
+export type GivenAnswer = {
+  /**
+   * Answer Text
+   */
+  answer_text: string
+  /**
+   * Question
+   */
+  question: string
+}
+
+/**
+ * GradeGrill
+ */
+export type GradeGrill = {
+  /**
+   * Answers
+   */
+  answers: Array<GivenAnswer>
+  /**
+   * Quiz
+   */
+  quiz: string
+}
+
+/**
+ * GradedQuizOut
+ */
+export type GradedQuizOut = {
+  quiz: QuizOut
+  /**
+   * Remark
+   */
+  remark: string
+}
+
+/**
  * HTTPValidationError
  */
 export type HttpValidationError = {
@@ -2430,6 +2491,39 @@ export type DeleteQuizQuizzesDeletePostResponses = {
 export type DeleteQuizQuizzesDeletePostResponse =
   DeleteQuizQuizzesDeletePostResponses[keyof DeleteQuizQuizzesDeletePostResponses]
 
+export type GenerateQuizQuizzesGeneratePostData = {
+  body: GenerateGrill
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.generate'
+}
+
+export type GenerateQuizQuizzesGeneratePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GenerateQuizQuizzesGeneratePostError =
+  GenerateQuizQuizzesGeneratePostErrors[keyof GenerateQuizQuizzesGeneratePostErrors]
+
+export type GenerateQuizQuizzesGeneratePostResponses = {
+  /**
+   * Successful Response
+   */
+  201: QuizOut
+}
+
+export type GenerateQuizQuizzesGeneratePostResponse =
+  GenerateQuizQuizzesGeneratePostResponses[keyof GenerateQuizQuizzesGeneratePostResponses]
+
 export type GetQuizQuizzesGetGetData = {
   body?: never
   headers?: {
@@ -2467,6 +2561,39 @@ export type GetQuizQuizzesGetGetResponses = {
 
 export type GetQuizQuizzesGetGetResponse =
   GetQuizQuizzesGetGetResponses[keyof GetQuizQuizzesGetGetResponses]
+
+export type GradeQuizQuizzesGradePostData = {
+  body: GradeGrill
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.grade'
+}
+
+export type GradeQuizQuizzesGradePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GradeQuizQuizzesGradePostError =
+  GradeQuizQuizzesGradePostErrors[keyof GradeQuizQuizzesGradePostErrors]
+
+export type GradeQuizQuizzesGradePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: GradedQuizOut
+}
+
+export type GradeQuizQuizzesGradePostResponse =
+  GradeQuizQuizzesGradePostResponses[keyof GradeQuizQuizzesGradePostResponses]
 
 export type ListQuizzesQuizzesListGetData = {
   body?: never

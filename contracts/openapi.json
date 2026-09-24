@@ -576,6 +576,99 @@
         "title": "Finding",
         "type": "object"
       },
+      "GenerateGrill": {
+        "properties": {
+          "course": {
+            "pattern": "^[a-z][a-z0-9]{1,15}$",
+            "title": "Course",
+            "type": "string"
+          },
+          "material": {
+            "format": "uuid",
+            "title": "Material",
+            "type": "string"
+          },
+          "page_end": {
+            "minimum": 1.0,
+            "title": "Page End",
+            "type": "integer"
+          },
+          "page_start": {
+            "minimum": 1.0,
+            "title": "Page Start",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "course",
+          "material",
+          "page_start",
+          "page_end"
+        ],
+        "title": "GenerateGrill",
+        "type": "object"
+      },
+      "GivenAnswer": {
+        "properties": {
+          "answer_text": {
+            "maxLength": 10000,
+            "title": "Answer Text",
+            "type": "string"
+          },
+          "question": {
+            "format": "uuid",
+            "title": "Question",
+            "type": "string"
+          }
+        },
+        "required": [
+          "question",
+          "answer_text"
+        ],
+        "title": "GivenAnswer",
+        "type": "object"
+      },
+      "GradeGrill": {
+        "properties": {
+          "answers": {
+            "items": {
+              "$ref": "#/components/schemas/GivenAnswer"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "title": "Answers",
+            "type": "array"
+          },
+          "quiz": {
+            "format": "uuid",
+            "title": "Quiz",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quiz",
+          "answers"
+        ],
+        "title": "GradeGrill",
+        "type": "object"
+      },
+      "GradedQuizOut": {
+        "properties": {
+          "quiz": {
+            "$ref": "#/components/schemas/QuizOut"
+          },
+          "remark": {
+            "title": "Remark",
+            "type": "string"
+          }
+        },
+        "required": [
+          "quiz",
+          "remark"
+        ],
+        "title": "GradedQuizOut",
+        "type": "object"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -4221,6 +4314,66 @@
         ]
       }
     },
+    "/quizzes.generate": {
+      "post": {
+        "description": "Up to ten questions on one Material's page range, answer key withheld.",
+        "operationId": "generate_quiz_quizzes_generate_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GenerateGrill"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/QuizOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Generate Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
     "/quizzes.get": {
       "get": {
         "operationId": "get_quiz_quizzes_get_get",
@@ -4275,6 +4428,66 @@
           }
         },
         "summary": "Get Quiz",
+        "tags": [
+          "quizzes"
+        ]
+      }
+    },
+    "/quizzes.grade": {
+      "post": {
+        "description": "Every question answered at once; the Quiz closes with a score and a remark.",
+        "operationId": "grade_quiz_quizzes_grade_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GradeGrill"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradedQuizOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Grade Quiz",
         "tags": [
           "quizzes"
         ]

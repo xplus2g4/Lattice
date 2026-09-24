@@ -168,6 +168,22 @@ class TopicStat(BaseModel):
     misses: int
 
 
+def quiz_out(quiz: Any) -> QuizOut:
+    """The answer key stays on the server while a Quiz is open."""
+    out = QuizOut.model_validate(quiz)
+    if out.status == "open":
+        for question in out.questions:
+            question.expected_json = None
+    return out
+
+
+class GradedQuizOut(BaseModel):
+    quiz: QuizOut
+    # Drawn from the student's history at submit time and not stored; "" when there is
+    # nothing to say or the model did not answer.
+    remark: str
+
+
 class MeOut(BaseModel):
     user: UserOut
     courses: list[CourseOut]
