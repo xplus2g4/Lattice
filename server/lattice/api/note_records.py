@@ -1,9 +1,11 @@
 """Note records: quick notes (#37), page-anchored autosave (#38), private indexing (#39)."""
 
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field, model_validator
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -157,6 +159,21 @@ async def get_note(
         session, user=user, material=await _material(session, user, material), page=page
     )
     return None if anchored is None else NoteOut.model_validate(anchored)
+
+
+@router.get("/notes.download", response_class=FileResponse)
+async def download_note(
+    note: UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
+) -> FileResponse:
+    """A PDF Note's bytes, so the reader can open it; only its author may read them."""
+    row = await _own_note(session, user, note)
+    if row.storage_uri is None or row.filename is None:
+        raise HTTPException(404, "this note has no file")
+    path = Path(row.storage_uri).resolve()
+    expected = (settings.uploads_dir / row.course.code / "notes" / str(user.id)).resolve()
+    if path.parent != expected or not path.is_file():
+        raise HTTPException(404, "note bytes are unavailable")
+    return FileResponse(path, filename=row.filename)
 
 
 @router.post("/notes.delete")
