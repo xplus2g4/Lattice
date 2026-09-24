@@ -112,11 +112,11 @@ Quizzes are records only: something else writes the questions and marks the answ
 private to the student it was set for, and closes once through `/quizzes.submit` or
 `/quizzes.abandon`.
 
-Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings run locally through fastembed; the first cognify downloads the model.
+Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings are OpenAI `text-embedding-3-small` through LiteLLM (`EMBEDDING_API_KEY`); its 8,191-token window matches Cognee's default Chunk, so whole Chunks are embedded ([ADR 0007](../docs/adr/0007-openai-embeddings.md)). Changing the embedding model or dimensions invalidates every Dataset under `COGNEE_ROOT`: stop the API, delete the root, re-seed.
 
 Identity is dev-only: with `DEV_HEADER_AUTH=true` the `X-User: <email>` header is the caller. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.
 
-The two default tests marked `canary` spend real LLM calls. `test_private_notes_never_leak` cognifies a Material and a Note, then asserts a second user's `/ask` never carries the first user's Note. `test_retrieved_instructions_do_not_override_grounded_answers` uses poisoned context and checks Graph, RAG and Hybrid answers, an unsupported question and a follow-up. Both require successful Cognify rather than passing on empty tiers. Without `LLM_API_KEY` they skip. Both passed locally on 20 Sep 2026; the repository secret is still pending (#14). The shared `workspace` fixture supplies an explicit per-test `CACHE_DB_URL` so Cognee cannot reuse a default SQL cache pointing at a deleted temporary root.
+The two default tests marked `canary` spend real LLM and embedding calls. `test_private_notes_never_leak` cognifies a Material and a Note, then asserts a second user's `/ask` never carries the first user's Note. `test_retrieved_instructions_do_not_override_grounded_answers` uses poisoned context and checks Graph, RAG and Hybrid answers, an unsupported question and a follow-up. Both require successful Cognify rather than passing on empty tiers. Without `LLM_API_KEY` and `EMBEDDING_API_KEY` they skip. Both passed locally on 20 Sep 2026; the repository secrets are still pending (#14). The shared `workspace` fixture supplies an explicit per-test `CACHE_DB_URL` so Cognee cannot reuse a default SQL cache pointing at a deleted temporary root.
 
 For reliably offline verification, use `uv run pytest -m "not canary"`, even if a key is configured. `tests/test_prompt_boundary.py` checks the actual Cognee prompt path with external storage/LLM substitutes, including escaped delimiters and session history. The current API has no `not_covered` field; unsupported generated answers are requested as "Not covered by the supplied materials." `CHUNKS` remains raw retrieval. See [security.md](../docs/wiki/security.md) for mitigation limits. Tests disable Cognee log-file rotation by default to avoid deleting user-level logs.
 
@@ -172,12 +172,16 @@ their reservation. It rejects unpriced models, streaming, multiple completions, 
 unfunded requests. The limit cannot exceed US$2 or change on reopening a ledger. The report
 contains token counts and model identifiers, not prompts, responses or credentials. This is
 experiment tooling, not production billing enforcement, and only supports the verified
-DeepSeek/LiteLLM HTTPX route with local fastembed embeddings.
+DeepSeek/LiteLLM HTTPX route for completions and `api.openai.com/v1/embeddings` with
+`text-embedding-3-small` for embeddings; every other outbound write is refused.
 
 Pricing was checked against the [official table](https://api-docs.deepseek.com/quick_start/pricing)
 on 20 Sep 2026: `deepseek-v4-flash` is now an alias for V4.1 Flash. The ledger uses peak
 cache-miss/input and output rates ($0.30/$1.20 per million tokens), so its dollar figure is an
-**upper bound**, not an invoice estimate with cache/off-peak discounts. Recheck pricing before
+**upper bound**, not an invoice estimate with cache/off-peak discounts. Embeddings are priced at
+OpenAI's [$0.02 per million input tokens](https://developers.openai.com/api/docs/models/text-embedding-3-small)
+(checked 24 Sep 2026), reserved as one full Cognee batch (36 inputs of 8,191 tokens) and settled
+from reported usage. Recheck pricing before
 future runs. Credentials belong in the worktree's ignored `.env` or process environment;
 preflight reports readiness without printing them. The [ontology findings](../docs/research/2026-09-20-cognee-ontology-findings.md)
 and [PDF provenance/cost findings](../docs/research/2026-09-20-cognee-material-provenance-cost.md),
