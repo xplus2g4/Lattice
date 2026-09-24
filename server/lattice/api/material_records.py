@@ -123,21 +123,6 @@ async def list_materials(course: str, user: CurrentUser, session: SessionDep) ->
     return [MaterialOut.model_validate(m) for m in await materials.for_course(session, row)]
 
 
-@router.get("/materials.download")
-async def download_material(
-    course: str, filename: str, user: CurrentUser, session: SessionDep
-) -> FileResponse:
-    """The raw bytes behind a Material, for the reader and the download button."""
-    row = await _enrolled_course(session, user, course)
-    material = await materials.by_filename(session, row, filename)
-    if material is None:
-        raise HTTPException(404, "no such material")
-    path = Path(material.storage_uri)
-    if not path.is_file():
-        raise HTTPException(404, "the file is missing from storage")
-    return FileResponse(path, filename=material.filename)
-
-
 @router.get("/materials.get")
 async def get_material(material: UUID, user: CurrentUser, session: SessionDep) -> MaterialOut:
     return MaterialOut.model_validate(await _readable(session, user, material))
@@ -147,6 +132,7 @@ async def get_material(material: UUID, user: CurrentUser, session: SessionDep) -
 async def download_material(
     material: UUID, user: CurrentUser, session: SessionDep, settings: SettingsDep
 ) -> FileResponse:
+    """The raw bytes behind a Material, for the reader and the download button."""
     row = await _readable(session, user, material)
     path = Path(row.storage_uri).resolve()
     if path.parent != (settings.uploads_dir / row.course.code).resolve() or not path.is_file():

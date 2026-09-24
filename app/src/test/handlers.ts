@@ -144,6 +144,20 @@ function scope(request: Request) {
 
 // Paths are matched without an origin so a developer's VITE_API_URL cannot break the run.
 export const handlers = [
+  // The session probe `useMe`/`authed` share: in tests the signed-in user is the
+  // fixture owner, which is also who the per-user stores and X-User filters expect.
+  http.get('*/me.get', () =>
+    HttpResponse.json({
+      user: {
+        id: idFor('alice@example.com'),
+        email: 'alice@example.com',
+        name: null,
+        role: 'student',
+        notes_opt_out: false,
+      },
+      courses: [],
+    }),
+  ),
   http.get('*/courses.list', () => HttpResponse.json([])),
   http.get('*/courses.get', ({ request }) =>
     HttpResponse.json(courseOut(scope(request))),
