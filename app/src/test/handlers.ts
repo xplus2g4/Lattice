@@ -65,12 +65,12 @@ function materialOut(m: Material): MaterialOut {
   return {
     id: idFor(`${m.course}:${m.filename}`),
     course_id: idFor(m.course),
-    title: m.filename,
+    title: m.title,
     filename: m.filename,
     week: null,
     lecture_no: null,
     kind: null,
-    page_count: null,
+    page_count: m.page_count,
     sha256: m.sha256,
     status: m.status,
     error: m.error,
@@ -191,6 +191,8 @@ export const handlers = [
     const created: Material = {
       course,
       filename: filename || 'unknown',
+      title: filename || 'unknown',
+      page_count: null,
       sha256: '0'.repeat(64),
       status: 'queued',
       error: null,

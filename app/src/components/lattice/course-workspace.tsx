@@ -65,7 +65,7 @@ export function CourseWorkspace({
   note?: string
 } & PageRange) {
   const user = useUser()
-  const { markOpened } = useLibrary()
+  const { markOpened, markCourseOpened } = useLibrary()
   const navigate = useNavigate()
   const [layout, updateTabs] = useTabLayout(user, course)
   const requested = material
@@ -100,6 +100,12 @@ export function CourseWorkspace({
   useEffect(() => {
     if (material) markOpened(course, material)
   }, [course, material, markOpened])
+
+  // Visiting a course's workspace counts as opening it, so the home cards can order and
+  // date them even when no Material was opened this visit.
+  useEffect(() => {
+    markCourseOpened(course)
+  }, [course, markCourseOpened])
 
   // A bare course URL brings back the tabs left open last time.
   useEffect(() => {

@@ -11,10 +11,13 @@ const KEY_PREFIX = 'lattice.library'
 
 interface Library {
   courses: Array<string>
-  lastOpened: { course: string; filename: string } | null
+  /** `at` is an ISO timestamp; absent on records written before it was tracked. */
+  lastOpened: { course: string; filename: string; at?: string } | null
+  /** Course code -> ISO timestamp of the last time its workspace was opened. */
+  openedAt: Record<string, string>
 }
 
-const EMPTY: Library = { courses: [], lastOpened: null }
+const EMPTY: Library = { courses: [], lastOpened: null, openedAt: {} }
 
 const listeners = new Set<() => void>()
 
@@ -34,6 +37,10 @@ function parse(raw: string | null): Library {
     return {
       courses: value.courses ?? [],
       lastOpened: value.lastOpened ?? null,
+      openedAt:
+        value.openedAt && typeof value.openedAt === 'object'
+          ? value.openedAt
+          : {},
     }
   } catch {
     return EMPTY
@@ -73,26 +80,49 @@ export function useLibrary() {
     () => EMPTY,
   )
 
+  // The mutators read the latest value from storage at call time rather than closing over
+  // the snapshot, so their identity is stable across writes: an effect that calls one (a
+  // fresh timestamp each time) then would not re-fire itself into a loop.
   const addCourse = useCallback(
     (code: string) => {
-      if (!library.courses.includes(code)) {
-        write(key, { ...library, courses: [...library.courses, code] })
+      const current = getSnapshot(key)
+      if (!current.courses.includes(code)) {
+        write(key, { ...current, courses: [...current.courses, code] })
       }
     },
-    [key, library],
+    [key],
   )
 
   const markOpened = useCallback(
     (course: string, filename: string) => {
-      write(key, { ...library, lastOpened: { course, filename } })
+      const current = getSnapshot(key)
+      const at = new Date().toISOString()
+      write(key, {
+        ...current,
+        lastOpened: { course, filename, at },
+        openedAt: { ...current.openedAt, [course]: at },
+      })
     },
-    [key, library],
+    [key],
+  )
+
+  const markCourseOpened = useCallback(
+    (course: string) => {
+      const current = getSnapshot(key)
+      write(key, {
+        ...current,
+        openedAt: { ...current.openedAt, [course]: new Date().toISOString() },
+      })
+    },
+    [key],
   )
 
   return {
     courses: library.courses,
     lastOpened: library.lastOpened,
+    openedAt: library.openedAt,
     addCourse,
     markOpened,
+    markCourseOpened,
   }
 }
