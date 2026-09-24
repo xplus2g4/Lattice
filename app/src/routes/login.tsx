@@ -21,9 +21,9 @@ const ERRORS: Record<string, string> = {
 }
 
 const FEATURES = [
-  { icon: CloudUploadIcon, label: 'Upload slides and readings for each course' },
-  { icon: MessageQuestionIcon, label: 'Ask questions and get answers from your own materials' },
-  { icon: StickyNote01Icon, label: 'Keep notes next to what you’re reading' },
+  { icon: CloudUploadIcon, label: 'Bring your course Materials together.' },
+  { icon: MessageQuestionIcon, label: 'Ask a question. Follow the Citations.' },
+  { icon: StickyNote01Icon, label: 'Make space for your own Notes.' },
 ]
 
 export const Route = createFileRoute('/login')({
@@ -48,55 +48,103 @@ function Login() {
   }
 
   return (
-    <main className="flex min-h-screen flex-col bg-background text-foreground lg:flex-row">
-      <div className="flex items-center gap-2.5 px-5 pt-6 lg:hidden">
-        <LogoMark />
-        <span className="text-xl font-bold tracking-tight">Lattice</span>
+    <main className="fieldnotes-canvas flex min-h-dvh flex-col text-foreground lg:flex-row">
+      <div className="flex items-center justify-between border-b border-border px-5 py-6 lg:hidden">
+        <div className="flex items-center gap-3">
+          <LogoMark />
+          <span className="text-2xl font-semibold tracking-[-0.05em]">
+            Lattice<span className="text-primary">.</span>
+          </span>
+        </div>
+        <span className="fieldnotes-kicker text-muted-foreground">
+          Stay curious
+        </span>
       </div>
 
-      <section className="hidden shrink-0 flex-col justify-between bg-[#0E2622] px-10 py-12 text-white lg:flex lg:w-2/5 lg:px-16 lg:py-14">
-        <div className="flex items-center gap-2.5">
-          <LogoMark onDark />
-          <span className="text-xl font-bold tracking-tight">Lattice</span>
+      <section className="fieldnotes-grid hidden min-h-dvh shrink-0 flex-col justify-between gap-16 bg-[#24231F] px-10 py-12 text-[#F3EFE6] lg:flex lg:w-1/2 xl:px-16">
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <LogoMark onDark />
+            <span className="text-2xl font-semibold tracking-[-0.05em]">
+              Lattice.
+            </span>
+          </div>
+          <span className="fieldnotes-kicker text-[#BCB4A7]">
+            For the curious mind
+          </span>
         </div>
-        <div className="flex flex-col gap-7">
-          <h1 className="text-4xl font-bold leading-[1.08] tracking-tight xl:text-5xl">
-            Your course materials, ready to answer back.
+        <div>
+          <p className="fieldnotes-kicker mb-7 text-[#ED977E]">
+            A little more understanding
+          </p>
+          <h1 className="fieldnotes-display">
+            <span className="fieldnotes-reveal block">Stay curious.</span>
+            <span className="fieldnotes-reveal fieldnotes-reveal-late mt-2 block italic">
+              Go a little deeper.
+            </span>
           </h1>
-          <ul className="flex flex-col gap-4.5">
-            {FEATURES.map(({ icon, label }) => (
+          <ul className="mt-12 border-t border-[#555044]">
+            {FEATURES.map(({ icon, label }, i) => (
               <li
                 key={label}
-                className="flex items-center gap-3.5 text-[17px] text-[#C9DAD6]"
+                className="flex items-center gap-4 border-b border-[#555044] py-4 text-sm text-[#DED8CD]"
               >
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-[10px] bg-[#5CD1BE]/15">
-                  <HugeiconsIcon
-                    icon={icon}
-                    className="size-[18px] text-[#5CD1BE]"
-                    strokeWidth={1.8}
-                  />
+                <span
+                  aria-hidden="true"
+                  className="font-mono text-[11px] text-[#ED977E]"
+                >
+                  0{i + 1}
                 </span>
-                {label}
+                <span className="flex-1">{label}</span>
+                <HugeiconsIcon
+                  icon={icon}
+                  className="size-[18px] shrink-0 text-[#BCB4A7]"
+                  strokeWidth={1.5}
+                />
               </li>
             ))}
           </ul>
         </div>
-        <p className="text-sm text-[#8FA7A2]">
-          Built for students, one course at a time.
-        </p>
+        <div className="flex items-end justify-between gap-6">
+          <p className="max-w-56 text-sm leading-6 text-[#BCB4A7]">
+            Built for students.
+            <br />
+            One course at a time.
+          </p>
+          <svg
+            aria-hidden="true"
+            viewBox="0 0 64 64"
+            className="size-16 text-[#ED977E]"
+            fill="none"
+          >
+            <path
+              d="M22 0v64M42 0v64M0 22h64M0 42h64"
+              stroke="currentColor"
+              strokeWidth="1"
+            />
+            <path d="M22 22h20v20H22z" fill="currentColor" />
+          </svg>
+        </div>
       </section>
 
-      <section className="flex flex-1 items-center justify-center px-5 py-10 sm:py-16">
-        <div className="flex w-full max-w-sm flex-col gap-7">
+      <section className="flex flex-1 items-center justify-center px-5 py-12 sm:px-10 sm:py-16">
+        <div className="flex w-full max-w-[420px] flex-col gap-7">
           <div className="flex flex-col gap-2.5">
-            <Badge className="w-fit gap-1.5 bg-[#E6F4F1] px-2.5 py-1 text-[#0F5F53] hover:bg-[#E6F4F1]">
-              <HugeiconsIcon icon={SquareLock02Icon} className="size-3" strokeWidth={2} />
+            <Badge
+              variant="outline"
+              className="fieldnotes-kicker mb-3 h-auto w-fit gap-2 rounded-none border-border bg-transparent px-2 py-1 text-muted-foreground"
+            >
+              <HugeiconsIcon
+                icon={SquareLock02Icon}
+                className="size-3"
+                strokeWidth={2}
+              />
               Private beta
             </Badge>
-            <h2 className="text-3xl font-bold tracking-tight">
+            <h2 className="font-editorial text-4xl leading-tight tracking-tight sm:text-5xl">
               {invite ? 'You have been invited' : 'Sign in to Lattice'}
             </h2>
-            <p className="text-[17px] text-muted-foreground">
+            <p className="mt-2 text-base leading-7 text-muted-foreground">
               {invite
                 ? 'Continue with the Google account you were invited with.'
                 : 'Already in the beta? Continue with the Google account you were invited with.'}
@@ -112,10 +160,14 @@ function Login() {
           <Button
             asChild
             variant="outline"
-            className="h-13 w-full gap-3 rounded-full border-border text-base font-semibold"
+            className="h-13 w-full gap-3 rounded-sm border-foreground bg-card text-base font-semibold hover:bg-foreground hover:text-background"
           >
             <a href={href}>
-              <HugeiconsIcon icon={GoogleIcon} className="size-5" strokeWidth={1.8} />
+              <HugeiconsIcon
+                icon={GoogleIcon}
+                className="size-5"
+                strokeWidth={1.8}
+              />
               Continue with Google
             </a>
           </Button>
@@ -129,13 +181,16 @@ function Login() {
               </div>
 
               <form
-                className="flex flex-col gap-2.5 rounded-2xl border border-border bg-card p-5"
+                className="flex flex-col gap-3 border-l-2 border-primary pl-5"
                 onSubmit={(e) => {
                   e.preventDefault()
                   apply()
                 }}
               >
-                <label htmlFor="invite-code" className="text-base font-semibold">
+                <label
+                  htmlFor="invite-code"
+                  className="text-base font-semibold"
+                >
                   Enter your invite code
                 </label>
                 <div className="flex gap-2">
@@ -144,19 +199,19 @@ function Login() {
                     value={code}
                     onChange={(e) => setCode(e.target.value)}
                     placeholder="Code or invite link"
-                    className="h-12 rounded-xl font-mono text-sm"
+                    className="h-12 font-mono text-base sm:text-sm"
                   />
                   <Button
                     type="submit"
                     disabled={!code.trim()}
-                    className="h-12 shrink-0 rounded-xl px-5"
+                    className="h-12 shrink-0 px-4"
                   >
                     Join beta
                   </Button>
                 </div>
                 <p className="text-sm leading-snug text-muted-foreground">
-                  Paste the code or the whole link from your invite. You’ll sign in
-                  with Google next.
+                  Paste the code or the whole link from your invite. You’ll sign
+                  in with Google next.
                 </p>
               </form>
 
@@ -168,15 +223,18 @@ function Login() {
 
           {import.meta.env.VITE_DEV_FAKE_AUTH === 'true' && (
             <form
-              className="flex flex-col gap-2.5 rounded-2xl border-[1.5px] border-dashed border-[#E4C77A] bg-[#FFFBEF] p-4"
+              className="flex flex-col gap-2.5 border border-dashed border-border bg-feedback-developing p-4"
               action="/auth/dev"
               method="get"
             >
               <div className="flex items-center gap-2">
-                <span className="rounded-md bg-[#F6E3AE] px-1.5 py-0.5 font-mono text-[11px] font-medium text-[#6B4700]">
+                <span className="border border-current px-1.5 py-0.5 font-mono text-[11px] font-medium text-feedback-developing-text">
                   DEV ONLY
                 </span>
-                <label htmlFor="devemail" className="text-sm text-[#6B5A2E]">
+                <label
+                  htmlFor="devemail"
+                  className="text-sm text-feedback-developing-text"
+                >
                   Skip Google with a test email
                 </label>
               </div>
@@ -185,12 +243,12 @@ function Login() {
                   id="devemail"
                   name="email"
                   placeholder="you@example.com"
-                  className="h-11 rounded-lg border-[#E9D9A8]"
+                  className="h-11 rounded-sm border-input"
                 />
                 <Button
                   type="submit"
                   variant="outline"
-                  className="h-11 shrink-0 rounded-lg border-[#E9D9A8]"
+                  className="h-11 shrink-0 rounded-sm border-input"
                 >
                   Sign in
                 </Button>

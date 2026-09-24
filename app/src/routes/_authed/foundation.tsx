@@ -64,7 +64,7 @@ const spacing = [
 
 function FoundationPreview() {
   return (
-    <main className="min-h-screen bg-background px-5 py-10 text-foreground sm:px-10 sm:py-14">
+    <main className="flex-1 px-5 py-10 text-foreground sm:px-10 sm:py-14">
       <div className="mx-auto max-w-6xl">
         <header className="mb-10 border-b border-border pb-8 sm:mb-14">
           <p className="text-lattice-meta font-semibold tracking-[0.18em] text-primary">
@@ -72,7 +72,7 @@ function FoundationPreview() {
           </p>
           <div className="mt-3 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h1 className="text-lattice-display font-semibold tracking-tight">
+              <h1 className="fieldnotes-display fieldnotes-reveal">
                 Foundation
               </h1>
               <p className="mt-3 max-w-2xl text-lattice-prompt text-muted-foreground">
@@ -80,7 +80,7 @@ function FoundationPreview() {
                 tokens used across Lattice.
               </p>
             </div>
-            <Badge variant="secondary">Light mode · Teal</Badge>
+            <Badge variant="secondary">Fieldnotes · Paper & ink</Badge>
           </div>
         </header>
 
@@ -112,13 +112,13 @@ function FoundationPreview() {
           <Section
             eyebrow="03 · Typography"
             title="A clear reading hierarchy"
-            description="Figtree is the active family; the scale balances focused reading and quiet metadata."
+            description="Editorial serif for expressive headings, variable Figtree for reading and controls, and monospace for metadata."
           >
             <Card className="gap-0 overflow-hidden py-0 shadow-none">
               <TypeRow
-                token="text-lattice-display"
-                label="Display"
-                value="3rem / 48px"
+                token="fieldnotes-display"
+                label="Editorial display"
+                value="44–88px · responsive"
               >
                 Know your course, not just your notes.
               </TypeRow>
@@ -182,10 +182,13 @@ function FoundationPreview() {
               <div className="border-t border-border pt-6 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0">
                 <p className="text-sm font-medium">Radius</p>
                 <div className="mt-4 grid grid-cols-2 gap-4">
-                  <RadiusSample className="rounded-sm" label="sm · 4px" />
-                  <RadiusSample className="rounded-md" label="md · 6px" />
-                  <RadiusSample className="rounded-lg" label="lg · 8px" />
-                  <RadiusSample className="rounded-xl" label="xl · 12px" />
+                  <RadiusSample
+                    className="rounded-none"
+                    label="Structure · 0px"
+                  />
+                  <RadiusSample className="rounded-sm" label="Control · 2px" />
+                  <RadiusSample className="rounded-md" label="Overlay · 4px" />
+                  <RadiusSample className="rounded-lg" label="Maximum · 6px" />
                 </div>
               </div>
             </Card>
@@ -193,13 +196,22 @@ function FoundationPreview() {
 
           <Section
             eyebrow="05 · Elevation"
-            title="Soft depth"
-            description="Shadows indicate hierarchy without competing with reading content."
+            title="Structure before elevation"
+            description="Use rules for hierarchy, grain on outer canvases, and a restrained shadow only for overlays."
           >
             <div className="grid gap-5 sm:grid-cols-3">
-              <ShadowSample className="shadow-xs" label="shadow-xs" />
-              <ShadowSample className="shadow-lg" label="shadow-lg" />
-              <ShadowSample className="shadow-xl" label="shadow-xl" />
+              <ShadowSample
+                className="shadow-none"
+                label="Reading · no shadow"
+              />
+              <ShadowSample
+                className="fieldnotes-canvas shadow-none"
+                label="Canvas · static grain"
+              />
+              <ShadowSample
+                className="shadow-lattice"
+                label="Overlay · restrained depth"
+              />
             </div>
           </Section>
 

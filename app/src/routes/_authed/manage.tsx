@@ -49,8 +49,8 @@ function Manage() {
 
   if (me.isPending) {
     return (
-      <main className="min-h-screen bg-background px-5 py-10 sm:px-10 sm:py-14">
-        <div className="mx-auto max-w-3xl space-y-4">
+      <main className="flex-1 px-5 py-10 sm:px-10 sm:py-14">
+        <div className="mx-auto max-w-[1200px] space-y-4">
           <Skeleton className="h-8 w-48" />
           <Skeleton className="h-40 rounded-xl" />
         </div>
@@ -79,19 +79,17 @@ function Manage() {
   }
 
   return (
-    <main className="min-h-screen bg-background px-5 py-10 text-foreground sm:px-10 sm:py-14">
-      <div className="mx-auto max-w-3xl space-y-10">
-        <header>
+    <main className="flex-1 px-5 py-10 text-foreground sm:px-10 sm:py-14">
+      <div className="mx-auto max-w-[1200px] space-y-10">
+        <header className="border-b-2 border-foreground pb-8">
           <Link
             to="/"
             className="text-sm text-muted-foreground underline underline-offset-2 hover:text-foreground"
           >
             ← Back home
           </Link>
-          <p className="mt-3 text-lattice-meta font-semibold tracking-[0.18em] text-primary">
-            LATTICE
-          </p>
-          <h1 className="mt-3 text-lattice-display font-semibold tracking-tight">
+          <p className="fieldnotes-kicker mt-6 text-primary">LATTICE</p>
+          <h1 className="fieldnotes-display fieldnotes-reveal mt-3">
             Invite people
           </h1>
           <p className="mt-3 max-w-2xl text-lattice-prompt text-muted-foreground">
@@ -133,7 +131,7 @@ function CreateInvite() {
     <section>
       <div className="flex flex-wrap items-center gap-2">
         <select
-          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+          className="h-11 rounded-sm border border-input bg-card px-3 text-base sm:text-sm"
           value={role}
           onChange={(e) => setRole(e.target.value as Role)}
         >
@@ -141,7 +139,7 @@ function CreateInvite() {
           <option value="instructor">instructor</option>
         </select>
         <select
-          className="h-8 rounded-md border border-input bg-background px-2 text-sm"
+          className="h-11 rounded-sm border border-input bg-card px-3 text-base sm:text-sm"
           value={expiresInDays}
           onChange={(e) => setExpiresInDays(Number(e.target.value))}
         >
@@ -153,6 +151,7 @@ function CreateInvite() {
           variant="outline"
           size="sm"
           disabled={invite.isPending}
+          className="min-h-11"
           onClick={() => invite.mutate()}
         >
           Create invite link
@@ -221,14 +220,14 @@ function InvitesTable() {
             {counts.pending} pending · {counts.used} joined · {counts.expired}{' '}
             expired
           </p>
-          <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+          <div className="mt-4 overflow-x-auto border-y border-border bg-card">
             <table className="w-full text-sm">
-              <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+              <thead className="fieldnotes-kicker border-b border-border bg-muted text-left text-muted-foreground">
                 <tr>
-                  <th className="px-3 py-2">Role</th>
-                  <th className="px-3 py-2">Created</th>
-                  <th className="px-3 py-2">Status</th>
-                  <th className="px-3 py-2">Details</th>
+                  <th className="px-4 py-3">Role</th>
+                  <th className="px-4 py-3">Created</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3">Details</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -236,11 +235,11 @@ function InvitesTable() {
                   const status = inviteStatus(i)
                   return (
                     <tr key={i.id}>
-                      <td className="px-3 py-2 capitalize">{i.role}</td>
-                      <td className="px-3 py-2 text-muted-foreground">
+                      <td className="px-4 py-3 capitalize">{i.role}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
                         {fmtDate(i.created_at)}
                       </td>
-                      <td className="px-3 py-2">
+                      <td className="px-4 py-3">
                         <Badge
                           variant="outline"
                           className={`border-0 capitalize ${STATUS_STYLE[status]}`}
@@ -248,7 +247,7 @@ function InvitesTable() {
                           {status}
                         </Badge>
                       </td>
-                      <td className="px-3 py-2 text-muted-foreground">
+                      <td className="px-4 py-3 text-muted-foreground">
                         {status === 'used'
                           ? `${i.used_by_email} on ${fmtDate(i.used_at!)}`
                           : status === 'pending'
@@ -296,23 +295,23 @@ function PeopleTable() {
             : 'Could not load people.'}
         </p>
       ) : users.data.length > 0 ? (
-        <div className="mt-4 overflow-x-auto rounded-lg border border-border">
+        <div className="mt-4 overflow-x-auto border-y border-border bg-card">
           <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-left text-xs uppercase text-muted-foreground">
+            <thead className="fieldnotes-kicker border-b border-border bg-muted text-left text-muted-foreground">
               <tr>
-                <th className="px-3 py-2">Email</th>
-                <th className="px-3 py-2">Role</th>
-                <th className="px-3 py-2">Joined</th>
+                <th className="px-4 py-3">Email</th>
+                <th className="px-4 py-3">Role</th>
+                <th className="px-4 py-3">Joined</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
               {users.data.map((u) => (
                 <tr key={u.id}>
-                  <td className="px-3 py-2">{u.email}</td>
-                  <td className="px-3 py-2 capitalize text-muted-foreground">
+                  <td className="px-4 py-3">{u.email}</td>
+                  <td className="px-4 py-3 capitalize text-muted-foreground">
                     {u.role}
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {fmtDate(u.created_at)}
                   </td>
                 </tr>
