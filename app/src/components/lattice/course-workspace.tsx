@@ -1,17 +1,18 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { ArrowLeft01Icon } from '@hugeicons/core-free-icons'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ArrowLeft01Icon, CloudUploadIcon } from '@hugeicons/core-free-icons'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '#/components/ui/badge'
+import { Button } from '#/components/ui/button'
 import { AskPanel } from '#/components/lattice/ask-panel'
 import { MaterialsPanel } from '#/components/lattice/materials-panel'
 import { NotesPanel } from '#/components/lattice/notes-panel'
 import { EditorArea } from '#/components/lattice/editor-area'
 import { discardDraft } from '#/components/lattice/note-editor'
 import { TabGroupView } from '#/components/lattice/tab-group'
-import { listMaterials, listNotes } from '#/lib/api'
+import { listMaterials, listNotes, uploadEach, uploadMaterial } from '#/lib/api'
 import { useLibrary } from '#/lib/library'
 import { noteLabel } from '#/lib/references'
 import {
@@ -232,9 +233,17 @@ export function CourseWorkspace({
       </aside>
       <main className={`${pane('reader')} min-h-0 min-w-0 flex-1 lg:flex`}>
         {layout.groups[0].tabs.length === 0 ? (
-          <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
-            Open a Material or Note from the sidebar to read it here.
-          </div>
+          materials.data?.length === 0 ? (
+            <FirstUpload
+              course={course}
+              user={user}
+              onUploaded={(filename) => show(materialTab(filename))}
+            />
+          ) : (
+            <div className="flex flex-1 items-center justify-center px-6 text-center text-sm text-muted-foreground">
+              Open a Material or Note from the sidebar to read it here.
+            </div>
+          )
         ) : (
           <EditorArea
             layout={layout}
@@ -276,6 +285,100 @@ export function CourseWorkspace({
       >
         <AskPanel course={course} user={user} />
       </div>
+    </div>
+  )
+}
+
+/**
+ * The reader pane before a course has any Material: one big drop target rather than the
+ * usual placeholder, so the first upload has nothing else competing for attention.
+ */
+function FirstUpload({
+  course,
+  user,
+  onUploaded,
+}: {
+  course: string
+  user: string
+  onUploaded: (filename: string) => void
+}) {
+  const queryClient = useQueryClient()
+  const inputRef = useRef<HTMLInputElement>(null)
+  const [dragOver, setDragOver] = useState(false)
+  const upload = useMutation({
+    mutationFn: (files: Array<File>) =>
+      uploadEach(files, (f) => uploadMaterial(course, f)),
+    onSuccess: (results) => {
+      void queryClient.invalidateQueries({
+        queryKey: ['materials', course, user],
+      })
+      const first = results.find((r) => !r.error)
+      if (first) onUploaded(first.file.name)
+    },
+  })
+  const onFiles = (files: FileList | null) => {
+    if (files?.length) upload.mutate(Array.from(files))
+  }
+
+  return (
+    <div
+      className={cn(
+        'm-6 flex flex-1 flex-col items-center justify-center gap-4 rounded-2xl border-2 border-dashed px-8 text-center transition-colors',
+        dragOver ? 'border-primary bg-accent/40' : 'border-border',
+      )}
+      onDragOver={(e) => {
+        e.preventDefault()
+        setDragOver(true)
+      }}
+      onDragLeave={() => setDragOver(false)}
+      onDrop={(e) => {
+        e.preventDefault()
+        setDragOver(false)
+        onFiles(e.dataTransfer.files)
+      }}
+    >
+      <HugeiconsIcon
+        icon={CloudUploadIcon}
+        className="size-10 text-muted-foreground"
+      />
+      <div className="space-y-1">
+        <p className="text-lg font-semibold">
+          {upload.isPending
+            ? 'Uploading…'
+            : 'Drop your first slides or readings here'}
+        </p>
+        <p className="text-sm text-muted-foreground">
+          Everyone enrolled in this course can see what you upload here.
+        </p>
+      </div>
+      <Button
+        variant="outline"
+        disabled={upload.isPending}
+        onClick={() => inputRef.current?.click()}
+      >
+        Choose files
+      </Button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept=".pdf,.md,.txt"
+        multiple
+        className="hidden"
+        onChange={(e) => {
+          onFiles(e.target.files)
+          e.target.value = ''
+        }}
+      />
+      {upload.error && (
+        <p className="text-sm text-destructive">{upload.error.message}</p>
+      )}
+      {upload.data
+        ?.filter((r) => r.error)
+        .map((r) => (
+          <p key={r.file.name} className="text-sm text-destructive">
+            {r.file.name}: {r.error}
+          </p>
+        ))}
     </div>
   )
 }

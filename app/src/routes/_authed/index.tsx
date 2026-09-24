@@ -322,6 +322,7 @@ function FirstRun() {
               </label>
               <input
                 id="firstrun-course"
+                autoFocus
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 placeholder="e.g. CS3216"
