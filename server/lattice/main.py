@@ -7,6 +7,7 @@ from filelock import FileLock
 
 from lattice.api import ask, courses, health, material_records, me, note_records, quiz_records
 from lattice.config import Settings, get_settings
+from lattice.course_summaries import CourseSummaries
 from lattice.db import Database
 from lattice.db.migrate import upgrade_async
 from lattice.engine import Engine
@@ -39,11 +40,16 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     if settings.mcp_enabled:
                         await stack.enter_async_context(mcp.session_manager.run())
                     async with asyncio.TaskGroup() as workers:
-                        task = workers.create_task(ingest_notes())
+                        tasks = [
+                            workers.create_task(ingest_notes()),
+                            # Under the same lock as Note ingest, so one process refreshes.
+                            workers.create_task(app.state.course_summaries.run_forever()),
+                        ]
                         try:
                             yield
                         finally:
-                            task.cancel()
+                            for task in tasks:
+                                task.cancel()
         finally:
             await database.dispose()
 
@@ -59,6 +65,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.state.engine = engine
     app.state.database = database
     app.state.ingest = Ingest(database.sessionmaker, engine, settings)
+    app.state.course_summaries = CourseSummaries(database.sessionmaker, engine, settings)
     for router in (
         health.router,
         me.router,

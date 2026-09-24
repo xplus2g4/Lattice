@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 
 import cognee
 from cognee.infrastructure.databases.relational import create_db_and_tables
+from cognee.infrastructure.databases.vector.embeddings import get_embedding_engine
 from cognee.infrastructure.databases.vector.models.ScoredResult import ScoredResult
 from cognee.infrastructure.llm.LLMGateway import LLMGateway
 from cognee.modules.data.methods import (
@@ -114,6 +115,16 @@ class Engine:
             await give_permission_on_dataset(user, global_ds.id, "read")
             self._enrolled.add((user.id, course))
         return global_ds, private_ds
+
+    # Embeddings
+
+    def embedding_model(self) -> str:
+        """The configured embedding model's name, recorded beside anything embedded here."""
+        return str(get_embedding_engine().model)
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        """Vectors from the model Cognify uses, so course summaries share its space."""
+        return await get_embedding_engine().embed_text(texts)
 
     # Ingest
 

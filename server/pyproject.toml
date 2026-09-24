@@ -10,6 +10,7 @@ dependencies = [
     "fastapi",
     "filelock==3.32.6",
     "mcp==1.30.0",
+    "pgvector>=0.5.0",
     "pydantic-settings",
     "pypdf==6.18.0",
     "sqlalchemy[asyncio]>=2.0",

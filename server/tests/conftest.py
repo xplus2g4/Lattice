@@ -32,6 +32,7 @@ from sqlalchemy.sql import text
 
 from lattice.config import Settings, get_settings
 from lattice.db.migrate import upgrade
+from lattice.db.models.course_summary import EMBEDDING_DIMENSIONS
 from lattice.retrieval import TierResult
 
 os.environ.setdefault("COGNEE_LOG_FILE", "false")
@@ -157,6 +158,13 @@ def settings(tmp_path, migrated_database: str) -> Settings:
     )
 
 
+def basis(axis: int) -> list[float]:
+    """A unit vector along one axis of the summary space."""
+    vector = [0.0] * EMBEDDING_DIMENSIONS
+    vector[axis] = 1.0
+    return vector
+
+
 class FakePrincipal:
     def __init__(self, email: str) -> None:
         self.email = email
@@ -177,11 +185,26 @@ class FakeEngine:
         self.cognified: list[str] = []
         self.cleared: list[tuple[UUID, str]] = []
         self.searched: list[dict[UUID, str]] = []
+        self.searched_as: list[str] = []
         self.results: list[TierResult] = []
         self.fail_with: Exception | None = None
+        # Embeddings: a basis vector per keyword, so a test decides which courses are near.
+        self.axes: dict[str, int] = {}
+        self.model_name = "fake-embedding"
+        self.embedded: list[list[str]] = []
 
     async def start(self) -> None:
         pass
+
+    def embedding_model(self) -> str:
+        return self.model_name
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        self.embedded.append(list(texts))
+        return [
+            basis(next((axis for word, axis in self.axes.items() if word in text), 0))
+            for text in texts
+        ]
 
     async def principal(self, email: str) -> FakePrincipal:
         return FakePrincipal(email)
@@ -217,6 +240,7 @@ class FakeEngine:
         if self.fail_with is not None:
             raise self.fail_with
         self.searched.append(datasets)
+        self.searched_as.append(user.email)
         tiers = set(datasets.values())
         return [result for result in self.results if result.tier in tiers]
 

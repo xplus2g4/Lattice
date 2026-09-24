@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     uploads_dir: Path = Path("data/uploads")
     max_upload_mb: int = 25
 
+    # How often the course summaries, one vector per course, are recomputed.
+    course_summary_refresh_s: int = 3600
+
 
 @lru_cache
 def get_settings() -> Settings:
