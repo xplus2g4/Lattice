@@ -1,10 +1,15 @@
 /** The API surface the app codes against.
  *
- * Every call is served by `#/lib/mock-backend`: this branch ships the product
- * shell without a server behind it, and the RPC endpoints on `main` land here
- * in the integration change.
+ * Every call is served by `#/lib/http-backend` against the running API; the
+ * session cookie carries identity, so `user` arguments only key caches and
+ * fills. `VITE_MOCK_API=1` swaps in `#/lib/mock-backend` to run the shell
+ * without a server behind it.
  */
-import * as backend from './mock-backend'
+import * as httpBackend from './http-backend'
+import * as mockBackend from './mock-backend'
+
+const backend =
+  import.meta.env.VITE_MOCK_API === '1' ? mockBackend : httpBackend
 
 export { ApiError } from './api-error'
 
@@ -118,6 +123,12 @@ export function listCourses(user: string) {
   return backend.listCourses(user)
 }
 
+/** Enrol in a course by code, creating it (owned by the caller) when it does
+ * not exist yet — the "add a course" flow on the home screen. */
+export function joinCourse(user: string, code: string) {
+  return backend.joinCourse(user, code)
+}
+
 export function listSessions(user: string, course: string) {
   return backend.listSessions(user, course)
 }
@@ -142,10 +153,11 @@ export function listNotes(user: string, course: string) {
   return backend.listNotes(user, course)
 }
 
+/** `id` is the server uuid of an existing Note; null writes a fresh one. */
 export function saveNote(
   user: string,
   course: string,
-  id: string,
+  id: string | null,
   body_md: string,
 ) {
   return backend.saveNote(user, course, id, body_md)

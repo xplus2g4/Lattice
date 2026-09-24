@@ -1,5 +1,5 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
 import { ArrowRight01Icon, PlusSignIcon } from '@hugeicons/core-free-icons'
 import { useState } from 'react'
@@ -10,23 +10,34 @@ import { Card, CardContent } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { Skeleton } from '#/components/ui/skeleton'
 import { CourseCard } from '#/components/lattice/course-card'
-import { ApiError, listCourses } from '#/lib/api'
+import { authed } from '#/components/lattice/require-auth'
+import { ApiError, joinCourse, listCourses } from '#/lib/api'
+import { signOut } from '#/lib/auth'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
 import type { CourseSummary } from '#/lib/api'
 
-export const Route = createFileRoute('/')({ component: Home })
+export const Route = createFileRoute('/')({ component: authed(Home) })
 
 const COURSE_RE = /^[a-z][a-z0-9]{1,15}$/
 
 function Home() {
-  const [user, setUser] = useUser()
+  const user = useUser()
+  const queryClient = useQueryClient()
+  const navigate = useNavigate()
   const { courses: added, lastOpened } = useLibrary()
   const courses = useQuery({
     queryKey: ['courses', user],
     queryFn: () => listCourses(user),
     retry: false,
+  })
+  const logout = useMutation({
+    mutationFn: signOut,
+    onSuccess: () => {
+      queryClient.clear()
+      void navigate({ to: '/login' })
+    },
   })
 
   // Server-known courses plus codes the user added but has not filled yet.
@@ -58,14 +69,17 @@ function Home() {
               Pick a course, or create one and upload its materials.
             </p>
           </div>
-          <label className="flex flex-col gap-1.5 text-lattice-meta font-medium text-muted-foreground">
-            Signed in as
-            <Input
-              type="email"
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-            />
-          </label>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-muted-foreground">{user}</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={logout.isPending}
+              onClick={() => logout.mutate()}
+            >
+              Sign out
+            </Button>
+          </div>
         </header>
 
         {lastOpened && (
@@ -80,7 +94,7 @@ function Home() {
             <h2 className="text-lattice-heading font-semibold tracking-tight">
               Your courses
             </h2>
-            <AddCourse />
+            <AddCourse user={user} />
           </div>
           {courses.error && (
             <p className="mt-4 text-sm text-destructive">
@@ -150,42 +164,55 @@ function ContinueCard({
   )
 }
 
-function AddCourse() {
+function AddCourse({ user }: { user: string }) {
   const { addCourse } = useLibrary()
   const navigate = useNavigate()
   const [value, setValue] = useState('')
   const code = value.trim().toLowerCase()
   const invalid = value.trim() !== '' && !COURSE_RE.test(code)
+  // Join the course when the code exists, create it (as owner) when it does not.
+  const join = useMutation({
+    mutationFn: () => joinCourse(user, code),
+    onSuccess: () => {
+      addCourse(code)
+      void navigate({
+        to: '/courses/$courseId',
+        params: { courseId: code },
+        search: { material: undefined },
+      })
+    },
+  })
 
   return (
     <form
       className="flex flex-wrap items-center gap-2"
       onSubmit={(e) => {
         e.preventDefault()
-        if (!COURSE_RE.test(code)) return
-        addCourse(code)
-        void navigate({
-          to: '/courses/$courseId',
-          params: { courseId: code },
-          search: { material: undefined },
-        })
+        if (COURSE_RE.test(code)) join.mutate()
       }}
     >
       <Input
         className="w-auto"
         value={value}
-        placeholder="New course code — e.g. cs3216"
+        placeholder="Course code — e.g. cs3216"
         aria-invalid={invalid}
         onChange={(e) => setValue(e.target.value)}
       />
-      <Button type="submit" size="sm" disabled={!COURSE_RE.test(code)}>
+      <Button
+        type="submit"
+        size="sm"
+        disabled={!COURSE_RE.test(code) || join.isPending}
+      >
         <HugeiconsIcon icon={PlusSignIcon} data-icon="inline-start" />
-        Create course
+        {join.isPending ? 'Adding…' : 'Add course'}
       </Button>
       {invalid && (
         <p className="w-full text-xs text-destructive">
           2–16 chars: lowercase letters and digits, starting with a letter.
         </p>
+      )}
+      {join.error && (
+        <p className="w-full text-xs text-destructive">{join.error.message}</p>
       )}
     </form>
   )

@@ -9,6 +9,7 @@ import { AskPanel } from '#/components/lattice/ask-panel'
 import { MaterialViewer } from '#/components/lattice/material-viewer'
 import { MaterialsPanel } from '#/components/lattice/materials-panel'
 import { NotesPanel } from '#/components/lattice/notes-panel'
+import { authed } from '#/components/lattice/require-auth'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
@@ -20,13 +21,13 @@ export const Route = createFileRoute('/courses/$courseId')({
         ? search.material
         : undefined,
   }),
-  component: CourseWorkspace,
+  component: authed(CourseWorkspace),
 })
 
 function CourseWorkspace() {
   const { courseId } = Route.useParams()
   const { material } = Route.useSearch()
-  const [user] = useUser()
+  const user = useUser()
   const { markOpened } = useLibrary()
   const [mobileView, setMobileView] = useState<'material' | 'ask'>('material')
 

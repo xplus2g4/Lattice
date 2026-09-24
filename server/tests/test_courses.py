@@ -2,6 +2,8 @@
 
 from httpx import AsyncClient, Response
 
+from tests.test_materials import upload
+
 BOB = {"X-User": "bob@example.com"}
 
 
@@ -99,6 +101,24 @@ async def test_list_only_returns_courses_the_caller_joined(student: AsyncClient)
     mine = (await student.get("/courses.list")).json()
     assert [course["code"] for course in mine] == ["cs3216"]
     assert (await student.get("/courses.list", headers=BOB)).json() == []
+
+
+async def test_summary_counts_materials_notes_and_pending(student: AsyncClient) -> None:
+    await create(student)
+    await create(student, code="cs2103", name="Software Engineering II")
+    await join(student)
+    await join(student, code="cs2103")
+    await upload(student)
+    await student.post("/notes.save", json={"course": "cs3216", "body_md": "hash tables"})
+
+    by_code = {s["code"]: s for s in (await student.get("/courses.summary")).json()}
+    assert by_code["cs3216"]["material_count"] == 1
+    assert by_code["cs3216"]["note_count"] == 1
+    assert by_code["cs3216"]["pending_count"] == 1
+    assert by_code["cs2103"]["material_count"] == 0
+    assert by_code["cs2103"]["note_count"] == 0
+    # Another student's notes do not count.
+    assert (await student.get("/courses.summary", headers=BOB)).json() == []
 
 
 async def test_leave_removes_the_enrolment_only(student: AsyncClient) -> None:

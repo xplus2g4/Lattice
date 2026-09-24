@@ -18,7 +18,8 @@ import {
   saveNote,
   uploadMaterial,
 } from '#/lib/api'
-import { useStored } from '#/lib/user'
+import { authed } from '#/components/lattice/require-auth'
+import { useStored, useUser } from '#/lib/user'
 import type {
   Enrolment,
   Material,
@@ -29,13 +30,13 @@ import type {
   Turn,
 } from '#/lib/api'
 
-export const Route = createFileRoute('/dev')({ component: Home })
+export const Route = createFileRoute('/dev')({ component: authed(Home) })
 
 const COURSE_RE = /^[a-z][a-z0-9]{1,15}$/
 
 function Home() {
   const [course, setCourse] = useStored('lattice.course', 'cs101')
-  const [user, setUser] = useStored('lattice.user', 'alice@example.com')
+  const user = useUser()
   const courseOk = COURSE_RE.test(course)
   const ready = courseOk && user.trim() !== ''
 
@@ -47,14 +48,7 @@ function Home() {
           Course
           <Input value={course} onChange={(e) => setCourse(e.target.value)} />
         </label>
-        <label className="flex flex-col text-xs">
-          User
-          <Input
-            type="email"
-            value={user}
-            onChange={(e) => setUser(e.target.value)}
-          />
-        </label>
+        <p className="text-xs text-muted-foreground">{user}</p>
       </header>
       {!courseOk && (
         <p className="text-sm text-destructive">
@@ -149,11 +143,14 @@ function Notes({ course, user }: Enrolment) {
     queryFn: () => listNotes(user, course),
     refetchInterval: (q) => pollWhilePending<Note>(q.state.data),
   })
-  const [noteId, setNoteId] = useState('n1')
+  const [noteId, setNoteId] = useState('')
   const [body, setBody] = useState('')
   const save = useMutation({
-    mutationFn: () => saveNote(user, course, noteId, body),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
+    mutationFn: () => saveNote(user, course, noteId || null, body),
+    onSuccess: (note) => {
+      setNoteId(note.id)
+      return queryClient.invalidateQueries({ queryKey: key })
+    },
   })
 
   return (
@@ -168,8 +165,7 @@ function Notes({ course, user }: Enrolment) {
       >
         <Input
           value={noteId}
-          pattern="[A-Za-z0-9_\-]{1,64}"
-          placeholder="note id"
+          placeholder="note uuid — blank writes a new note"
           onChange={(e) => setNoteId(e.target.value)}
         />
         <Textarea
@@ -182,7 +178,7 @@ function Notes({ course, user }: Enrolment) {
         <Button
           type="submit"
           size="sm"
-          disabled={!noteId || !body.trim() || save.isPending}
+          disabled={!body.trim() || save.isPending}
         >
           {save.isPending ? 'Saving…' : 'Save'}
         </Button>

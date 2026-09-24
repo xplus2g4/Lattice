@@ -3,7 +3,9 @@ from uuid import UUID
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from lattice.db.models import Course, Enrolment, User
+from lattice.db.models import Course, Enrolment, Material, Note, User
+
+PENDING_STATUSES = ("queued", "converting", "cognifying")
 
 
 async def by_code(session: AsyncSession, code: str) -> Course | None:
@@ -56,6 +58,39 @@ async def enrolled_courses(session: AsyncSession, user: User) -> list[Course]:
             .order_by(Course.code)
         )
     )
+
+
+async def summaries(session: AsyncSession, user: User) -> list[tuple[Course, int, int, int]]:
+    """Each enrolled course with its material count, the caller's note count, and
+    how many materials are still mid-ingest — what the home screen's cards show."""
+    enrolled = await enrolled_courses(session, user)
+    ids = [course.id for course in enrolled]
+    if not ids:
+        return []
+    material_rows = (
+        await session.execute(
+            select(
+                Material.course_id,
+                func.count(),
+                func.count().filter(Material.status.in_(PENDING_STATUSES)),
+            )
+            .where(Material.course_id.in_(ids))
+            .group_by(Material.course_id)
+        )
+    ).all()
+    material_counts = {course_id: (total, pending) for course_id, total, pending in material_rows}
+    note_rows = (
+        await session.execute(
+            select(Note.course_id, func.count())
+            .where(Note.user_id == user.id, Note.course_id.in_(ids))
+            .group_by(Note.course_id)
+        )
+    ).all()
+    note_counts = {course_id: count for course_id, count in note_rows}
+    return [
+        (course, *material_counts.get(course.id, (0, 0)), note_counts.get(course.id, 0))
+        for course in enrolled
+    ]
 
 
 async def enrolment(session: AsyncSession, user_id: UUID, course_id: UUID) -> Enrolment | None:

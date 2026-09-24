@@ -14,9 +14,7 @@ async def by_email(session: AsyncSession, email: str) -> User | None:
     return await session.scalar(select(User).where(User.email == email))
 
 
-async def get_or_create(
-    session: AsyncSession, email: str, *, admin_emails: list[str] = ()
-) -> User:
+async def get_or_create(session: AsyncSession, email: str, *, admin_emails: list[str] = ()) -> User:
     """The app user behind an authenticated email; created on first sight.
 
     `admin_emails` is the bootstrap path for the admin role: a listed email is

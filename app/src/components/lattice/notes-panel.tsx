@@ -18,8 +18,6 @@ import { StatusBadge } from './status-badge'
 
 import type { Enrolment } from '#/lib/api'
 
-const NOTE_ID_RE = /^[A-Za-z0-9_-]{1,64}$/
-
 export function NotesPanel({ course, user }: Enrolment) {
   const queryClient = useQueryClient()
   const key = ['notes', course, user]
@@ -29,12 +27,12 @@ export function NotesPanel({ course, user }: Enrolment) {
     refetchInterval: (q) => pollWhilePending(q.state.data),
   })
   const [editing, setEditing] = useState<{
-    id: string
+    id: string | null
     body: string
     isNew: boolean
   } | null>(null)
   const save = useMutation({
-    mutationFn: (note: { id: string; body: string }) =>
+    mutationFn: (note: { id: string | null; body: string }) =>
       saveNote(user, course, note.id, note.body),
     onSuccess: () => {
       setEditing(null)
@@ -51,13 +49,7 @@ export function NotesPanel({ course, user }: Enrolment) {
         <Button
           variant="ghost"
           size="xs"
-          onClick={() =>
-            setEditing({
-              id: `note-${Date.now().toString(36)}`,
-              body: '',
-              isNew: true,
-            })
-          }
+          onClick={() => setEditing({ id: null, body: '', isNew: true })}
         >
           <HugeiconsIcon icon={PlusSignIcon} data-icon="inline-start" />
           New note
@@ -80,7 +72,7 @@ export function NotesPanel({ course, user }: Enrolment) {
             >
               <span className="flex items-center gap-2">
                 <span className="min-w-0 flex-1 truncate font-mono text-sm">
-                  {n.id}
+                  {n.id.slice(0, 8)}
                 </span>
                 <StatusBadge status={n.status} />
               </span>
@@ -117,17 +109,18 @@ export function NotesPanel({ course, user }: Enrolment) {
               className="space-y-3"
               onSubmit={(e) => {
                 e.preventDefault()
-                if (NOTE_ID_RE.test(editing.id) && editing.body.trim()) {
+                if (editing.body.trim()) {
                   save.mutate({ id: editing.id, body: editing.body })
                 }
               }}
             >
-              <Input
-                className="font-mono"
-                value={editing.id}
-                disabled={!editing.isNew}
-                onChange={(e) => setEditing({ ...editing, id: e.target.value })}
-              />
+              {!editing.isNew && (
+                <Input
+                  className="font-mono"
+                  value={editing.id ?? ''}
+                  disabled
+                />
+              )}
               <Textarea
                 className="min-h-40"
                 placeholder="Markdown body"
@@ -142,11 +135,7 @@ export function NotesPanel({ course, user }: Enrolment) {
               <DialogFooter>
                 <Button
                   type="submit"
-                  disabled={
-                    !NOTE_ID_RE.test(editing.id) ||
-                    !editing.body.trim() ||
-                    save.isPending
-                  }
+                  disabled={!editing.body.trim() || save.isPending}
                 >
                   {save.isPending ? 'Saving…' : 'Save note'}
                 </Button>

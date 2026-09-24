@@ -262,6 +262,12 @@ export async function listCourses(user: string): Promise<Array<CourseSummary>> {
     .sort((a, b) => a.code.localeCompare(b.code))
 }
 
+export async function joinCourse(user: string, code: string): Promise<void> {
+  seed(user)
+  await sleep()
+  course(code)
+}
+
 export async function listMaterials(
   user: string,
   code: string,
@@ -315,7 +321,7 @@ export async function listNotes(
 export async function saveNote(
   user: string,
   code: string,
-  id: string,
+  id: string | null,
   body_md: string,
 ): Promise<Note> {
   seed(user)
@@ -323,13 +329,13 @@ export async function saveNote(
   const note: Note = {
     course: code,
     owner: user,
-    id,
+    id: id ?? `note-${Date.now().toString(36)}`,
     body_md,
     status: 'ready',
     error: null,
     updated_at: now(),
   }
-  course(code).notes.set(id, note)
+  course(code).notes.set(note.id, note)
   return note
 }
 

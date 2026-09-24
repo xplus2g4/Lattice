@@ -38,7 +38,7 @@ function useObjectUrl(blob: Blob | undefined): string | null {
 }
 
 export function useMaterialFile(course: string, filename: string) {
-  const [user] = useUser()
+  const user = useUser()
   const file = useQuery({
     queryKey: ['material-file', course, filename, user],
     staleTime: Infinity,

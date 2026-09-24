@@ -3,6 +3,8 @@
 
 import { useCallback, useSyncExternalStore } from 'react'
 
+import { MOCK_API, useMe } from './auth'
+
 const listeners = new Set<() => void>()
 
 function subscribe(cb: () => void) {
@@ -31,7 +33,8 @@ export function useStored(key: string, fallback: string) {
   return [value, set] as const
 }
 
-/** The email sent as X-User on every API call. Dev-header auth, same as /dev. */
-export function useUser() {
-  return useStored('lattice.user', 'alice@example.com')
+/** The signed-in user's email — what per-user cache keys are partitioned by.
+ * Identity comes from the session (see `#/lib/auth`), never from input. */
+export function useUser(): string {
+  return useMe().data?.user.email ?? (MOCK_API ? 'mock@lattice.local' : '')
 }

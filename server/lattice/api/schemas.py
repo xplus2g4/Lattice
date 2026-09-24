@@ -173,6 +173,16 @@ class MeOut(BaseModel):
     courses: list[CourseOut]
 
 
+class CourseSummaryOut(BaseModel):
+    """An enrolled course with the counts the home screen shows."""
+
+    code: str
+    name: str
+    material_count: int
+    note_count: int
+    pending_count: int
+
+
 class CourseSearchHit(BaseModel):
     course: CourseOut
     enrolled: bool

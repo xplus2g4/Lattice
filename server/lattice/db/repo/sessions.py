@@ -30,9 +30,7 @@ async def for_course(db: AsyncSession, *, user: User, course: Course) -> list[Se
     )
 
 
-async def for_course_all_users(
-    db: AsyncSession, *, course: Course
-) -> list[tuple[Session, str]]:
+async def for_course_all_users(db: AsyncSession, *, course: Course) -> list[tuple[Session, str]]:
     """Every Session in a course, each with its owner's email. Admin reads only."""
     rows = await db.execute(
         select(Session, User.email)

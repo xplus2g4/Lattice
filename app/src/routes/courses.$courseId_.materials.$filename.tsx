@@ -9,11 +9,12 @@ import {
   MaterialViewer,
   useMaterialFile,
 } from '#/components/lattice/material-viewer'
+import { authed } from '#/components/lattice/require-auth'
 import { useLibrary } from '#/lib/library'
 
 export const Route = createFileRoute('/courses/$courseId_/materials/$filename')(
   {
-    component: MaterialViewerRoute,
+    component: authed(MaterialViewerRoute),
   },
 )
 
