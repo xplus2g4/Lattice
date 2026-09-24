@@ -224,7 +224,9 @@ class FakeEngine:
     async def global_dataset(self, course: str) -> FakeDataset:
         return FakeDataset(f"{course}-global")
 
-    async def replace(self, dataset: FakeDataset, owner: FakePrincipal, path) -> None:
+    async def replace(
+        self, dataset: FakeDataset, owner: FakePrincipal, path, chunk_size: int | None = None
+    ) -> None:
         if self.fail_with is not None:
             raise self.fail_with
         self.cognified.append(str(path))

@@ -482,6 +482,17 @@
             ],
             "title": "Page Start"
           },
+          "rank": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rank"
+          },
           "relationship_name": {
             "anyOf": [
               {
@@ -492,6 +503,17 @@
               }
             ],
             "title": "Relationship Name"
+          },
+          "score": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Score"
           }
         },
         "required": [

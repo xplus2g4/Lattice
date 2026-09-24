@@ -210,3 +210,11 @@ and [PDF provenance/cost findings](../docs/research/2026-09-20-cognee-material-p
 plus the [PPTX follow-up](../docs/research/2026-09-20-cognee-pptx-provenance.md), record the completed
 runs and limitations. Both live canaries passed locally. Production PPTX loader/conversion support,
 page/slide-aware ingest and the CI repository secret remain outstanding.
+
+## Course evaluation
+
+`eval/` holds the harness that measures `/ask` on a course's seed decks: retrieval hit rates with
+page numbers, and answer quality graded by a second model family. Steps, file layout and how to
+read the table are in [`eval/README.md`](eval/README.md); design and findings in
+[`docs/research/`](../docs/research/2026-09-23-cs4223-evaluation-design.md). Question sets and run
+records under `eval/<COURSE>/` are local and ignored.

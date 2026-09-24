@@ -128,12 +128,18 @@ class Engine:
 
     # Ingest
 
-    async def replace(self, dataset: Dataset, user: User, path: Path) -> None:
-        """Drop any earlier data with this file's name, then add and cognify."""
+    async def replace(
+        self, dataset: Dataset, user: User, path: Path, chunk_size: int | None = None
+    ) -> None:
+        """Drop any earlier data with this file's name, then add and cognify.
+
+        `chunk_size` is in tokens; `None` takes Cognee's default (8,191 with the current
+        embedding config). The API never sets it; the evaluation harness sweeps it.
+        """
         async with self._ingest_lock:
             await self._remove_named(dataset, user, path.name)
             await cognee.add(str(path), dataset_id=dataset.id, user=user)
-            await cognee.cognify(datasets=[dataset.id], user=user)
+            await cognee.cognify(datasets=[dataset.id], user=user, chunk_size=chunk_size)
 
     async def _remove_named(self, dataset: Dataset, user: User, filename: str) -> None:
         for data in await get_dataset_data(dataset.id):
@@ -336,13 +342,18 @@ def _page_span(text: str | None) -> dict[str, int]:
 
 
 def _answer_text(text: Any) -> str | None:
-    """Completion types return a string; CHUNKS returns chunk dicts whose `text` is the payload."""
+    """Completion types return a string or a one-element list of strings (observed live:
+    `GraphCompletionRetriever.get_completion` wraps its completion in a list); CHUNKS returns
+    chunk dicts whose `text` is the payload. Cognee's evidence block is stripped either way."""
     if text is None:
         return text
     if isinstance(text, str):
         return _EVIDENCE_BLOCK.sub("", text)
     if isinstance(text, list):
-        parts = [t.get("text", str(t)) if isinstance(t, dict) else str(t) for t in text]
+        parts = [
+            t.get("text", str(t)) if isinstance(t, dict) else _EVIDENCE_BLOCK.sub("", str(t))
+            for t in text
+        ]
         return "\n\n".join(parts)
     return str(text)
 

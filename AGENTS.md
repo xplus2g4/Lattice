@@ -22,7 +22,8 @@ Write an ADR only when all three hold: hard to reverse, surprising without conte
 Skills are harness-agnostic: one directory per skill at `.agents/skills/<name>/SKILL.md`, with its
 supporting files beside it. Claude Code reads them through `.claude/skills`, a checked-in symlink to
 `.agents/skills`, and reads this file through `CLAUDE.md`, which imports it. A new skill needs nothing
-beyond a new directory under `.agents/skills/`; both entry points follow.
+beyond a new directory under `.agents/skills/`; both entry points follow. A skill that belongs with
+the code it drives may live there and be symlinked in (`author-questions` -> `server/eval/`).
 
 ## Agent skills
 

@@ -20,6 +20,9 @@ class Evidence(BaseModel):
     relationship_name: str | None = None
     page_start: int | None = None
     page_end: int | None = None
+    # Cognee's position and similarity for segment evidence; graph evidence carries neither.
+    rank: int | None = None
+    score: float | None = None
 
 
 class TierResult(BaseModel):
