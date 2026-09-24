@@ -6,16 +6,31 @@ import { COURSE_RE, recordRecentCourse } from '#/lib/course'
 export const Route = createFileRoute('/courses/$course')({
   validateSearch: (
     search: Record<string, unknown>,
-  ): { material?: string; page?: number; pageEnd?: number } => {
+  ): {
+    material?: string
+    note?: string
+    page?: number
+    pageEnd?: number
+  } => {
+    // The tab in front: any Material, or else a Note (a draft has a client-made id).
+    // Only a PDF Material has Pages to jump to.
     const material =
-      typeof search.material === 'string' &&
-      search.material.toLowerCase().endsWith('.pdf')
+      typeof search.material === 'string' && search.material
         ? search.material
         : undefined
-    const page = material ? pageNumber(search.page) : undefined
+    const note =
+      !material &&
+      typeof search.note === 'string' &&
+      /^[A-Za-z0-9_-]{1,64}$/.test(search.note)
+        ? search.note
+        : undefined
+    const page = material?.toLowerCase().endsWith('.pdf')
+      ? pageNumber(search.page)
+      : undefined
     const pageEnd = page ? pageNumber(search.pageEnd) : undefined
     return {
       material,
+      note,
       page,
       pageEnd: page && pageEnd && pageEnd > page ? pageEnd : undefined,
     }

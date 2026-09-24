@@ -11,7 +11,8 @@ enrolments       user_id, course_id, role(student|instructor), user_dataset_name
 materials        id, course_id, week, lecture_no, type(slides|tutorial|memo), title,
                  gcs_uri, sha256, status(queued|converting|cognifying|ready|failed),
                  error, cognify_tokens, cognify_cost_usd, created_by, created_at, updated_at
-notes            id, user_id, course_id, title, body_md, status(dirty|indexing|ready), updated_at
+notes            id, user_id, course_id, material_id, page, body_md, filename, sha256, storage_uri, revision, cognified_revision,
+                 ingest_attempts, run_after, status(dirty|indexing|ready|failed), error, created_at, updated_at
 sessions         id, user_id, course_id, created_at
 turns            id, session_id, role(user|assistant), content_json, cited_chunk_ids[], used_notes, latency_ms, cost_usd
 feedback         turn_id, user_id, rating(+1|-1), comment

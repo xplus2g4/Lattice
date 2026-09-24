@@ -107,3 +107,29 @@ async def test_a_failed_note_keeps_its_body(
     await session.refresh(note)
     assert (note.status, note.body_md) == ("failed", "still here")
     assert note.error == "RuntimeError: cognee is down"
+
+
+async def test_a_file_note_hands_the_stored_pdf_to_the_engine(
+    session: AsyncSession, sessionmaker: async_sessionmaker, engine, settings, tmp_path
+) -> None:
+    material = await a_material(session, tmp_path)
+    pdf = tmp_path / "summary.pdf"
+    pdf.write_bytes(b"my summary")
+    note = Note(
+        user_id=material.created_by,
+        course_id=material.course_id,
+        body_md="",
+        filename="summary.pdf",
+        sha256="1" * 64,
+        storage_uri=str(pdf),
+    )
+    session.add(note)
+    await session.commit()
+
+    await Ingest(sessionmaker, engine, settings).note(note.id)
+
+    await session.refresh(note)
+    assert note.status == "ready"
+    assert engine.cognified == [str(pdf)]
+    # No Markdown stand-in is written for a PDF Note; the stored file is what gets cognified.
+    assert list((settings.uploads_dir / "cs3216" / "notes").rglob("*.md")) == []

@@ -33,6 +33,8 @@ export function note(over: Partial<Note> = {}): Note {
     owner: 'alice@example.com',
     id: 'n1',
     body_md: 'hash tables are week 3',
+    filename: null,
+    sha256: null,
     status: 'ready',
     error: null,
     updated_at: AT,
@@ -76,12 +78,17 @@ export function userTurn(content: string, over: Partial<Turn> = {}): Turn {
 }
 
 export function assistantTurn(over: Partial<Turn> = {}): Turn {
+  const results = over.results ?? [tierResult()]
   return {
     id: 'turn-1',
     role: 'assistant',
-    content: '',
+    // The API composes the Turn's text from its tiers (study.py); so does the fixture.
+    content: results
+      .map((r) => r.answer)
+      .filter(Boolean)
+      .join('\n\n'),
     query_type: 'GRAPH_COMPLETION',
-    results: [tierResult()],
+    results,
     used_notes: false,
     latency_ms: 1200,
     created_at: AT,

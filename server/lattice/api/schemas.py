@@ -87,10 +87,19 @@ class NoteOut(Record):
     material_id: UUID | None
     page: int | None
     body_md: str
+    # Set when the Note is a stored PDF; then body_md is "" (required-nullable, ADR 0005).
+    filename: str | None
+    sha256: str | None
     status: str
     error: str | None
     created_at: datetime
     updated_at: datetime
+
+
+class NoteUploadOut(BaseModel):
+    note: NoteOut
+    # True when this student already holds these bytes in this course.
+    deduplicated: bool
 
 
 class TurnOut(Record):

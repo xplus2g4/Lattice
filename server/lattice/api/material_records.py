@@ -1,8 +1,7 @@
 """Material records: upload and deduplication (#34), ingest status and retry (#35),
 Topic segmentation results (#41) and each student's reading position (#29)."""
 
-import hashlib
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 from typing import Annotated
 from uuid import UUID
 
@@ -13,12 +12,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.api.deps import COURSE_CODE, CurrentUser, IngestDep, SessionDep, SettingsDep
 from lattice.api.schemas import MaterialOut, ReadingPositionOut, TopicOut, UploadOut
+from lattice.api.uploads import receive
 from lattice.db.models import Course, Material, User
 from lattice.db.repo import courses, materials
 
 router = APIRouter(tags=["materials"])
 
-ALLOWED_SUFFIXES = {".pdf", ".pptx", ".md", ".txt"}
+# No .pptx: Cognee 1.5.4 has no PPTX loader, so a deck only ever ends as a failed ingest.
+# Re-add it with the loader or conversion path chosen for #6.
+ALLOWED_SUFFIXES = {".pdf", ".md", ".txt"}
 
 
 class MaterialRef(BaseModel):
@@ -86,32 +88,22 @@ async def upload_material(
 ) -> UploadOut:
     """Content-addressed: the same bytes uploaded twice join the first Material (#34)."""
     row = await _enrolled_course(session, user, course)
-    filename = PurePosixPath(file.filename or "").name
-    if not filename or PurePosixPath(filename).suffix.lower() not in ALLOWED_SUFFIXES:
-        raise HTTPException(415, f"accepted: {', '.join(sorted(ALLOWED_SUFFIXES))}")
+    received = await receive(file, allowed=ALLOWED_SUFFIXES, max_mb=settings.max_upload_mb)
 
-    limit = settings.max_upload_mb * 1024 * 1024
-    body = await file.read(limit + 1)
-    if len(body) > limit:
-        raise HTTPException(413, f"max {settings.max_upload_mb} MB")
-    sha256 = hashlib.sha256(body).hexdigest()
-
-    existing = await materials.by_sha256(session, row, sha256)
+    existing = await materials.by_sha256(session, row, received.sha256)
     if existing is not None:
         return UploadOut(material=MaterialOut.model_validate(existing), deduplicated=True)
 
-    target = settings.uploads_dir / row.code / f"{sha256}{PurePosixPath(filename).suffix.lower()}"
-    target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_bytes(body)
-
+    # Dedup runs before any disk write, as before.
+    target = received.store(settings.uploads_dir / row.code)
     material = await materials.create(
         session,
         course=row,
         uploader=user,
-        title=filename,
-        filename=filename,
+        title=received.filename,
+        filename=received.filename,
         storage_uri=str(target),
-        sha256=sha256,
+        sha256=received.sha256,
     )
     background.add_task(ingest.material, material.id)
     return UploadOut(material=MaterialOut.model_validate(material), deduplicated=False)

@@ -31,7 +31,7 @@ Cognify is the expensive step (LLM extraction per chunk). It runs only in the Wo
 
 ## Save a note (student)
 
-Same shape as material ingest, with `kind=index_note`, dataset `{course}-user-{id}`, and the user's own principal. Saves are debounced client-side and coalesced in the queue (one pending job per note) so typing does not burn tokens. `notes.status` shows `indexing` until done; answers use whatever is indexed.
+Same shape as material ingest, with `kind=index_note`, dataset `{course}-user-{id}`, and the user's own principal. Saves are debounced client-side and coalesced in the queue (one pending job per note) so typing does not burn tokens. `notes.status` shows `indexing` until done; answers use whatever is indexed. `/notes.upload` makes one Note per PDF; ingest hands the stored PDF to the engine's own loader instead of writing a `.md`.
 
 ## Ask (Phase 1)
 

@@ -10,7 +10,11 @@ export function getRouter() {
   const router = createTanStackRouter({
     routeTree,
     context,
-    scrollRestoration: true,
+    // Not in the course workspace, which keeps its own scroll. The router remembers
+    // elements by their DOM path, and tabs take turns at the same path, so restoring
+    // would hand one tab another's position (and the reader would save it).
+    scrollRestoration: ({ location }) =>
+      !location.pathname.startsWith('/courses/'),
     defaultPreload: 'intent',
     defaultPreloadStaleTime: 0,
   })

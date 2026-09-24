@@ -102,6 +102,20 @@ export type BodyUploadMaterialMaterialsUploadPost = {
 }
 
 /**
+ * Body_upload_note_notes_upload_post
+ */
+export type BodyUploadNoteNotesUploadPost = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * File
+   */
+  file: Blob | File
+}
+
+/**
  * CourseOut
  */
 export type CourseOut = {
@@ -527,6 +541,10 @@ export type NoteOut = {
    */
   error: string | null
   /**
+   * Filename
+   */
+  filename: string | null
+  /**
    * Id
    */
   id: string
@@ -542,6 +560,10 @@ export type NoteOut = {
    * Revision
    */
   revision: number
+  /**
+   * Sha256
+   */
+  sha256: string | null
   /**
    * Status
    */
@@ -594,6 +616,17 @@ export type NoteReview = {
    * Truncated
    */
   truncated: boolean
+}
+
+/**
+ * NoteUploadOut
+ */
+export type NoteUploadOut = {
+  /**
+   * Deduplicated
+   */
+  deduplicated: boolean
+  note: NoteOut
 }
 
 /**
@@ -2016,6 +2049,41 @@ export type DeleteNoteNotesDeletePostResponses = {
 export type DeleteNoteNotesDeletePostResponse =
   DeleteNoteNotesDeletePostResponses[keyof DeleteNoteNotesDeletePostResponses]
 
+export type DownloadNoteNotesDownloadGetData = {
+  body?: never
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query: {
+    /**
+     * Note
+     */
+    note: string
+  }
+  url: '/notes.download'
+}
+
+export type DownloadNoteNotesDownloadGetErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type DownloadNoteNotesDownloadGetError =
+  DownloadNoteNotesDownloadGetErrors[keyof DownloadNoteNotesDownloadGetErrors]
+
+export type DownloadNoteNotesDownloadGetResponses = {
+  /**
+   * Successful Response
+   */
+  200: unknown
+}
+
 export type GetNoteNotesGetGetData = {
   body?: never
   headers?: {
@@ -2140,6 +2208,39 @@ export type SaveNoteNotesSavePostResponses = {
 
 export type SaveNoteNotesSavePostResponse =
   SaveNoteNotesSavePostResponses[keyof SaveNoteNotesSavePostResponses]
+
+export type UploadNoteNotesUploadPostData = {
+  body: BodyUploadNoteNotesUploadPost
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/notes.upload'
+}
+
+export type UploadNoteNotesUploadPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type UploadNoteNotesUploadPostError =
+  UploadNoteNotesUploadPostErrors[keyof UploadNoteNotesUploadPostErrors]
+
+export type UploadNoteNotesUploadPostResponses = {
+  /**
+   * Successful Response
+   */
+  202: NoteUploadOut
+}
+
+export type UploadNoteNotesUploadPostResponse =
+  UploadNoteNotesUploadPostResponses[keyof UploadNoteNotesUploadPostResponses]
 
 export type RecordAnswerQuizAnswersRecordPostData = {
   body: RecordAnswer

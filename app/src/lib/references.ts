@@ -35,7 +35,8 @@ export function materialFor(
   )
 }
 
-function noteLabel(note: Note): string {
+export function noteLabel(note: Note): string {
+  if (note.filename) return note.filename
   const line = note.body_md
     .split('\n')
     .map((l) => l.replace(/^#+\s*/, '').trim())
@@ -81,7 +82,14 @@ export function groupReferences(
     const material = materialFor(name, materials)
     const note = material
       ? undefined
-      : notes.find((n) => n.id === name || n.id === stem(name))
+      : notes.find(
+          (n) =>
+            n.id === name ||
+            n.id === stem(name) ||
+            // Cognee names a PDF Note after its stored file, which is its sha256.
+            (n.sha256 !== null &&
+              (n.sha256 === name || n.sha256 === stem(name))),
+        )
     return {
       name,
       label: material?.filename ?? (note ? noteLabel(note) : name),
