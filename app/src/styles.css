@@ -4,6 +4,11 @@
 @import 'katex/dist/katex.min.css';
 @plugin '@tailwindcss/typography';
 
+/* `dark:` follows the `.dark` class the dark theme below is defined under. Tailwind's
+   default follows the OS instead, so on a dark OS the light theme got dark-only styles:
+   `dark:prose-invert` turned Markdown's inline code, links and quotes white on white. */
+@custom-variant dark (&:is(.dark *));
+
 :root {
   --background: oklch(1 0 0);
   --foreground: oklch(0.25 0.042 181.4);
