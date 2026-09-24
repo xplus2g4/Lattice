@@ -104,7 +104,9 @@ def test_reads_page_labels_from_cognee_scored_results():
     assert (e.page_start, e.page_end) == (2, 2)
 
 
-def test_drops_cognees_plain_text_evidence_block_from_the_answer():
+@pytest.mark.parametrize("wrap", (lambda t: t, lambda t: [t]), ids=("string", "list"))
+def test_drops_cognees_plain_text_evidence_block_from_the_answer(wrap):
+    """Graph completion returns its completion wrapped in a one-element list (observed live)."""
     raw = result(COURSE)
     text = "Chaining.\n\nEvidence:\n- chunk 0 of document abc (data_id: d1, chunk_id: c1)\n"
-    assert _tier_result({**raw, "text_result": text}, DATASETS).answer == "Chaining."
+    assert _tier_result({**raw, "text_result": wrap(text)}, DATASETS).answer == "Chaining."

@@ -29,7 +29,7 @@ class Ingest:
         self.settings = settings
         self._note_lock = asyncio.Lock()
 
-    async def material(self, material_id: UUID) -> None:
+    async def material(self, material_id: UUID, chunk_size: int | None = None) -> None:
         async with self.sessionmaker() as session:
             material = await materials.get(session, material_id)
             if material is None:
@@ -40,7 +40,9 @@ class Ingest:
 
             try:
                 dataset = await self.engine.global_dataset(material.course.code)
-                await self.engine.replace(dataset, await self.engine.instructor(), path.resolve())
+                await self.engine.replace(
+                    dataset, await self.engine.instructor(), path.resolve(), chunk_size
+                )
             except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
                 await materials.set_status(
                     session, material, "failed", f"{type(exc).__name__}: {exc}"
