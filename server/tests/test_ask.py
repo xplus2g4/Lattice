@@ -214,6 +214,7 @@ async def test_related_courses_are_searched_as_reference_material(
     assert list(answering.searched[1].values()) == ["related"]
     assert answering.system_prompts == [None, RELATED_POLICY]
     assert "at most three bullet points" in RELATED_POLICY
+    assert "key term in bold, as **term**" in RELATED_POLICY
     assert NOT_COVERED in RELATED_POLICY
 
 

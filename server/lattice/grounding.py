@@ -31,8 +31,8 @@ GROUNDING_POLICY = (
 RELATED_POLICY = (
     "These Materials belong to a related course, not the student's own; they are reference\n"
     "material. Reply with at most three bullet points of one sentence each on what they say\n"
-    "about the question, using only the supplied course context. No preamble and no closing\n"
-    "sentence.\n" + _GUARD_RAILS
+    "about the question, using only the supplied course context. Start each bullet with its\n"
+    "key term in bold, as **term**. No preamble and no closing sentence.\n" + _GUARD_RAILS
 )
 
 

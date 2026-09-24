@@ -53,7 +53,8 @@ POST /ask {course, session_id, question}
       cognee.search, concurrently with step 5, as the instructor principal over that
       course's {code}-global alone, with a datasets map of its own so an IsolationError
       refuses anything else, and under RELATED_POLICY (grounding.py): at most three
-      one-sentence bullet points, since it is reference material beside the answer. Results
+      one-sentence bullet points, each opening with its key term in bold, since it is
+      reference material beside the answer. Results
       carry tier=related and course=code; segment evidence has document_name resolved to
       the Material's filename, since the client cannot list another course's Materials, and
       the client links each reference to that course's reader in a new tab. A related
