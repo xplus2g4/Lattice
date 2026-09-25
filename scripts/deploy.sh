@@ -25,6 +25,7 @@ ssh_vm() {
 
 if [[ ${1:-} == --setup ]]; then
   ssh_vm "sudo LATTICE_REPO='$LATTICE_REPO' bash -s" < "$root/server/ops/vm-setup.sh"
+  exit
 fi
 
 REF=${1:-main}
