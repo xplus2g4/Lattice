@@ -2852,6 +2852,10 @@ export type ExtendQuizQuizzesExtendPostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -2887,6 +2891,10 @@ export type GenerateQuizQuizzesGeneratePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
@@ -2962,6 +2970,10 @@ export type GradeQuizQuizzesGradePostData = {
      * X-User
      */
     'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
   }
   path?: never
   query?: never
