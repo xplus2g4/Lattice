@@ -1,0 +1,75 @@
+# Production override: docker compose -f compose.yaml -f compose.prod.yaml up -d
+#
+# Adds the web app and Caddy, and closes the host ports the dev file publishes: Caddy on
+# :80/:443 is the only ingress. Interpolated values come from `.env` in this directory;
+# `.env.production.example` lists them. The web app answers on `https://$PUBLIC_HOST/`, the
+# API on `https://$API_HOST/` with its root-level RPC paths; CORS_ORIGINS names the web host.
+services:
+  postgres:
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports: !reset []
+
+  api:
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: postgresql+asyncpg://lattice:${POSTGRES_PASSWORD}@postgres:5432/lattice
+      # deploy.sh runs `alembic upgrade head` as its own step before restarting the API.
+      DATABASE_AUTO_MIGRATE: "false"
+      CORS_ORIGINS: '["https://${PUBLIC_HOST}"]'
+    ports: !reset []
+
+  web:
+    build:
+      context: ../app
+      args:
+        VITE_API_URL: https://${API_HOST}
+        VITE_GA_MEASUREMENT_ID: ${VITE_GA_MEASUREMENT_ID:-}
+    restart: unless-stopped
+    environment:
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:?}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:?}
+      GOOGLE_REDIRECT_URI: https://${PUBLIC_HOST}/auth/google/callback
+      SESSION_SECRET: ${SESSION_SECRET:?}
+      TOKEN_SECRET: ${TOKEN_SECRET:?}
+    depends_on:
+      - api
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    environment:
+      PUBLIC_HOST: ${PUBLIC_HOST:?set PUBLIC_HOST in .env}
+      API_HOST: ${API_HOST:?set API_HOST in .env}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      # A directory, not the file: a single-file bind mount keeps the old inode after git
+      # replaces the file, so reloads would read stale config.
+      - ./ops/caddy:/etc/caddy:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+  # The `observability` profile (COMPOSE_PROFILES=observability in .env turns it on):
+  # Prometheus stays on the compose network; Grafana is served by Caddy under /grafana/.
+  prometheus:
+    restart: unless-stopped
+    ports: !reset []
+
+  grafana:
+    restart: unless-stopped
+    environment:
+      GF_SERVER_ROOT_URL: https://${PUBLIC_HOST}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SECURITY_COOKIE_SECURE: "true"
+    ports: !reset []
+
+volumes:
+  caddy_data:
+  caddy_config:
