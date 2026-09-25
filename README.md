@@ -110,5 +110,5 @@ FE, UIUX, Marketing
 
 BE, Ops
 
-- Chen Jianxi
+- Chen Jianxi A0192319B
 - Kerk Tai Heng A0277179L
