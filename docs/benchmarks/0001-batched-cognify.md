@@ -3,7 +3,7 @@
 - **Date:** 2026-09-24
 - **Status:** Final
 - **Claim under test:** handing Cognee ten files in one `add` plus one `cognify` call finishes in less than half the wall-clock of ten serial `Engine.replace` calls, with the same files ready and within 10% of the tokens.
-- **Decision it feeds:** ADR 0007, adopt batched ingest per Dataset with a hard cap of 10 files per call; to be recorded with the implementation.
+- **Decision it feeds:** ADR 0009, adopt batched ingest per Dataset with a hard cap of 10 files per call; to be recorded with the implementation.
 
 ## The claim
 
@@ -110,7 +110,7 @@ Spend, peak-rate upper bounds: record $0.450; six live runs $2.339 ($0.36 to $0.
 
 The replay arms say where the gain comes from: not from batching itself, which is worth 4.5% of the CPU-bound floor, but from overlapping the LLM waiting that serial ingest pays once per file. The batched arm is bounded below by that floor of about 290 s; going wider than ten files cannot beat it on this machine, and shortening it is an embedding question, not a batching one.
 
-Decision: adopt batched ingest per Dataset with a hard cap of 10 files per call. ADR 0007 records it with the implementation.
+Decision: adopt batched ingest per Dataset with a hard cap of 10 files per call. ADR 0009 records it with the implementation.
 
 ## Threats to validity
 

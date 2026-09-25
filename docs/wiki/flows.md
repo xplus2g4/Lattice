@@ -29,7 +29,7 @@ worker: claim job
 
 Cognify is the expensive step (LLM extraction per chunk). It runs only in the Worker, with retries and a per-material cost ceiling. The UI polls `materials.status`.
 
-The panels accept up to 10 files per selection (`MAX_UPLOAD_FILES` in the web app); a larger selection is refused whole before any request is sent, and each accepted file is its own upload request and its own ingest. Until the optional conversion step above exists, the API refuses `.pptx` uploads: Cognee 1.5.4 ships no PPTX loader, so a deck could only end as a failed ingest (see [backlog](./backlog.md) item 3).
+The panels accept up to 10 files per selection (`MAX_UPLOAD_FILES` in the web app); a larger selection is refused whole before any request is sent, and each accepted file is its own upload request. Ingest takes a course's queued files up to ten at a time in one Cognify call ([ADR 0009](../adr/0009-batched-cognify-per-course.md)), falling back to one at a time when the batch fails; Notes still go one per call. Until the optional conversion step above exists, the API refuses `.pptx` uploads: Cognee 1.5.4 ships no PPTX loader, so a deck could only end as a failed ingest (see [backlog](./backlog.md) item 3).
 
 ## Save a note (student)
 

@@ -73,6 +73,18 @@ async def set_status(
     return material
 
 
+async def queued_for(session: AsyncSession, course: Course, limit: int) -> list[Material]:
+    """The oldest queued Materials of a course, up to `limit`: what one ingest batch takes."""
+    return list(
+        await session.scalars(
+            select(Material)
+            .where(Material.course_id == course.id, Material.status == "queued")
+            .order_by(Material.created_at)
+            .limit(limit)
+        )
+    )
+
+
 async def for_course(session: AsyncSession, course: Course) -> list[Material]:
     return list(
         await session.scalars(

@@ -196,6 +196,8 @@ class FakeEngine:
         self.turn = asyncio.Lock()
         self.enrolled: list[tuple[str, str]] = []
         self.cognified: list[str] = []
+        self.batches: list[list[str]] = []
+        self.fail_paths: set[str] = set()
         self.cleared: list[tuple[UUID, str]] = []
         self.searched: list[dict[UUID, str]] = []
         self.searched_as: list[str] = []
@@ -242,7 +244,20 @@ class FakeEngine:
     ) -> None:
         if self.fail_with is not None:
             raise self.fail_with
+        if str(path) in self.fail_paths:
+            raise RuntimeError(f"cannot cognify {path}")
         self.cognified.append(str(path))
+
+    async def replace_many(
+        self, dataset: FakeDataset, owner: FakePrincipal, paths, chunk_size: int | None = None
+    ) -> None:
+        """All-or-nothing, as the real engine: one bad path fails the whole batch."""
+        self.batches.append([str(path) for path in paths])
+        if self.fail_with is not None:
+            raise self.fail_with
+        if any(str(path) in self.fail_paths for path in paths):
+            raise RuntimeError("one item failed; Cognee rolled the run back")
+        self.cognified.extend(str(path) for path in paths)
 
     async def clear(self, dataset: FakeDataset, owner: FakePrincipal, filename: str) -> None:
         if self.fail_with is not None:

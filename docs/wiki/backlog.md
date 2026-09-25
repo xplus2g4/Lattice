@@ -24,7 +24,7 @@ Current stance: GA4 receives page views by route id only, no user id, no custom 
 
 ### Batched ingest per Dataset
 
-Measured in [BENCH-0001](../benchmarks/0001-batched-cognify.md) on 2026-09-24: ten files in one Cognify call took 398 s against 945 s one file per call, 10 of 10 ready, no rate limiting at 28 requests in flight. Adopted with a hard cap of 10 files per call; ADR 0007 records it with the implementation. Until that lands, ingest is one file per Cognify call.
+Measured in [BENCH-0001](../benchmarks/0001-batched-cognify.md) on 2026-09-24: ten files in one Cognify call took 398 s against 945 s one file per call, 10 of 10 ready, no rate limiting at 28 requests in flight. Adopted in [ADR 0009](../adr/0009-batched-cognify-per-course.md) with a hard cap of 10 files per call. Still open: Notes go one per call, and courses take turns because Cognee runs separate pipelines one at a time. Batching Notes is a small follow-up; overlapping courses needs a probe of Cognee's embedded stores first.
 
 ## Open backlog issues
 
@@ -39,7 +39,7 @@ These gate launch. Each is tracked in GitHub. The [first-cut findings](../resear
 Opened from Related courses ([ADR 0008](../adr/0008-related-courses-from-summary-neighbours.md), [PR #81](https://github.com/xplus2g4/Lattice/pull/81)); none gates launch, the first is the one to take before relying on the refresh in production:
 
 6. **Course-summary refresh stalls when its database connection drops mid-run.** ([#82](https://github.com/xplus2g4/Lattice/issues/82)) One pooled connection per pass and no timeout; a Postgres restart under the API left it hanging silently on 2026-09-24 until the API restarted.
-7. **Persist the fastembed model cache across container restarts.** ([#83](https://github.com/xplus2g4/Lattice/issues/83)) Moot since embeddings moved to OpenAI ([ADR 0007](../adr/0007-openai-embeddings.md)): no model is downloaded at start-up.
+7. **Persist the fastembed model cache across container restarts.** ([#83](https://github.com/xplus2g4/Lattice/issues/83)) Moot since embeddings moved to OpenAI ([ADR 0009](../adr/0007-openai-embeddings.md)): no model is downloaded at start-up.
 8. **`Engine.embedding_model()` instantiates the embedding engine to read its name.** ([#84](https://github.com/xplus2g4/Lattice/issues/84)) Done on every pass, even with nothing to embed.
 9. **Related-course references for an unjoined course land on the course page.** ([#85](https://github.com/xplus2g4/Lattice/issues/85)) The reader checks Enrolment; a join prompt that keeps the `material` and `page` parameters, or a read-only global-tier reader, would finish the link.
 10. **Opening a session from History no longer scrolls to its last turn.** ([#86](https://github.com/xplus2g4/Lattice/issues/86)) Side effect of scrolling only when a question is sent.

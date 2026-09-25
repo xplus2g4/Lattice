@@ -161,9 +161,35 @@ class Engine:
                 logger.warning("could not drop %s after a failed Cognify", path.name, exc_info=True)
             raise
 
-    async def _remove_named(self, dataset: Dataset, user: User, filename: str) -> None:
+    async def replace_many(
+        self, dataset: Dataset, user: User, paths: list[Path], chunk_size: int | None = None
+    ) -> None:
+        """Drop earlier data under these names, add them all, then Cognify once. Under `turn`.
+
+        One call lets Cognee run the files concurrently: BENCH-0001 measured ten decks at
+        398 s against 945 s one call each. It is all-or-nothing, because Cognee rolls back
+        the whole run when any item fails, so on failure every file is dropped again and the
+        error is raised; the caller decides how to retry (Ingest goes one file at a time).
+        """
+        assert self.turn.locked(), "hold Engine.turn around ingest calls"
+        names = [path.name for path in paths]
+        await self._remove_named(dataset, user, *names)
+        try:
+            await cognee.add([str(path) for path in paths], dataset_id=dataset.id, user=user)
+            await cognee.cognify(
+                datasets=[dataset.id], user=user, data_per_batch=len(paths), chunk_size=chunk_size
+            )
+        except Exception:
+            try:
+                await self._remove_named(dataset, user, *names)
+            except Exception:  # noqa: BLE001 - the Cognify failure is the one to report
+                logger.warning("could not drop %s after a failed Cognify", names, exc_info=True)
+            raise
+
+    async def _remove_named(self, dataset: Dataset, user: User, *filenames: str) -> None:
+        wanted = {name for filename in filenames for name in (filename, Path(filename).stem)}
         for data in await get_dataset_data(dataset.id):
-            if data.name in (filename, Path(filename).stem):
+            if data.name in wanted:
                 await cognee.datasets.delete_data(dataset.id, data.id, user=user, mode="hard")
 
     async def clear(self, dataset: Dataset, user: User, filename: str) -> None:
