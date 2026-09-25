@@ -60,6 +60,8 @@ cd server && docker compose --profile observability up -d
 
 Prometheus (`:9090`, 15 s scrape, 30 d retention, config in `server/ops/prometheus.yml`) reads `METRICS_TOKEN` from `.env` as a compose secret and scrapes `api:8000/metrics` with it, so the one token serves both sides. Grafana (`:3001`, admin / `GRAFANA_ADMIN_PASSWORD` or `admin`) is provisioned from `server/ops/grafana/`: the Prometheus datasource and the **Lattice API** dashboard (loop staleness, ingest queue, request rate and p95 by route, ask outcomes and citations, Cognify outcomes and duration, Spend by course and model, tokens by model). Dashboards are file-provisioned and read-only in the UI; edit the JSON and restart Grafana. Each API process has its own in-memory registry, so this is one target for one process; Alertmanager is not part of the stack because the alerts below come from the API itself.
 
+On the VM the profile is on (`COMPOSE_PROFILES=observability` in `server/.env`, so `deploy.sh` needs no flag). `compose.prod.yaml` closes both host ports: Grafana is served by Caddy at `https://lattice.xplus2g4.site/grafana/` (`GF_SERVER_SERVE_FROM_SUB_PATH`, admin / `GRAFANA_ADMIN_PASSWORD` from the VM's `.env`), and Prometheus is reachable only from the compose network or Grafana's datasource proxy.
+
 Alerts come from a third lifespan loop in the API, the watchdog, ticking every 60 s (`WATCHDOG_TICK_S`) and checking Postgres and the other loops' heartbeats:
 
 | Alert | Fires when |
