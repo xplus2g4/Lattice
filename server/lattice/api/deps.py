@@ -19,6 +19,25 @@ COURSE_CODE = re.compile(r"^[a-z][a-z0-9]{1,15}$")
 SettingsDep = Annotated[Settings, Depends(get_settings)]
 
 
+class ApiError(HTTPException):
+    """An error response with fields beside the message, such as the `request_id` on a 502.
+
+    `HTTPException` with a dict detail nests it under `"detail"`, which hides the message
+    from the app; this keeps `detail` a string and puts `fields` next to it in the body.
+    Handled in `main.py`.
+    """
+
+    def __init__(
+        self, status_code: int, detail: str, *, headers: dict[str, str] | None = None, **fields
+    ) -> None:
+        super().__init__(status_code, detail, headers)
+        self.fields = fields
+
+    @property
+    def body(self) -> dict:
+        return {"detail": self.detail, **self.fields}
+
+
 def get_engine(request: Request) -> Engine:
     return request.app.state.engine
 

@@ -88,6 +88,24 @@ A Quiz the assistant initiates on the Topic the student just read; at most three
 **Grill me**:
 A Quiz the student initiates over a scope they choose; about ten questions; ends with a per-Topic summary.
 
+### Measurement
+
+**Telemetry**:
+What the Backend emits about its own behaviour: latency, errors, queue age, Spend totals. Attributed to a course at most, never to a Principal.
+_Avoid_: metrics (unqualified), monitoring, logs (as a synonym)
+
+**Product event**:
+One recorded user action, attributed to a Principal and a course.
+_Avoid_: analytics event, tracking, hit
+
+**Spend**:
+The money one Turn or one Cognify cost at the LLM and embedding providers. Turn Spend belongs to its Principal; Cognify Spend belongs to the course.
+_Avoid_: cost, usage, tokens (a component of Spend, not Spend)
+
+**Ceiling**:
+The deployment-wide daily Spend limit; at 80% the operator is alerted, at 100% every LLM-spending action refuses until the day resets. Distinct from a per-Material budget, which bounds one Cognify.
+_Avoid_: cap, quota, limit, budget (for the daily total)
+
 ### Concept graph (Phase 2)
 
 **Concept**:

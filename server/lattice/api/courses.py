@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from lattice.api.deps import COURSE_CODE, CurrentUser, EngineDep, SessionDep
 from lattice.api.schemas import CourseOut, CourseSearchHit, CourseSearchOut, EnrolmentOut, UserOut
 from lattice.db.models import Course, User
-from lattice.db.repo import courses, users
+from lattice.db.repo import courses, product_events, users
 
 router = APIRouter(tags=["courses"])
 
@@ -102,9 +102,14 @@ async def join_course(
     if user.cognee_principal_id != principal.id:
         await users.set_principal(session, user, principal.id)
     _, private = await engine.enrol(course.code, principal)
+    already = await courses.enrolment(session, user.id, course.id) is not None
     enrolment = await courses.enrol(
         session, user=user, course=course, user_dataset_name=private.name
     )
+    if not already:
+        await product_events.record(
+            session, user_id=user.id, course_id=course.id, name="course.joined", properties={}
+        )
     return EnrolmentOut.model_validate(enrolment)
 
 
@@ -112,7 +117,12 @@ async def join_course(
 async def leave_course(user: CurrentUser, body: CourseRef, session: SessionDep) -> dict[str, bool]:
     """Drops the record only; the private Dataset and its Notes survive a re-join."""
     course = await _course(session, body.course)
-    return {"left": await courses.unenrol(session, user, course)}
+    left = await courses.unenrol(session, user, course)
+    if left:
+        await product_events.record(
+            session, user_id=user.id, course_id=course.id, name="course.left", properties={}
+        )
+    return {"left": left}
 
 
 @router.get("/enrolments.list")

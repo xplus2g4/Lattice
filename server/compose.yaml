@@ -34,7 +34,49 @@ services:
       - cognee:/srv/.cognee
       - uploads:/srv/data/uploads
 
+  # Off by default: `docker compose --profile observability up -d`.
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    profiles: [observability]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=30d
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./ops/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus:/prometheus
+    secrets:
+      - metrics_token
+    depends_on:
+      - api
+
+  grafana:
+    image: grafana/grafana:13.2.2
+    profiles: [observability]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    ports:
+      - "3001:3000"
+    volumes:
+      - ./ops/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./ops/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana:/var/lib/grafana
+    depends_on:
+      - prometheus
+
+# Prometheus scrapes `/metrics` with the API's own bearer; one value, read from `.env`.
+secrets:
+  metrics_token:
+    environment: METRICS_TOKEN
+
 volumes:
   pgdata:
   cognee:
   uploads:
+  prometheus:
+  grafana:

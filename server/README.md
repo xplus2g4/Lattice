@@ -36,6 +36,10 @@ keeps a cognified course. It reads `.env` for everything except `DATABASE_URL` (
 service) and `DATABASE_AUTO_MIGRATE` (on, so `up` is enough). The Worker has no entrypoint yet;
 when it does, it is another service from the same image.
 
+Set `METRICS_TOKEN` in `.env` and add `--profile observability` to `up` for Prometheus
+(`:9090`) and Grafana (`:3001`, admin/admin) scraping `/metrics`; the dashboard is provisioned
+from `ops/grafana/`. See [operations](../docs/wiki/operations.md#telemetry-and-alerts).
+
 ## Seeding a course
 
 `scripts/seed-wizard.sh` is the guided path: it asks for the course, imports the slide files,
@@ -135,6 +139,8 @@ private to the student it was set for, and closes once through `/quizzes.submit`
 Configuration comes from the environment; `.env.example` lists every variable, including the ones Cognee reads itself (`LLM_*`, `EMBEDDING_*`). Embeddings are OpenAI `text-embedding-3-small` through LiteLLM (`EMBEDDING_API_KEY`); its 8,191-token window matches Cognee's default Chunk, so whole Chunks are embedded ([ADR 0007](../docs/adr/0007-openai-embeddings.md)). Changing the embedding model or dimensions invalidates every Dataset under `COGNEE_ROOT`: stop the API, delete the root, re-seed.
 
 Two settings belong to Related courses: `RELATED_COURSES_K`, how many nearest courses `/ask` also searches (`0` turns the lane off), and `COURSE_SUMMARY_REFRESH_S`, how often Course summaries are recomputed. Besides Note ingest, the API process runs that refresh on a timer, embedding one profile per ready Material with the same embedding model and storing the mean per course in `course_summaries`; both loops sit under one file lock, hence one API process per Cognee root.
+
+Telemetry, Spend and alerts are off until configured, and every switch is an environment variable: `LOG_LEVEL` (JSON log lines carry a `request_id` that every response echoes as `X-Request-Id`); `METRICS_TOKEN` (bearer for `GET /metrics`; unset, the route is a 404); `SPEND_PRICES_USD_PER_1M` (JSON price table per litellm model name without provider prefix, e.g. `{"gpt-4o-mini":{"input":0.15,"output":0.60},"text-embedding-3-small":{"input":0.02}}`); `SPEND_CEILING_USD` (the Ceiling, deployment-wide Spend per UTC day: 80 % alerts, 100 % makes `/ask`, `/study/ask` and `/study/note.review` return 429 with `reset_at` and stops Cognify; setting it requires prices for `LLM_MODEL` and `EMBEDDING_MODEL`, or start-up fails naming the unpriced one); `TELEGRAM_BOT_TOKEN` and `TELEGRAM_CHAT_ID` (where the watchdog loop sends its alerts: ingest stuck over 10 min, a loop stalled over 5 min, the Ceiling at 80 % and 100 %; unset, alerts are logged); `DEPLOYMENT_NAME` (how those alerts open). Spend lands in the `spend` table and Product events in `product_events`, both in Lattice's own Postgres. Details in [operations.md](../docs/wiki/operations.md#telemetry-and-alerts).
 
 Identity is dev-only: with `DEV_HEADER_AUTH=true` the `X-User: <email>` header is the caller. Each email becomes one Cognee principal; materials are ingested as `INSTRUCTOR_EMAIL`.
 

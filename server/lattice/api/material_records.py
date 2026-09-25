@@ -14,7 +14,7 @@ from lattice.api.deps import COURSE_CODE, CurrentUser, IngestDep, SessionDep, Se
 from lattice.api.schemas import MaterialOut, ReadingPositionOut, TopicOut, UploadOut
 from lattice.api.uploads import receive
 from lattice.db.models import Course, Material, User
-from lattice.db.repo import courses, materials
+from lattice.db.repo import courses, materials, product_events
 
 router = APIRouter(tags=["materials"])
 
@@ -106,6 +106,17 @@ async def upload_material(
         sha256=received.sha256,
     )
     background.add_task(ingest.material, material.id)
+    await product_events.record(
+        session,
+        user_id=user.id,
+        course_id=row.id,
+        name="material.uploaded",
+        properties={
+            "material_id": str(material.id),
+            "kind": Path(received.filename).suffix[1:],
+            "pages": material.page_count,
+        },
+    )
     return UploadOut(material=MaterialOut.model_validate(material), deduplicated=False)
 
 
@@ -203,6 +214,25 @@ async def set_reading_position(
     position = await materials.set_reading_position(
         session, user=user, material=row, page=body.page
     )
+    topics = await materials.topics_for(session, row)
+    topic = next((t for t in topics if t.page_start <= body.page <= t.page_end), None)
+    opened = {
+        "material_id": str(row.id),
+        "page": body.page,
+        "topic_id": None if topic is None else str(topic.id),
+    }
+    await product_events.record(
+        session, user_id=user.id, course_id=row.course_id, name="page.opened", properties=opened
+    )
+    # Landing on a Topic's last page is the closest thing to finishing it.
+    if topic is not None and body.page == topic.page_end:
+        await product_events.record(
+            session,
+            user_id=user.id,
+            course_id=row.course_id,
+            name="topic.finished",
+            properties=opened,
+        )
     return ReadingPositionOut.model_validate(position)
 
 

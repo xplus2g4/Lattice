@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from lattice.api.deps import COURSE_CODE, CurrentUser, SessionDep
 from lattice.api.schemas import QuizAnswerOut, QuizOut, TopicStat, quiz_out
 from lattice.db.models import Course, Quiz, QuizQuestion, User
-from lattice.db.repo import courses, materials, quizzes
+from lattice.db.repo import courses, materials, product_events, quizzes
 
 router = APIRouter(tags=["quizzes"])
 
@@ -92,6 +92,26 @@ async def _check_sources(session: AsyncSession, course: Course, question: NewQue
         raise HTTPException(404, "no such material")
 
 
+def _correct_count(quiz: Quiz) -> int:
+    """Questions whose latest attempt was marked correct; a retry supersedes the miss before it."""
+    return sum(1 for q in quiz.questions if q.answers and q.answers[-1].correct is True)
+
+
+async def _quiz_event(session: AsyncSession, quiz: Quiz, name: str, **extra: Any) -> None:
+    await product_events.record(
+        session,
+        user_id=quiz.user_id,
+        course_id=quiz.course_id,
+        name=name,
+        properties={
+            "quiz_id": str(quiz.id),
+            "kind": quiz.kind,
+            "questions": len(quiz.questions),
+            **extra,
+        },
+    )
+
+
 @router.post("/quizzes.create", status_code=201)
 async def create_quiz(body: NewQuiz, user: CurrentUser, session: SessionDep) -> QuizOut:
     course = await _enrolled_course(session, user, body.course)
@@ -105,6 +125,7 @@ async def create_quiz(body: NewQuiz, user: CurrentUser, session: SessionDep) -> 
         scope=body.scope,
         questions=[question.model_dump() for question in body.questions],
     )
+    await _quiz_event(session, quiz, "quiz.started")
     return quiz_out(quiz)
 
 
@@ -134,7 +155,10 @@ async def submit_quiz(body: SubmitQuiz, user: CurrentUser, session: SessionDep) 
     quiz = await _own_quiz(session, user, body.quiz)
     if quiz.status != "open":
         raise HTTPException(409, f"quiz already {quiz.status}")
-    return quiz_out(await quizzes.close(session, quiz, status="submitted", score=body.score))
+    correct = _correct_count(quiz)
+    quiz = await quizzes.close(session, quiz, status="submitted", score=body.score)
+    await _quiz_event(session, quiz, "quiz.submitted", correct=correct)
+    return quiz_out(quiz)
 
 
 @router.post("/quizzes.abandon")
@@ -142,7 +166,9 @@ async def abandon_quiz(body: QuizRef, user: CurrentUser, session: SessionDep) ->
     quiz = await _own_quiz(session, user, body.quiz)
     if quiz.status != "open":
         raise HTTPException(409, f"quiz already {quiz.status}")
-    return quiz_out(await quizzes.close(session, quiz, status="abandoned"))
+    quiz = await quizzes.close(session, quiz, status="abandoned")
+    await _quiz_event(session, quiz, "quiz.abandoned")
+    return quiz_out(quiz)
 
 
 @router.post("/quizzes.delete")

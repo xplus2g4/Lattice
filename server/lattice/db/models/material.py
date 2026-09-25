@@ -3,7 +3,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Enum, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
+from sqlalchemy import Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from lattice.db.base import Base, created_at, updated_at, uuid_pk
@@ -40,8 +40,6 @@ class Material(Base):
     page_count: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(IngestStatus, default="queued")
     error: Mapped[str | None] = mapped_column(Text)
-    cognify_tokens: Mapped[int | None] = mapped_column(Integer)
-    cognify_cost_usd: Mapped[float | None] = mapped_column(Numeric(10, 4))
     created_by: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="RESTRICT"))
     created_at: Mapped[datetime] = created_at()
     updated_at: Mapped[datetime] = updated_at()

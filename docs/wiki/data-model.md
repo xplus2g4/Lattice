@@ -10,15 +10,17 @@ courses          id, code, name, term, owner_user_id, global_dataset_name
 enrolments       user_id, course_id, role(student|instructor), user_dataset_name, created_at
 materials        id, course_id, week, lecture_no, type(slides|tutorial|memo), title,
                  gcs_uri, sha256, status(queued|converting|cognifying|ready|failed),
-                 error, cognify_tokens, cognify_cost_usd, created_by, created_at, updated_at
+                 error, created_by, created_at, updated_at
 notes            id, user_id, course_id, material_id, page, body_md, filename, sha256, storage_uri, revision, cognified_revision,
                  ingest_attempts, run_after, status(dirty|indexing|ready|failed), error, created_at, updated_at
 sessions         id, user_id, course_id, created_at
-turns            id, session_id, role(user|assistant), content_json, cited_chunk_ids[], used_notes, latency_ms, cost_usd
+turns            id, session_id, role(user|assistant), content_json, cited_chunk_ids[], used_notes, latency_ms
 feedback         turn_id, user_id, rating(+1|-1), comment
-jobs             id, kind(ingest_material|index_note|reindex_course), payload_json, status, attempts, run_after, locked_by
-eval_runs        id, git_sha, model, prompt_version, search_type, metrics_json, created_at
 course_summaries course_id, summary_text, embedding vector(1536), embedding_model, source_digest, refreshed_at
+spend            id, occurred_at, user_id?, course_id, turn_id?, material_id?, note_id?,
+                 kind(completion|embedding), model, prompt_tokens, completion_tokens, cached_tokens,
+                 usd numeric(12,6)?, request_id?
+product_events   id, occurred_at, user_id, course_id?, name, properties jsonb
 ```
 
 Rules:
@@ -26,7 +28,9 @@ Rules:
 - `materials.sha256` gives idempotent re-upload. Same hash is a no-op; a new hash for the same (course, week, title) replaces the content in Cognee, then updates the row.
 - `course_summaries` holds one unit-length vector per course with a ready Material, refreshed on a timer ([flows.md](./flows.md)); `/ask` picks Related courses by cosine distance over it ([ADR 0008](../adr/0008-related-courses-from-summary-neighbours.md)). The `vector` extension is enabled by the migration that creates the table; the width is pinned in the DDL.
 - `turns.cited_chunk_ids` is the audit trail for citation validation (see [security.md](./security.md)) and for eval.
-- The job queue is a Postgres table with `SELECT … FOR UPDATE SKIP LOCKED`. No Redis, no Celery ([ADR 0003](../adr/0003-postgres-table-job-queue.md)).
+- `spend` is the Spend ledger: one row per provider attempt, completion or embedding, with the model name normalised (provider prefix stripped) and `usd` computed from the configured price table, null when the model has no price. Attribution follows the vocabulary: Turn Spend carries `user_id` and `turn_id` (the asking student, including the Related-course lane made on their behalf); Cognify Spend of a Material carries `course_id` and `material_id` with no user; a Note's carries its author and `note_id`; Course-summary embeddings carry only the course. Per-Turn and per-Material totals are `GROUP BY`, not columns, and `today_usd` (sum over `occurred_at` since midnight UTC) is what the Ceiling compares against. Indexed on `(occurred_at)` and `(course_id, occurred_at)`.
+- `product_events` is the Product event store: one row per user action, written by the API inside the action's own transaction, attributed to a Principal (`user_id`) and usually a course. `name` is dotted (`ask.asked`, `quiz.submitted`, `page.opened`), `properties` holds ids, counts and lengths only; `ask.asked` stores `question_len` and `question_sha256`, never the text ([security.md](./security.md#egress)). Indexed on `(occurred_at)`, `(user_id, occurred_at)` and `(course_id, occurred_at)`.
+- Note ingest and the Course-summary refresh are timer loops inside the API process polling the `notes` and `materials` rows themselves; there is no separate job table ([ADR 0003](../adr/0003-postgres-table-job-queue.md) describes the queue a Worker would use).
 
 ## Cognee datasets and permissions
 
