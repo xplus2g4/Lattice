@@ -24,7 +24,7 @@ ssh_vm() {
 }
 
 if [[ ${1:-} == --setup ]]; then
-  exec ssh_vm "sudo LATTICE_REPO='$LATTICE_REPO' bash -s" < "$root/server/ops/vm-setup.sh"
+  ssh_vm "sudo LATTICE_REPO='$LATTICE_REPO' bash -s" < "$root/server/ops/vm-setup.sh"
 fi
 
 REF=${1:-main}
@@ -47,4 +47,4 @@ docker image prune -f >/dev/null
 EOF
 )
 
-exec ssh_vm "$remote"
+ssh_vm "$remote"
