@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ApiError,
+  abandonGrill,
+  extendGrill,
+  generateGrill,
+  gradeGrill,
   listMaterials,
   listNotes,
   saveNote,
@@ -15,6 +19,53 @@ import { server } from '#/test/server'
 // The stubbed session is alice@example.com (see test/setup.ts): Bearer test-token
 // is who the mock handlers see, so `owner` and the per-user filters pin to her.
 describe('caller identity', () => {
+  it('sends every Grill request with session authentication and its RPC payload', async () => {
+    const received: Array<{
+      path: string
+      authorization: string | null
+      legacyIdentity: string | null
+      body: unknown
+    }> = []
+    server.use(
+      http.post('*/quizzes.*', async ({ request }) => {
+        received.push({
+          path: new URL(request.url).pathname,
+          authorization: request.headers.get('Authorization'),
+          legacyIdentity: request.headers.get('X-User'),
+          body: await request.clone().json(),
+        })
+      }),
+    )
+
+    const plan = await generateGrill('cs101', 'm-week1.pdf')
+    const questions = await extendGrill(plan.grill.id, 0)
+    const answers = [{ question: questions[0].id, answer_text: 'Chaining' }]
+    const result = await gradeGrill(plan.grill.id, answers)
+    const next = await generateGrill('cs101', 'm-week1.pdf')
+    await abandonGrill(next.grill.id)
+
+    expect(result.grill.status).toBe('submitted')
+    expect(received).toEqual(
+      [
+        {
+          path: '/quizzes.generate',
+          body: { course: 'cs101', material: 'm-week1.pdf' },
+        },
+        { path: '/quizzes.extend', body: { quiz: plan.grill.id, batch: 0 } },
+        { path: '/quizzes.grade', body: { quiz: plan.grill.id, answers } },
+        {
+          path: '/quizzes.generate',
+          body: { course: 'cs101', material: 'm-week1.pdf' },
+        },
+        { path: '/quizzes.abandon', body: { quiz: next.grill.id } },
+      ].map((request) => ({
+        ...request,
+        authorization: 'Bearer test-token',
+        legacyIdentity: null,
+      })),
+    )
+  })
+
   it('reads back only the calling user\u2019s notes', async () => {
     resetStore({
       notes: [

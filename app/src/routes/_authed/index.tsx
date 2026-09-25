@@ -58,15 +58,15 @@ function Home() {
   const [gridRef] = useAutoAnimate<HTMLDivElement>()
 
   return (
-    <main className="flex-1 px-5 py-10 sm:px-10 sm:py-16">
-      <div className="mx-auto max-w-[1200px] space-y-12 sm:space-y-16">
+    <main className="flex-1 px-5 py-8 sm:px-10 sm:py-10">
+      <div className="mx-auto max-w-[1200px] space-y-8">
         {firstRun ? (
           <FirstRun />
         ) : (
           <>
-            <Hero />
+            <HomeGreeting />
             {lastOpened && <ResumeCard lastOpened={lastOpened} user={user} />}
-            <section className="space-y-0">
+            <section className="space-y-5">
               <div className="flex items-baseline justify-between gap-3 border-b-2 border-foreground pb-4">
                 <h2 className="text-2xl font-semibold tracking-tight">
                   Your courses
@@ -76,9 +76,6 @@ function Home() {
                     </span>
                   )}
                 </h2>
-                <span className="fieldnotes-kicker hidden text-muted-foreground sm:block">
-                  A place for everything you&apos;re learning
-                </span>
               </div>
               {courses.error && (
                 <p className="text-sm text-destructive">
@@ -87,16 +84,20 @@ function Home() {
                     : 'Could not reach the API — is the server running?'}
                 </p>
               )}
-              <div ref={gridRef} className="divide-y divide-border">
+              <div
+                ref={gridRef}
+                className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3"
+              >
                 {courses.isPending ? (
                   [0, 1, 2].map((i) => (
-                    <Skeleton key={i} className="my-4 h-24 rounded-none" />
+                    <Skeleton key={i} className="h-[236px] rounded-[18px]" />
                   ))
                 ) : (
                   <>
                     {merged.map((course, i) => (
                       <motion.div
                         key={course.code}
+                        className="min-w-0"
                         initial={{ opacity: 0, y: 8 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{
@@ -123,7 +124,7 @@ function Home() {
   )
 }
 
-function Hero() {
+function HomeGreeting() {
   // The account's own name, not a guess from the email; absent for accounts with no name.
   const me = useQuery({
     queryKey: ['me'],
@@ -138,22 +139,10 @@ function Hero() {
   const [seed] = useState(() => Math.random())
   useEffect(() => setHour(new Date().getHours()), [])
   return (
-    <header className="grid gap-6 border-l-2 border-primary pl-5 sm:pl-8 lg:grid-cols-[1fr_240px] lg:items-end">
-      <div>
-        <p className="fieldnotes-kicker mb-5 text-primary-ink">
-          {hour === null ? '\u00a0' : greeting(hour, name, seed)}
-        </p>
-        <h1 className="fieldnotes-display max-w-3xl">
-          <span className="fieldnotes-reveal block">Make room for</span>
-          <span className="fieldnotes-reveal fieldnotes-reveal-late block italic">
-            a good question.
-          </span>
-        </h1>
-      </div>
-      <p className="max-w-sm text-base leading-7 text-muted-foreground lg:pb-2">
-        Your Materials. Your Notes. A little more understanding, one course at a
-        time.
-      </p>
+    <header>
+      <h1 className="text-2xl font-semibold tracking-tight text-foreground">
+        {hour === null ? 'Welcome back' : greeting(hour, name, seed)}
+      </h1>
     </header>
   )
 }
@@ -184,7 +173,7 @@ function ResumeCard({
   return (
     <section className="border-y border-border bg-card">
       <h2 className="fieldnotes-kicker px-5 pt-5 text-primary-ink sm:px-6">
-        Back to where you left off
+        Continue reading
       </h2>
       <Link
         to="/courses/$course"
@@ -279,25 +268,23 @@ function AddCourseTile() {
   return (
     <form
       onSubmit={onSubmit}
-      className="grid gap-4 border-b border-border py-6 sm:grid-cols-[1fr_minmax(260px,420px)] sm:items-center sm:gap-8"
+      className="flex min-h-[236px] min-w-0 flex-col rounded-[18px] border-[1.5px] border-dashed border-input p-5 transition-colors focus-within:border-primary"
     >
-      <div className="flex items-start gap-4 sm:px-6">
+      <span className="flex size-9 items-center justify-center rounded-lg bg-accent text-primary-ink">
         <HugeiconsIcon
           icon={PlusSignIcon}
-          className="mt-1 size-5 shrink-0 text-primary-ink"
+          className="size-5"
           strokeWidth={1.5}
         />
-        <div>
-          <h3 className="text-lg font-semibold">Add a course</h3>
-          <label
-            htmlFor="add-course"
-            className="mt-1 block text-sm text-muted-foreground"
-          >
-            Enter the course code. Bring your Materials.
-          </label>
-        </div>
-      </div>
-      <div className="space-y-2">
+      </span>
+      <h3 className="mt-3 text-lg font-semibold">Add a course</h3>
+      <label
+        htmlFor="add-course"
+        className="mt-1 text-sm text-muted-foreground"
+      >
+        Enter the course code. Bring your Materials.
+      </label>
+      <div className="mt-auto space-y-2 pt-4">
         <div className="flex gap-2">
           <input
             id="add-course"

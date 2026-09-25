@@ -21,7 +21,7 @@ export function CourseCard({
   const opened = relativeTime(lastOpenedAt)
 
   return (
-    <div className="group relative border-l-2 border-transparent py-6 pl-4 pr-3 transition-colors hover:border-l-primary hover:bg-card focus-within:border-l-primary sm:px-6">
+    <div className="group relative flex h-full min-h-[236px] min-w-0 flex-col rounded-[18px] border border-border bg-card p-5 shadow-sm transition-all hover:border-primary/40 hover:shadow-md focus-within:border-primary/40 motion-safe:hover:-translate-y-0.5">
       {/* Stretched link: the whole card opens the workspace, while the name editor below
           sits above it and stays clickable on its own. */}
       <Link
@@ -29,12 +29,12 @@ export function CourseCard({
         params={{ course: course.code }}
         search={{ material: undefined }}
         aria-label={`Open ${name || course.code.toUpperCase()} workspace`}
-        className="absolute inset-0 z-0 focus-visible:outline-offset-[-3px]"
+        className="absolute inset-0 z-0 rounded-[18px] focus-visible:outline-offset-[-3px]"
       />
 
-      <div className="pointer-events-none relative z-10 grid gap-3 sm:grid-cols-[160px_minmax(0,1fr)_150px] sm:items-center sm:gap-6">
-        <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-start">
-          <span className="font-mono text-sm font-semibold uppercase tracking-wider text-primary-ink">
+      <div className="pointer-events-none relative z-10 flex flex-1 flex-col">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="inline-flex items-center rounded-full bg-accent px-2.5 py-1 font-mono text-xs font-semibold uppercase tracking-wider text-primary-ink">
             {course.code}
           </span>
           <CourseStatus
@@ -43,7 +43,7 @@ export function CourseCard({
           />
         </div>
 
-        <div className="min-w-0">
+        <div className="mt-4 min-w-0 flex-1">
           <CourseName code={course.code} name={name} />
           <p className="mt-1.5 text-sm text-muted-foreground">
             {course.material_count}{' '}
@@ -52,7 +52,7 @@ export function CourseCard({
           </p>
         </div>
 
-        <div className="flex items-center justify-between gap-2 sm:flex-col sm:items-end">
+        <div className="mt-4 flex items-center justify-between gap-2 border-t border-border pt-3">
           <span className="truncate text-xs text-muted-foreground">
             {opened ? `Last opened ${opened}` : 'Not opened yet'}
           </span>
