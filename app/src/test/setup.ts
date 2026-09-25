@@ -50,6 +50,21 @@ vi.mock('@tanstack/react-devtools', () => ({
   TanStackDevtools: () => null,
 }))
 
+// The resizable columns hit-test every pointerdown against the divider's rect; jsdom has
+// no layout, so every rect is 0×0 at the origin and every click lands on the divider,
+// which takes focus and prevents the default. Plain wrappers keep what is under test.
+vi.mock('react-resizable-panels', async () => {
+  const { createElement } = await import('react')
+  const Wrap = ({
+    children,
+    className,
+  }: {
+    children?: unknown
+    className?: string
+  }) => createElement('div', { className }, children as never)
+  return { Group: Wrap, Panel: Wrap, Separator: () => null }
+})
+
 // Auth is a cookie session plus a web-minted Bearer token in the real app; in a jsdom
 // unit run there is no Nitro server behind the server functions, so the session is
 // stubbed to one fixed user and the API mocks see Bearer test-token instead.
