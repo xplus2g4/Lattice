@@ -4,9 +4,16 @@ import type {
   AskOut as RpcAskOut,
   AskRequest as RpcAskRequest,
   CourseOut,
+  ExtendGrill,
+  GenerateGrill,
+  GradeGrill,
+  GradedQuizOut,
+  GrillPlanOut,
   MaterialOut,
   NoteOut,
   NoteUploadOut,
+  QuizOut,
+  QuizQuestionOut,
   SessionOut,
   TurnOut,
   UploadOut,
@@ -48,6 +55,7 @@ export interface SessionSummary {
   first_question: string | null
 }
 export interface Material {
+  id: string
   course: string
   filename: string
   /** Also the name Cognee knows the Material by, so citations carry it. */
@@ -127,6 +135,51 @@ export interface Turn {
   latency_ms: number | null
   created_at: string
 }
+export type GrillStatus = 'open' | 'submitted' | 'abandoned'
+export interface GrillAnswer {
+  text: string
+  /** Null when the model left a short answer ungraded. */
+  correct: boolean | null
+  reason: string | null
+}
+export interface GrillQuestion {
+  id: string
+  /** Page order across batches: each batch's questions take positions from its own block. */
+  position: number
+  kind: 'mcq' | 'short_answer'
+  prompt: string
+  options: Array<string> | null
+  /** The Page the question rests on. */
+  page: number | null
+  /** The model answer; the server withholds it until the Grill is graded. */
+  key: { answer: string; explanation: string | null } | null
+  given: GrillAnswer | null
+}
+export interface Grill {
+  id: string
+  status: GrillStatus
+  material_id: string
+  page_start: number
+  page_end: number
+  topic_label: string
+  score: number | null
+  questions: Array<GrillQuestion>
+}
+export interface GrillResult {
+  grill: Grill
+  /** One or two sentences on what to re-read, or "" when there is nothing to say. */
+  remark: string
+}
+/** One contiguous page range whose questions are written by one `extendGrill` call. */
+export interface GrillBatch {
+  index: number
+  page_start: number
+  page_end: number
+}
+export interface GrillPlan {
+  grill: Grill
+  batches: Array<GrillBatch>
+}
 export interface Session {
   id: string
   course: string
@@ -205,6 +258,7 @@ function ingestStatus(value: string): IngestStatus {
 }
 function materialView(course: string, row: MaterialOut): Material {
   return {
+    id: row.id,
     course,
     filename: row.filename,
     sha256: row.sha256,
@@ -513,6 +567,89 @@ export function uploadEach(
       }
     }),
   )
+}
+function str(value: unknown): string | null {
+  return typeof value === 'string' ? value : null
+}
+function num(value: unknown): number | null {
+  return typeof value === 'number' ? value : null
+}
+function grillQuestionView(row: QuizQuestionOut): GrillQuestion {
+  const answer = str(row.expected_json?.answer)
+  const last = row.answers.at(-1)
+  return {
+    id: row.id,
+    position: row.position,
+    kind: row.kind === 'mcq' ? 'mcq' : 'short_answer',
+    prompt: row.prompt,
+    options: row.options_json ?? null,
+    page: num(row.citation_json?.page),
+    key:
+      answer === null
+        ? null
+        : { answer, explanation: str(row.expected_json?.explanation) },
+    given: last
+      ? {
+          text: last.answer_text,
+          correct: last.correct,
+          reason: str(last.feedback_json?.reason),
+        }
+      : null,
+  }
+}
+function grillView(row: QuizOut): Grill {
+  const scope = row.scope_json
+  return {
+    id: row.id,
+    status:
+      row.status === 'submitted' || row.status === 'abandoned'
+        ? row.status
+        : 'open',
+    material_id: str(scope.material_id) ?? '',
+    page_start: num(scope.page_start) ?? 1,
+    page_end: num(scope.page_end) ?? 1,
+    topic_label: str(scope.topic_label) ?? '',
+    score: row.score,
+    questions: row.questions.map(grillQuestionView),
+  }
+}
+/** Plan a Grill over every page of a Material. No question is written yet: ask for each
+ * batch with `extendGrill`, all at once, and show them as they land. */
+export async function generateGrill(
+  user: string,
+  course: string,
+  material: string,
+): Promise<GrillPlan> {
+  const body: GenerateGrill = { course, material }
+  const out = await request<GrillPlanOut>(user, '/quizzes.generate', json(body))
+  return { grill: grillView(out.quiz), batches: out.batches }
+}
+/** One batch's questions, answer key withheld. Asking twice returns the same questions. */
+export async function extendGrill(
+  user: string,
+  grill: string,
+  batch: number,
+): Promise<Array<GrillQuestion>> {
+  const body: ExtendGrill = { quiz: grill, batch }
+  const rows = await request<Array<QuizQuestionOut>>(
+    user,
+    '/quizzes.extend',
+    json(body),
+  )
+  return rows.map(grillQuestionView)
+}
+/** Every answer at once; the Grill comes back graded, with its key, and a remark. */
+export async function gradeGrill(
+  user: string,
+  grill: string,
+  answers: ReadonlyArray<{ question: string; answer_text: string }>,
+): Promise<GrillResult> {
+  const body: GradeGrill = { quiz: grill, answers: [...answers] }
+  const out = await request<GradedQuizOut>(user, '/quizzes.grade', json(body))
+  return { grill: grillView(out.quiz), remark: out.remark }
+}
+export async function abandonGrill(user: string, grill: string): Promise<void> {
+  await request<QuizOut>(user, '/quizzes.abandon', json({ quiz: grill }))
 }
 export async function ask(
   user: string,
