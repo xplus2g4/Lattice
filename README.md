@@ -98,3 +98,15 @@ Two things worth knowing before editing it:
 ## Reading order
 
 [CONTEXT.md](CONTEXT.md) first, then [docs/wiki/architecture.md](docs/wiki/architecture.md). The ADRs explain the choices that are hard to undo: Cognee as the engine, two tiers with isolation enforced twice, a Postgres table as the job queue, Python now and Go at the edges. Open questions are GitHub issues, linked from the backlog page.
+
+## Team
+
+FE, UIUX, Marketing
+
+- Bhavina Sathish Kumar A0287142A
+- Ng Yong Jin, Rooney A0308996H
+
+BE, Ops
+
+- Chen Jianxi
+- Kerk Tai Heng A0277179L
