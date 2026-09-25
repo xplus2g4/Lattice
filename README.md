@@ -1,5 +1,7 @@
 # Lattice
 
+Live at [lattice.xplus2g4.site](https://lattice.xplus2g4.site).
+
 A per-course knowledge store. Students ask a question inside one course and get an answer with citations, drawn from the course's official materials, meaning the slides, tutorials and memos an enrolled user uploaded, and from the student's own notes. Nobody else can read those notes. That single rule shaped most of the design.
 
 The backend is a thin FastAPI service in front of [Cognee](https://github.com/topoteretes/cognee), which does the chunking, entity extraction, embeddings and graph storage. Each course is one Cognee dataset that every enrolled principal can read; each student gets a second, private dataset per course. One `/ask` call searches both. The web app is TanStack Start and talks to the API directly.
