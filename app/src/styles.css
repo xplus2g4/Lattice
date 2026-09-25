@@ -381,6 +381,21 @@ body {
   }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  .maxflow-flow {
+    animation: maxflow-dash 600ms linear infinite;
+  }
+}
+
+@keyframes maxflow-dash {
+  from {
+    stroke-dashoffset: 12;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 @media (pointer: coarse) {
   [data-slot='button'],
   [data-slot='tabs-trigger'],

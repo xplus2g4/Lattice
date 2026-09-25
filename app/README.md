@@ -44,8 +44,9 @@ Import from `src/` with the `#/` alias.
 ## Landing page preview
 
 Open `http://localhost:3000/` signed out after `npm run dev`. `_authed.tsx`
-renders the landing page at `/` when there is no session, and the course picker
-when there is; every other signed-in route still redirects a signed-out visitor
+redirects a signed-out visitor from `/` to `/landing` (a public route in
+`src/routes/landing.tsx`) and shows the course picker at `/` when there is a
+session; every other signed-in route still redirects a signed-out visitor
 to `/login`. It needs no API. `src/components/landing/landing-page.tsx` holds
 the copy and uses the same Tailwind tokens, `fieldnotes-*` classes and
 `LogoMark` as `/login`, so the two pages share one brand. Its copy describes
