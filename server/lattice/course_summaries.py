@@ -16,15 +16,19 @@ from pathlib import Path
 from pypdf import PdfReader
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from lattice import telemetry
 from lattice.config import Settings
 from lattice.db.models import Course, Material
 from lattice.db.repo import course_summaries, courses, materials
 from lattice.engine import Engine
+from lattice.spend import Attribution, collect
 
 log = logging.getLogger(__name__)
 
 # How much of a Material stands for it: its record plus the opening of its first Page.
 PROFILE_CHARS = 1_500
+# The wait between passes is sliced this fine so the watchdog sees a live loop.
+HEARTBEAT_S = 30
 
 
 def material_profile(material: Material, page_text: str) -> str:
@@ -82,13 +86,21 @@ class CourseSummaries:
 
     async def run_forever(self) -> None:
         """Refresh at start-up, then every `course_summary_refresh_s`; a failed pass is
-        logged and retried on the next tick rather than ending the loop."""
+        logged and retried on the next tick rather than ending the loop. The wait between
+        passes is sliced so the heartbeat keeps going: a stalled heartbeat then means a
+        pass that hung, not an hour of doing nothing."""
         while True:
+            telemetry.heartbeat("summaries")
             try:
-                await self.refresh_all()
+                with telemetry.COURSE_SUMMARY_REFRESH.time():
+                    await self.refresh_all()
             except Exception:  # noqa: BLE001 - the next tick retries; the API must keep serving
                 log.exception("course summary refresh failed")
-            await asyncio.sleep(self.settings.course_summary_refresh_s)
+            remaining = self.settings.course_summary_refresh_s
+            while remaining > 0:
+                await asyncio.sleep(min(remaining, HEARTBEAT_S))
+                remaining -= HEARTBEAT_S
+                telemetry.heartbeat("summaries")
 
     async def refresh_all(self) -> list[str]:
         """Recompute every course whose ready Materials or embedding model changed, and drop
@@ -119,7 +131,10 @@ class CourseSummaries:
             *(asyncio.to_thread(first_page_text, Path(m.storage_uri)) for m in ready)
         )
         profiles = [material_profile(m, text) for m, text in zip(ready, texts, strict=True)]
-        vectors = await self.engine.embed(profiles)
+        # Course Spend with no Material: the summary stands for the whole course.
+        attribution = Attribution(user_id=None, course_id=course.id, course_code=course.code)
+        async with collect(session, attribution):
+            vectors = await self.engine.embed(profiles)
         await course_summaries.upsert(
             session,
             course,

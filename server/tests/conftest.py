@@ -151,6 +151,8 @@ async def session(connection: AsyncConnection) -> AsyncIterator[AsyncSession]:
 
 @pytest.fixture
 def settings(tmp_path, migrated_database: str) -> Settings:
+    # Cognee loads `server/.env` into the process env on import, so `_env_file=None` alone
+    # does not isolate a test from a developer's tokens; pin what the tests assert on.
     return Settings(
         _env_file=None,
         database_url=migrated_database,
@@ -159,6 +161,10 @@ def settings(tmp_path, migrated_database: str) -> Settings:
         database_auto_migrate=False,
         cognee_root=tmp_path / "cognee",
         uploads_dir=tmp_path / "uploads",
+        metrics_token=None,
+        spend_ceiling_usd=None,
+        telegram_bot_token=None,
+        telegram_chat_id=None,
     )
 
 

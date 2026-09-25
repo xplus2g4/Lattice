@@ -13,7 +13,7 @@ from lattice.api.deps import COURSE_CODE, CurrentUser, IngestDep, SessionDep, Se
 from lattice.api.schemas import NoteOut, NoteUploadOut
 from lattice.api.uploads import receive
 from lattice.db.models import Course, Material, Note, User
-from lattice.db.repo import courses, materials, notes
+from lattice.db.repo import courses, materials, notes, product_events
 
 router = APIRouter(tags=["notes"])
 
@@ -90,6 +90,13 @@ async def save_note(
         raise HTTPException(409, str(exc)) from None
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
+    await product_events.record(
+        session,
+        user_id=user.id,
+        course_id=note.course_id,
+        name="note.saved",
+        properties={"note_id": str(note.id), "chars": len(body.body_md)},
+    )
     if not user.notes_opt_out:
         background.add_task(ingest.note, note.id)
     return NoteOut.model_validate(note)
@@ -123,6 +130,13 @@ async def upload_note(
         filename=received.filename,
         sha256=received.sha256,
         storage_uri=str(target),
+    )
+    await product_events.record(
+        session,
+        user_id=user.id,
+        course_id=note.course_id,
+        name="note.uploaded",
+        properties={"note_id": str(note.id), "chars": None},
     )
     if not user.notes_opt_out:
         background.add_task(ingest.note, note.id)

@@ -1,12 +1,15 @@
 """HTTP operations used by the separate MCP adapter."""
 
 import asyncio
+import logging
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
-from lattice.api.deps import CurrentUser, EngineDep, SessionDep, SettingsDep
+from lattice.api.ask import ceiling_response
+from lattice.api.deps import ApiError, CurrentUser, EngineDep, SessionDep, SettingsDep
 from lattice.db.repo import courses
+from lattice.logging import request_id
 from lattice.note_review import NoteReview, NoteReviewer
 from lattice.page_notes import (
     Course,
@@ -18,9 +21,11 @@ from lattice.page_notes import (
     PageNotes,
     RevisionConflict,
 )
+from lattice.spend import Attribution, CeilingReached, check_ceiling, collect
 from lattice.study import AskRequest, AskResponse, SessionAccessError, ask_course
 
 router = APIRouter(prefix="/study", tags=["study"])
+log = logging.getLogger(__name__)
 
 
 class MaterialRequest(BaseModel):
@@ -49,14 +54,17 @@ async def checked(operation):
             return await operation
     except (SessionAccessError, courses.CourseAccessError) as exc:
         raise HTTPException(exc.status_code, str(exc)) from None
+    except CeilingReached as exc:
+        raise ceiling_response(exc) from None
     except RevisionConflict as exc:
         raise HTTPException(409, str(exc)) from None
     except ValueError:
         raise HTTPException(
             422, "Invalid input or Material/Page context; refresh context and retry"
         ) from None
-    except Exception:
-        raise HTTPException(502, "Operation could not be completed; please retry") from None
+    except Exception as exc:  # noqa: BLE001 - engine errors -> 502, never a partial answer
+        log.exception("study operation failed")
+        raise ApiError(502, f"{type(exc).__name__}: {exc}", request_id=request_id.get()) from exc
 
 
 @router.post("/materialContext")
@@ -86,15 +94,27 @@ async def save_page_note(
 
 @router.post("/note.review")
 async def review_note(
-    body: ReviewRequest, user: CurrentUser, db: SessionDep, engine: EngineDep
+    body: ReviewRequest,
+    user: CurrentUser,
+    db: SessionDep,
+    engine: EngineDep,
+    settings: SettingsDep,
 ) -> NoteReview:
-    await checked(courses.require_enrolment(db, user, body.course))
+    # Costs completions, so the Ceiling applies; the Spend is the student's, in this course.
+    course = await checked(courses.require_enrolment(db, user, body.course))
+    await checked(check_ceiling(db, settings))
     reviewer = NoteReviewer(engine.retrieve_official, engine.generate)
-    return await checked(reviewer.review(body.course, user.email, body.body_md))
+    attribution = Attribution(user_id=user.id, course_id=course.id, course_code=course.code)
+    async with collect(db, attribution):
+        return await checked(reviewer.review(body.course, user.email, body.body_md))
 
 
 @router.post("/ask")
 async def ask(
-    body: CourseQuestion, user: CurrentUser, db: SessionDep, engine: EngineDep
+    body: CourseQuestion,
+    user: CurrentUser,
+    db: SessionDep,
+    engine: EngineDep,
+    settings: SettingsDep,
 ) -> AskResponse:
-    return await checked(ask_course(engine, db, body.course, user.email, body))
+    return await checked(ask_course(engine, db, body.course, user.email, body, settings=settings))

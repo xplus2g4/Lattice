@@ -36,6 +36,7 @@ from lattice.grounding import GROUNDING_POLICY, install_retrievers
 from lattice.note_review import ReviewChunk
 from lattice.page_notes import PageNote
 from lattice.retrieval import Evidence, TierResult
+from lattice.spend import register as register_spend_logger
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
@@ -71,8 +72,11 @@ class Engine:
         self._ingest_lock = asyncio.Lock()
 
     async def start(self) -> None:
-        """Create Cognee's relational schema if this is a fresh root. Idempotent."""
+        """Create Cognee's relational schema if this is a fresh root, and put the Spend
+        logger on litellm's callbacks so every provider attempt reaches the ledger.
+        Idempotent."""
         await create_db_and_tables()
+        register_spend_logger(self.settings)
 
     # Identity
 

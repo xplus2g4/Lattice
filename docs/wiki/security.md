@@ -37,7 +37,17 @@ The LLM returns a schema-constrained `Answer`. The API drops unresolvable citati
 
 ## Abuse limits
 
-Per-user asks/min and a daily token budget; upload size and type limits; instructor-only upload endpoints.
+Per-user asks/min; upload size and type limits; instructor-only upload endpoints. The daily Spend limit is the deployment-wide Ceiling, not a per-Principal budget: see [operations.md](./operations.md#telemetry-and-alerts) for what refuses at 100 %.
+
+## Egress
+
+The rule: aggregates may leave the VM; content and identities never do. Materials, Notes, questions, answers, emails and user ids stay in the app Postgres, the Cognee stores and the GCS bucket, all inside the deployment. The LLM and embedding providers are the disclosed exception ([Privacy](#privacy)); nothing else receives content.
+
+The only analytics third party is GA4, and it receives page views alone: one hit per client navigation keyed by the route id, such as `/courses/$course/`, with no path parameters. The route id is sent in both `page_path` (`dp`) and `page_location` (`dl`, as origin plus route id), because gtag otherwise fills `dl` from `document.location`; so the real URL with its course uuid, Material id or Note id never leaves the browser. No user id is set, no custom events are sent, and `/dev` and `/foundation` routes never report. The script loads only when the app is built with `VITE_GA_MEASUREMENT_ID`; unset, no `gtag` tag exists. A consent banner is owed before real students use the app; until it exists, leave the measurement id unset on any deployment students reach.
+
+Product events (`product_events`, [data-model.md](./data-model.md)) carry the Principal's `user_id` and a course id. `ask.asked` records the question's length and its sha256, never the text; no event stores Material, Note, question or answer content. They are written by the API in the action's own transaction and never leave the app Postgres.
+
+Telemetry labels carry a course at most: route, status, model, kind, outcome and course id, never a user id. `/metrics` is a 404 unless `METRICS_TOKEN` is set, and then needs that bearer token.
 
 ## Privacy
 

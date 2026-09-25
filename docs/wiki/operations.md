@@ -10,14 +10,15 @@ Single GCP VM, `docker compose`:
 caddy      :443 → web:3000, api:8000            TLS, one domain
 web        TanStack Start (Nitro node server, `node .output/server/index.mjs`)
 api        FastAPI + cognee (library)             env: DATABASE_URL, LLM_*, EMBEDDING_*, GCS_*, COGNEE_*,
-                                                       RELATED_COURSES_K, COURSE_SUMMARY_REFRESH_S
+                                                       RELATED_COURSES_K, COURSE_SUMMARY_REFRESH_S,
+                                                       LOG_LEVEL, METRICS_TOKEN, SPEND_*, TELEGRAM_*, DEPLOYMENT_NAME
 worker     same image, `python -m lattice.worker`
 postgres   pgvector image, volume pgdata
 ladybug    no container — file DB on volume graphdata, mounted into api and worker
 neo4j      compose profile `neo4j`, off by default
 ```
 
-Both `api` and `worker` import Cognee, so both mount `graphdata` and point at the same Postgres. Cognee's own config (`ENABLE_BACKEND_ACCESS_CONTROL`, storage backends, LLM/embedding providers) comes from env, identical in both containers.
+Both `api` and `worker` import Cognee, so both mount `graphdata` and point at the same Postgres. Cognee's own config (`ENABLE_BACKEND_ACCESS_CONTROL`, storage backends, LLM/embedding providers) comes from env, identical in both containers. `server/compose.yaml` runs `postgres` and `api` today (plus the `observability` profile below); Caddy, the Worker and the `neo4j` profile are the intent, and the API process still runs the loops the Worker is meant to own.
 
 The migration that creates `course_summaries` runs `CREATE EXTENSION IF NOT EXISTS vector`, so the database must come from the pgvector image (compose and CI do) and the migrating role must be allowed to create extensions; on a managed Postgres, enable `vector` by hand before the first `alembic upgrade head`. Course summaries are embedded through the same OpenAI model as everything else, so the API needs `EMBEDDING_API_KEY` to refresh them; `RELATED_COURSES_K=0` switches the Related-course lane off without touching the summaries.
 
@@ -27,7 +28,45 @@ and calls `MCP_API_URL` (default `http://127.0.0.1:8000`). It needs no shared vo
 connection. The API retains the Cognee root and Note ingestion lock. See
 [server setup](../../server/README.md) for client configuration.
 
->>>>>>> origin/main
+### Environment variables for Telemetry, Spend and alerts
+
+All optional; `server/.env.example` carries the same list. Unset, the API behaves as before: no `/metrics`, no Ceiling, no Telegram.
+
+| Variable | Meaning |
+|---|---|
+| `LOG_LEVEL` | Root log level for the API, Cognee, litellm and uvicorn loggers; default `INFO` |
+| `METRICS_TOKEN` | Bearer token for `GET /metrics`; unset, the route is a 404 |
+| `SPEND_PRICES_USD_PER_1M` | JSON price table per litellm model name without provider prefix, USD per million tokens, e.g. `{"gpt-4o-mini":{"input":0.15,"output":0.60},"text-embedding-3-small":{"input":0.02}}`; a model with no entry records Spend rows with `usd` null |
+| `SPEND_CEILING_USD` | The Ceiling: deployment-wide Spend per UTC day; unset, no Ceiling, no 429, no 80 % alert. Setting it requires a price for both `LLM_MODEL` and `EMBEDDING_MODEL`, or start-up fails naming the unpriced model |
+| `TELEGRAM_BOT_TOKEN` | Bot token the watchdog sends alerts with; unset, alerts are logged instead of sent |
+| `TELEGRAM_CHAT_ID` | Chat the alerts go to |
+| `DEPLOYMENT_NAME` | Name the alerts open with; default `lattice` |
+| `VITE_GA_MEASUREMENT_ID` | App build only: the GA4 measurement id; unset, no `gtag` script loads ([security.md](./security.md#egress)) |
+
+## Telemetry and alerts
+
+Logs are one JSON object per line (`ts`, `level`, `logger`, `msg`, `request_id`, exception), with the Cognee, litellm and uvicorn loggers routed through the same formatter. Every response carries `X-Request-Id` (taken from the request or generated); a 502 from `/ask` or the study routes carries the same id in its body, so a user report can be matched to its log lines.
+
+Telemetry is served at `GET /metrics` in Prometheus text format: request counts and latency per route, `/ask` duration, outcome and citation counts per course, Cognify duration and outcome per course and kind, ingest queue depth and age, LLM calls and tokens per model, Spend per course and model, and one `loop_last_tick_timestamp` per lifespan loop. The route is a 404 until `METRICS_TOKEN` is set. Labels name a course at most, never a Principal ([security.md](./security.md#egress)).
+
+Prometheus and Grafana are the `observability` compose profile, off by default:
+
+```sh
+cd server && docker compose --profile observability up -d
+```
+
+Prometheus (`:9090`, 15 s scrape, 30 d retention, config in `server/ops/prometheus.yml`) reads `METRICS_TOKEN` from `.env` as a compose secret and scrapes `api:8000/metrics` with it, so the one token serves both sides. Grafana (`:3001`, admin / `GRAFANA_ADMIN_PASSWORD` or `admin`) is provisioned from `server/ops/grafana/`: the Prometheus datasource and the **Lattice API** dashboard (loop staleness, ingest queue, request rate and p95 by route, ask outcomes and citations, Cognify outcomes and duration, Spend by course and model, tokens by model). Dashboards are file-provisioned and read-only in the UI; edit the JSON and restart Grafana. Each API process has its own in-memory registry, so this is one target for one process; Alertmanager is not part of the stack because the alerts below come from the API itself.
+
+Alerts come from a third lifespan loop in the API, the watchdog, ticking every 60 s (`WATCHDOG_TICK_S`) and checking Postgres and the other loops' heartbeats:
+
+| Alert | Fires when |
+|---|---|
+| Ingest stuck | The oldest `queued`, `converting` or `cognifying` Material, or `dirty` or `indexing` Note, has sat in that status for more than 10 min (`ALERT_INGEST_STUCK_S=600`) |
+| Loop stalled | The `ingest` or `summaries` loop has not ticked for more than 5 min (`ALERT_LOOP_STALLED_S=300`) |
+| Ceiling | Today's Spend reaches 80 % of `SPEND_CEILING_USD` (warning), then 100 % (LLM-spending actions refuse; see the failure table) |
+
+Each alert sends one Telegram message when it starts firing, one when it recovers, and one repeat every 24 h while it stays firing. Delivery is the Telegram Bot API over HTTPS from the API process, 10 s timeout, failures logged and never raised; with no bot token the message is logged at INFO instead. Messages name the deployment (`DEPLOYMENT_NAME`), the alert, the measured value and the threshold. The watchdog heartbeats too, so `/metrics` shows it running, but it cannot report its own process dying: an "API down" alert needs something outside the VM and is on the backlog.
+
 ## CI and deploys
 
 GitHub Actions (`.github/workflows/ci.yml`) runs three jobs on every PR and on merge to `main`:
@@ -49,7 +88,7 @@ Locally `uv run pytest` skips canaries only when no key is configured. Tests dis
 
 ## Backups
 
-Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The job queue is a Postgres table, so it rides along in the same backup. So does `course_summaries`, but it is derived data: a restore without it is rebuilt by the API's refresh timer on its next pass.
+Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The `spend` ledger and `product_events` ride along in the same dump. So does `course_summaries`, but it is derived data: a restore without it is rebuilt by the API's refresh timer on its next pass.
 
 ## Pins
 
@@ -63,8 +102,8 @@ Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The job queue is a Pos
 | LLM API down during cognify | Material stuck | Job retries with backoff; `status=failed` after N attempts; instructor re-runs from UI |
 | Cognee `search()` raises | No answer | 502 with request id; no partial answer |
 | Ladybug file corrupted | Graph queries fail | Restore `graphdata` from nightly tarball; Phase 1 (vector path) still works if graph search is disabled via flag |
-| Worker crashes mid-job | Job locked | `locked_by` plus heartbeat; stale locks released after timeout; cognify is idempotent per material hash |
-| Per-user budget exhausted | `/ask` refused | 429 with reset time; notes and browsing unaffected |
+| Loop stalled | Note ingest or Course-summary refresh stops | Watchdog alert after 5 min without a heartbeat; restart `api`. Cognify of a Material is idempotent per hash, and a Note keeps its `dirty` status, so the loop resumes where it stopped |
+| Ceiling reached | Every LLM-spending action refuses until midnight UTC | `/ask`, `/study/ask` and `/study/note.review` return 429 with `reset_at` and `Retry-After`; Notes still save but wait as `dirty` for Cognify, no attempt consumed; a Material queued under the Ceiling is marked `failed` with a reset hint and the instructor retries it after the reset; reading and browsing unaffected |
 | Cross-dataset search not isolating | Data leak risk | Canary test fails CI; switch `ASK_TWO_CALL_MODE=1` ([flows.md](./flows.md)) |
 | Embedding model download blocked at API start-up (fresh container, Hugging Face rate limit) | Course-summary refresh delayed | The pass fails or waits, is logged, and retries on the next tick; existing summaries keep serving Related courses; `/ask` is unaffected ([#83](https://github.com/xplus2g4/Lattice/issues/83)) |
 | Postgres restarted under a running API | Course-summary refresh stalls | The pass holds one connection and has no timeout, so it hangs silently until the API restarts; restart `api` after any Postgres recreate ([#82](https://github.com/xplus2g4/Lattice/issues/82)) |
