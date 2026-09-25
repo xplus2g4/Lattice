@@ -51,6 +51,10 @@ _Avoid_: engine user, service account
 The link between a user and a course; grants read on the course's global dataset and creates the user's private dataset.
 _Avoid_: membership, registration
 
+**Invite**:
+A single-use, expiring token that grants the right to create an account — the app-access gate. Carries a role, never a course; redemption creates the User and burns the Invite.
+_Avoid_: invitation link, access code
+
 ### Answering
 
 **Session**:

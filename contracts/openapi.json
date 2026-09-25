@@ -380,6 +380,29 @@
         "title": "CreateCourse",
         "type": "object"
       },
+      "CreateInvite": {
+        "properties": {
+          "expires_in_days": {
+            "default": 7,
+            "maximum": 90.0,
+            "minimum": 1.0,
+            "title": "Expires In Days",
+            "type": "integer"
+          },
+          "role": {
+            "default": "student",
+            "enum": [
+              "student",
+              "instructor",
+              "admin"
+            ],
+            "title": "Role",
+            "type": "string"
+          }
+        },
+        "title": "CreateInvite",
+        "type": "object"
+      },
       "EnrolmentOut": {
         "properties": {
           "course_id": {
@@ -732,6 +755,106 @@
           }
         },
         "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "InviteOut": {
+        "description": "Returned once at creation: `token` is the only copy of the invite secret.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "token": {
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token",
+          "role",
+          "expires_at",
+          "created_at"
+        ],
+        "title": "InviteOut",
+        "type": "object"
+      },
+      "InviteSummaryOut": {
+        "description": "An invite's status for the manage view. Never carries the token itself.",
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "created_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By Email"
+          },
+          "expires_at": {
+            "format": "date-time",
+            "title": "Expires At",
+            "type": "string"
+          },
+          "id": {
+            "format": "uuid",
+            "title": "Id",
+            "type": "string"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "used_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used At"
+          },
+          "used_by_email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Used By Email"
+          }
+        },
+        "required": [
+          "id",
+          "role",
+          "expires_at",
+          "created_at",
+          "created_by_email",
+          "used_at",
+          "used_by_email"
+        ],
+        "title": "InviteSummaryOut",
         "type": "object"
       },
       "MaterialContext": {
@@ -1760,6 +1883,21 @@
         "title": "RecordAnswer",
         "type": "object"
       },
+      "RedeemInvite": {
+        "properties": {
+          "token": {
+            "maxLength": 256,
+            "minLength": 4,
+            "title": "Token",
+            "type": "string"
+          }
+        },
+        "required": [
+          "token"
+        ],
+        "title": "RedeemInvite",
+        "type": "object"
+      },
       "ReplaceTopics": {
         "properties": {
           "material": {
@@ -2513,6 +2651,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -2572,6 +2726,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2641,6 +2811,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -2689,6 +2875,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2754,6 +2956,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -2802,6 +3020,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2863,6 +3097,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -2922,6 +3172,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -2995,6 +3261,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -3048,6 +3330,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -3115,6 +3413,228 @@
         "summary": "Health"
       }
     },
+    "/invites.create": {
+      "post": {
+        "description": "Mint an access ticket. The raw token is returned once; only its hash is stored.",
+        "operationId": "create_invite_invites_create_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateInvite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InviteOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Invite",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/invites.list": {
+      "get": {
+        "description": "Every invite minted, with status. Never returns a token \u2014 those are one-time.",
+        "operationId": "list_invites_invites_list_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/InviteSummaryOut"
+                  },
+                  "title": "Response List Invites Invites List Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Invites",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
+    "/invites.redeem": {
+      "post": {
+        "description": "First-sight account creation: the invite is the only way in, and it burns on use.",
+        "operationId": "redeem_invite_invites_redeem_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RedeemInvite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserOut"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Redeem Invite",
+        "tags": [
+          "invites"
+        ]
+      }
+    },
     "/materials.delete": {
       "post": {
         "description": "Drops the record and its Topics. Removing the cognified data is #36's job.",
@@ -3134,6 +3654,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -3208,6 +3744,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -3259,6 +3811,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -3318,6 +3886,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -3371,6 +3955,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -3430,6 +4030,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -3491,6 +4107,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -3550,6 +4182,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -3598,6 +4246,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -3658,6 +4322,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -3732,6 +4412,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -3826,6 +4522,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -3909,6 +4621,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -3962,6 +4690,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -4023,6 +4767,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -4082,6 +4842,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -4151,6 +4927,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -4203,6 +4995,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -4263,6 +5071,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -4321,6 +5145,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -4386,6 +5226,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -4449,6 +5305,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -4519,6 +5391,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -4568,6 +5456,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -4695,6 +5599,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -4747,6 +5667,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -4817,6 +5753,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -4873,6 +5825,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -4943,6 +5911,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -5001,6 +5985,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -5053,6 +6053,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -5113,6 +6129,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -5171,6 +6203,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -5231,6 +6279,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -5289,6 +6353,22 @@
                 }
               ],
               "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -5359,6 +6439,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -5412,6 +6508,22 @@
               ],
               "title": "X-User"
             }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "requestBody": {
@@ -5453,6 +6565,76 @@
         "summary": "Replace Topics",
         "tags": [
           "materials"
+        ]
+      }
+    },
+    "/users.list": {
+      "get": {
+        "description": "Everyone who has signed up. Instructors need this to see who has joined.",
+        "operationId": "list_users_users_list_get",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "x-user",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-User"
+            }
+          },
+          {
+            "in": "header",
+            "name": "authorization",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/UserOut"
+                  },
+                  "title": "Response List Users Users List Get",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Users",
+        "tags": [
+          "me"
         ]
       }
     }

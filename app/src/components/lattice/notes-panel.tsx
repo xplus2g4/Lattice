@@ -16,7 +16,7 @@ export function NotesPanel({ course, user }: Enrolment) {
   const key = ['notes', course, user]
   const notes = useQuery({
     queryKey: key,
-    queryFn: () => listNotes(user, course),
+    queryFn: () => listNotes(course),
     refetchInterval: (q) => pollWhilePending(q.state.data),
   })
   const navigate = useNavigate()
@@ -24,7 +24,7 @@ export function NotesPanel({ course, user }: Enrolment) {
   const inputRef = useRef<HTMLInputElement>(null)
   const upload = useMutation({
     mutationFn: (files: Array<File>) =>
-      uploadEach(files, (f) => uploadNote(user, course, f)),
+      uploadEach(files, (f) => uploadNote(course, f)),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: key }),
   })
 

@@ -64,7 +64,7 @@ export function CourseWorkspace({
   material?: string
   note?: string
 } & PageRange) {
-  const [user] = useUser()
+  const user = useUser()
   const { markOpened } = useLibrary()
   const navigate = useNavigate()
   const [layout, updateTabs] = useTabLayout(user, course)
@@ -109,11 +109,11 @@ export function CourseWorkspace({
   // A deleted Material's or Note's tab closes; if the URL named it, the URL moves on.
   const materials = useQuery({
     queryKey: ['materials', course, user],
-    queryFn: () => listMaterials(user, course),
+    queryFn: () => listMaterials(course),
   })
   const notes = useQuery({
     queryKey: ['notes', course, user],
-    queryFn: () => listNotes(user, course),
+    queryFn: () => listNotes(course),
   })
   useEffect(() => {
     if (!materials.data || !notes.data) return

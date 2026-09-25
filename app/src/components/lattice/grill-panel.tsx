@@ -94,7 +94,7 @@ export function GrillPanel({
   const key = draftKey(course, user)
   const materials = useQuery({
     queryKey: ['materials', course, user],
-    queryFn: () => listMaterials(user, course),
+    queryFn: () => listMaterials(course),
   })
   const [stored, setStored] = useStored(key, '')
   const { stage, answers } = useMemo(() => parseDraft(stored), [stored])
@@ -105,7 +105,7 @@ export function GrillPanel({
   const setStage = (next: Stage) => patch(() => ({ stage: next, answers: {} }))
 
   const generate = useMutation({
-    mutationFn: (material: string) => generateGrill(user, course, material),
+    mutationFn: (material: string) => generateGrill(course, material),
     onSuccess: (plan) =>
       setStage({
         at: 'quiz',
@@ -119,11 +119,11 @@ export function GrillPanel({
     mutationFn: (input: {
       grill: string
       answers: Array<{ question: string; answer_text: string }>
-    }) => gradeGrill(user, input.grill, input.answers),
+    }) => gradeGrill(input.grill, input.answers),
     onSuccess: (result) => setStage({ at: 'result', result }),
   })
   const abandon = useMutation({
-    mutationFn: (grill: string) => abandonGrill(user, grill),
+    mutationFn: (grill: string) => abandonGrill(grill),
   })
 
   // Every pending batch is asked for at once; each lands on its own. A batch is in flight
@@ -138,7 +138,7 @@ export function GrillPanel({
       const flight = `${grillId}:${index}`
       if (inFlight.current.has(flight)) continue
       inFlight.current.add(flight)
-      extendGrill(user, grillId, index)
+      extendGrill(grillId, index)
         .then((written) =>
           patch((draft) => {
             if (draft.stage.at !== 'quiz' || draft.stage.grill.id !== grillId)

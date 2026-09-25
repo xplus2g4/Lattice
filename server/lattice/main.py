@@ -9,6 +9,7 @@ from lattice.api import (
     ask,
     courses,
     health,
+    invites,
     material_records,
     me,
     note_records,
@@ -72,6 +73,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     for router in (
         health.router,
         me.router,
+        invites.router,
         courses.router,
         material_records.router,
         note_records.router,

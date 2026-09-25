@@ -368,7 +368,7 @@ fi
 ENV_FILE="$APP/.env"
 write_env VITE_API_URL "http://localhost:${API_PORT}"
 ENV_FILE="$SERVER/.env"
-note "server/.env keeps CORS_ORIGINS=[\"http://localhost:3000\"] and DEV_HEADER_AUTH=true (the X-User header is the login)."
+note "server/.env keeps CORS_ORIGINS=[\"http://localhost:3000\"], DEV_HEADER_AUTH=true and DEV_INVITE_CODE=123456 (the dev login door)."
 pause
 
 # ── 6. Web app dependencies ───────────────────────────────────────────────

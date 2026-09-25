@@ -22,13 +22,23 @@ class Settings(BaseSettings):
     # Run `alembic upgrade head` on start-up. Convenient in dev; deploys run it explicitly.
     database_auto_migrate: bool = False
 
-    # Honour the `X-User` header as the caller's identity. Dev only; there is no OAuth yet.
+    # Honour the `X-User` header as the caller's identity. Dev only; Bearer replaces it.
     dev_header_auth: bool = False
+    # A fixed invite token that always redeems (as student). Only honoured while
+    # dev_header_auth is on, so it cannot leak into a deployment.
+    dev_invite_code: str = ""
     mcp_enabled: bool = False
     mcp_api_url: str = "http://127.0.0.1:8000"
 
+    # HS256 key for the tokens the web app mints after Google sign-in. Shared with the
+    # web app; empty disables Bearer verification so tests and MCP dev stay header-only.
+    token_secret: str = ""
+
     # Principal that owns every course's global dataset and runs material ingest.
     instructor_email: str = "instructor@lattice.example"
+    # Extra emails that bootstrap as instructor on sign-in, alongside instructor_email.
+    # For co-teachers/dev accounts you want privileged without going through an invite.
+    instructor_emails: list[str] = []
 
     # Where Cognee keeps its embedded databases and where uploaded files land.
     cognee_root: Path = Path(".cognee")

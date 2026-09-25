@@ -4,7 +4,7 @@ The six flows that move data through the system: enrol, ingest a material, save 
 
 ## Enrol
 
-1. User signs in with Google; web gets a session; the API verifies the JWT on every call.
+1. User opens an invite link, signs in with Google; the web app verifies the `id_token`, redeems the invite to create the `users` row, and starts a session cookie. Every API call carries a Lattice-minted `Bearer` JWT that the API verifies locally.
 2. User enters a course code, creating an `enrolments` row.
 3. If `users.cognee_principal_id` is null, create the Cognee principal.
 4. Create the `{course}-user-{id}` dataset; grant owner read-write; grant read on `{course}-global`.

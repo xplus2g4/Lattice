@@ -10,24 +10,32 @@ import { Card, CardContent } from '#/components/ui/card'
 import { Input } from '#/components/ui/input'
 import { Skeleton } from '#/components/ui/skeleton'
 import { CourseCard } from '#/components/lattice/course-card'
-import { ApiError, joinCourse, listCourses } from '#/lib/api'
+import { ApiError, getMe, joinCourse, listCourses } from '#/lib/api'
 import { useLibrary } from '#/lib/library'
 import { useUser } from '#/lib/user'
 
 import type { CourseSummary } from '#/lib/api'
 
-export const Route = createFileRoute('/')({ component: Home })
+export const Route = createFileRoute('/_authed/')({ component: Home })
 
 const COURSE_RE = /^[a-z][a-z0-9]{1,15}$/
 
 function Home() {
-  const [user, setUser] = useUser()
+  const user = useUser()
   const { courses: added, lastOpened } = useLibrary()
   const courses = useQuery({
     queryKey: ['courses', user],
-    queryFn: () => listCourses(user),
+    queryFn: () => listCourses(),
     retry: false,
   })
+  const me = useQuery({
+    queryKey: ['me'],
+    queryFn: () => getMe(),
+    retry: false,
+  })
+  const isInstructor = ['instructor', 'admin'].includes(
+    me.data?.user.role ?? '',
+  )
 
   // Server-known courses plus codes the user added but has not filled yet.
   const known = new Set((courses.data ?? []).map((c) => c.code))
@@ -58,14 +66,26 @@ function Home() {
               Pick a course, or create one and upload its materials.
             </p>
           </div>
-          <label className="flex flex-col gap-1.5 text-lattice-meta font-medium text-muted-foreground">
+          <div className="flex flex-col gap-1.5 text-lattice-meta font-medium text-muted-foreground">
             Signed in as
-            <Input
-              type="email"
-              value={user}
-              onChange={(e) => setUser(e.target.value)}
-            />
-          </label>
+            <div className="flex items-center gap-3">
+              <span className="text-sm text-foreground">{user}</span>
+              {isInstructor && (
+                <Link
+                  to="/manage"
+                  className="text-sm underline underline-offset-2 hover:text-foreground"
+                >
+                  Manage access
+                </Link>
+              )}
+              <a
+                href="/auth/logout"
+                className="text-sm underline underline-offset-2 hover:text-foreground"
+              >
+                Sign out
+              </a>
+            </div>
+          </div>
         </header>
 
         {lastOpened && (
@@ -157,9 +177,8 @@ function AddCourse() {
   const [value, setValue] = useState('')
   const code = value.trim().toLowerCase()
   const invalid = value.trim() !== '' && !COURSE_RE.test(code)
-  const [user] = useUser()
   const join = useMutation({
-    mutationFn: () => joinCourse(user, code),
+    mutationFn: () => joinCourse(code),
     onSuccess: () => {
       addCourse(code)
       void navigate({

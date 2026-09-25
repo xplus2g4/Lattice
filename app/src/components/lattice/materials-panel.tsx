@@ -20,14 +20,14 @@ export function MaterialsPanel({ course, user }: Enrolment) {
   const key = ['materials', course, user]
   const materials = useQuery({
     queryKey: key,
-    queryFn: () => listMaterials(user, course),
+    queryFn: () => listMaterials(course),
     refetchInterval: (q) => pollWhilePending(q.state.data),
   })
   const inputRef = useRef<HTMLInputElement>(null)
   // Every selected file is uploaded at once; a failure is reported per file.
   const upload = useMutation({
     mutationFn: (files: Array<File>) =>
-      uploadEach(files, (f) => uploadMaterial(user, course, f)),
+      uploadEach(files, (f) => uploadMaterial(course, f)),
     onSuccess: (results) => {
       void queryClient.invalidateQueries({ queryKey: key })
       // An upload replaces the bytes under an existing filename; drop each cached blob.

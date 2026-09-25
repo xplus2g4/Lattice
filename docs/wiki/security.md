@@ -11,7 +11,7 @@ Where trust changes hands, and what enforces each boundary.
 
 ## Identity
 
-Google OAuth issues a JWT that the API verifies on every call. Cognee principals are derived from the `users` table, never from request input.
+The web app runs the Google Authorization Code flow with PKCE and verifies the `id_token` once, at callback. It then holds the identity in an encrypted session cookie and mints a short-lived Lattice JWT (`TOKEN_SECRET`, shared web↔API) that the browser sends as `Authorization: Bearer`; the API verifies it locally, no Google call on the hot path. A verified Google identity alone is not enough — the email must already exist in `users` or be redeemed through a single-use Invite (instructor/admin-minted; the first login matching `INSTRUCTOR_EMAIL` bootstraps). `DEV_HEADER_AUTH` keeps the `X-User` path for tests and local dev. Cognee principals are derived from the `users` table, never from request input.
 
 ## Tenant isolation
 

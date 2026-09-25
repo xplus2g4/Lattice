@@ -20,7 +20,7 @@ import {
   TooltipTrigger,
 } from '#/components/ui/tooltip'
 
-export const Route = createFileRoute('/foundation')({
+export const Route = createFileRoute('/_authed/foundation')({
   component: FoundationPreview,
 })
 

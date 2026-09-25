@@ -51,18 +51,18 @@ export function AskPanel({
   const sessionKey = ['session', course, user, sessionId]
   const session = useQuery({
     queryKey: sessionKey,
-    queryFn: () => getSession(user, course, sessionId),
+    queryFn: () => getSession(course, sessionId),
     enabled: sessionId !== '',
     retry: false,
   })
   const sessions = useQuery({
     queryKey: ['sessions', course, user],
-    queryFn: () => listSessions(user, course),
+    queryFn: () => listSessions(course),
   })
   // Shared with the rail; used for the pending notice and to resolve references.
   const materials = useQuery({
     queryKey: ['materials', course, user],
-    queryFn: () => listMaterials(user, course),
+    queryFn: () => listMaterials(course),
   })
   const pending =
     materials.data?.filter(
@@ -70,7 +70,7 @@ export function AskPanel({
     ).length ?? 0
   const notes = useQuery({
     queryKey: ['notes', course, user],
-    queryFn: () => listNotes(user, course),
+    queryFn: () => listNotes(course),
   })
   const sources = {
     course,
@@ -88,7 +88,7 @@ export function AskPanel({
   const [question, setQuestion] = useState('')
   const submit = useMutation({
     mutationFn: (q: string) =>
-      ask(user, course, {
+      ask(course, {
         question: q,
         query_type: 'HYBRID_COMPLETION',
         session_id: sessionId || null,

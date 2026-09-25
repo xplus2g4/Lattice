@@ -4,7 +4,7 @@ A per-course knowledge store. Students ask a question inside one course and get 
 
 The backend is a thin FastAPI service in front of [Cognee](https://github.com/topoteretes/cognee), which does the chunking, entity extraction, embeddings and graph storage. Each course is one Cognee dataset that every enrolled principal can read; each student gets a second, private dataset per course. One `/ask` call searches both. The web app is TanStack Start and talks to the API directly.
 
-This runnable cut uses Cognee's embedded SQLite, LanceDB and Ladybug stores for knowledge, and a separate Postgres database for application records. Identity still uses a development-only `X-User` header; Enrolment and ownership are checked against the persistent records. The API runs background ingest while the dedicated Worker queue and OAuth remain future work; see [docs/wiki/backlog.md](docs/wiki/backlog.md).
+This runnable cut uses Cognee's embedded SQLite, LanceDB and Ladybug stores for knowledge, and a separate Postgres database for application records. Sign-in is Google OAuth in the web app behind single-use Invites; API calls carry a Lattice-minted `Bearer` token, with the `X-User` header kept for tests and local dev (`DEV_HEADER_AUTH`). Enrolment and ownership are checked against the persistent records. The API runs background ingest while the dedicated Worker queue remains future work; see [docs/wiki/backlog.md](docs/wiki/backlog.md).
 
 ## Repository
 
@@ -43,13 +43,18 @@ uv run alembic upgrade head
 uv run uvicorn lattice.main:app --reload    # http://localhost:8000, docs at /docs
 
 cd ../app
+cp .env.example .env         # GOOGLE_* values, SESSION_SECRET, and the same TOKEN_SECRET
 npm install
 npm run dev                  # http://localhost:3000
 ```
 
 If port 8000 is taken, start uvicorn with `--port 8010` and put `VITE_API_URL=http://localhost:8010` in `app/.env`.
 
-Then open the web app. Enter a course code on the landing page, `cs101` will do, which takes you to `/courses/cs101`; the user email sits in the header there and the default `alice@example.com` is fine. Upload a `.pdf`, `.pptx`, `.md` or `.txt`. Its status goes `queued`, `cognifying`, `ready`. Cognify is the slow, expensive step, where DeepSeek extracts entities and relations; a page of text takes 10 to 50 seconds. Save a note. Ask something. The answer comes back in two labelled blocks, one per tier, each with the chunks and graph nodes it drew on. Change the email to `bob@example.com` and ask again. The notes block is gone.
+Sign-in is Google OAuth. The web app talks to Google directly, so every machine needs `GOOGLE_CLIENT_ID`/`SECRET`/`REDIRECT_URI` in `app/.env` — one GCP client works for everyone on `localhost:3000`, but each signer's Gmail must be a **Test user** on the consent screen while it stays in Testing mode. `TOKEN_SECRET` must match between `app/.env` and `server/.env` on each machine; `SESSION_SECRET` can be anything.
+
+Account creation is invite-gated. In dev, `DEV_INVITE_CODE` (default `123456`) redeems as a reusable student invite — paste it into the code field on `/login`, then sign in with Google. Whoever matches `INSTRUCTOR_EMAIL` bootstraps as instructor and can mint real single-use invite links from the home page instead.
+
+Then: enter a course code on the landing page, `cs101` will do, which takes you to `/courses/cs101`. Upload a `.pdf`, `.pptx`, `.md` or `.txt`. Its status goes `queued`, `cognifying`, `ready`. Cognify is the slow, expensive step, where DeepSeek extracts entities and relations; a page of text takes 10 to 50 seconds. Save a note. Ask something. The answer comes back in two labelled blocks, one per tier, each with the chunks and graph nodes it drew on. Sign in as a second user and ask again — the notes block is gone.
 
 Things that will surprise you the first time:
 
@@ -79,7 +84,7 @@ cd app && npm run generate-api                         # app/src/lib/generated/
 
 The web app is scoped by URL. `/` is a course picker: type a code matching `^[a-z][a-z0-9]{1,15}$` and it opens `/courses/{code}`. Codes you have opened before are listed as links, kept in `localStorage` under `lattice.courses`. The home screen combines enrolled courses from the API with the browser's course library.
 
-`/courses/{code}` opens the reader workspace with Materials, Notes and Ask. The existing `/materials`, `/notes` and `/ask` study routes remain available, including direct Session URLs. The email goes out as the `X-User` header, which is the dev-only identity the API accepts while OAuth is unbuilt. Layout and conventions are in [app/README.md](app/README.md).
+`/courses/{code}` opens the reader workspace with Materials, Notes and Ask. The existing `/materials`, `/notes` and `/ask` study routes remain available, including direct Session URLs. Routes sit behind `/login`: sign in with Google through an invite link (instructors mint them from the home page), and the app sends the session's Lattice token as `Bearer` on every API call. Layout and conventions are in [app/README.md](app/README.md).
 
 Two things worth knowing before editing it:
 

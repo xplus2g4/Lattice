@@ -1,10 +1,12 @@
 import re
 from collections.abc import AsyncIterator
+from dataclasses import dataclass
 from typing import Annotated
 
 from fastapi import Depends, Header, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from lattice.auth import AuthError, verify_token
 from lattice.config import Settings, get_settings
 from lattice.db import Database
 from lattice.db.models import User
@@ -36,24 +38,62 @@ IngestDep = Annotated[Ingest, Depends(get_ingest)]
 SessionDep = Annotated[AsyncSession, Depends(get_session, scope="function")]
 
 
-def current_email(
+@dataclass
+class Identity:
+    """A caller's verified email and how it was proven."""
+
+    email: str
+    # True for the dev-only X-User header; False for a verified Bearer token.
+    via_header: bool
+
+
+def current_identity(
     settings: SettingsDep,
     x_user: Annotated[str | None, Header()] = None,
-) -> str:
-    """The app user's email. Dev-only header identity; OAuth replaces this dependency."""
+    authorization: Annotated[str | None, Header()] = None,
+) -> Identity:
+    """Bearer token first; the dev X-User header only when DEV_HEADER_AUTH allows it."""
+    if authorization:
+        scheme, _, token = authorization.partition(" ")
+        if scheme.lower() != "bearer" or not token.strip():
+            raise HTTPException(401, "Authorization must be a Bearer token")
+        try:
+            claims = verify_token(settings, token.strip())
+        except AuthError as e:
+            raise HTTPException(401, str(e)) from e
+        return Identity(email=claims["email"].strip().lower(), via_header=False)
     if not settings.dev_header_auth:
-        raise HTTPException(401, "no authentication configured (DEV_HEADER_AUTH is off)")
+        raise HTTPException(401, "a Bearer token is required (DEV_HEADER_AUTH is off)")
     if not x_user or "@" not in x_user:
         raise HTTPException(401, "X-User header must be an email")
-    return x_user.strip().lower()
+    return Identity(email=x_user.strip().lower(), via_header=True)
 
 
-CurrentEmail = Annotated[str, Depends(current_email)]
+CurrentIdentity = Annotated[Identity, Depends(current_identity)]
 
 
-async def current_user(email: CurrentEmail, session: SessionDep) -> User:
-    """The caller's `users` row, created on first sight. OAuth replaces `current_email` only."""
-    return await users.get_or_create(session, email)
+async def current_user(
+    identity: CurrentIdentity, session: SessionDep, settings: SettingsDep
+) -> User:
+    """The caller's `users` row. Strangers need an invite; a configured instructor
+    email bootstraps on sign-in, and dev-header callers self-provision. The check
+    is sticky: a student row matching an instructor email is promoted back, so
+    configuring the email late or signing in via an invite cannot demote them."""
+    instructor_emails = {settings.instructor_email.strip().lower()} | {
+        e.strip().lower() for e in settings.instructor_emails
+    }
+    instructor = identity.email in instructor_emails
+    user = await users.by_email(session, identity.email)
+    if user is None:
+        if identity.via_header:
+            user = await users.get_or_create(session, identity.email)
+        elif instructor:
+            user = await users.create(session, email=identity.email, role="instructor")
+        else:
+            raise HTTPException(403, "an invite is required to join")
+    if instructor and user.role == "student":
+        await users.update(session, user, role="instructor")
+    return user
 
 
 CurrentUser = Annotated[User, Depends(current_user)]
