@@ -50,6 +50,20 @@ vi.mock('@tanstack/react-devtools', () => ({
   TanStackDevtools: () => null,
 }))
 
+// Auth is a cookie session plus a web-minted Bearer token in the real app; in a jsdom
+// unit run there is no Nitro server behind the server functions, so the session is
+// stubbed to one fixed user and the API mocks see Bearer test-token instead.
+vi.mock('#/lib/auth', () => ({
+  getSessionUser: async () => ({ sub: 'g|alice', email: 'alice@example.com' }),
+  getApiToken: async () => ({
+    token: 'test-token',
+    expiresAt: Math.floor(Date.now() / 1000) + 3600,
+  }),
+  apiToken: async () => 'test-token',
+  clearApiTokenCache: () => {},
+  redeemInvite: async () => ({ ok: true }),
+}))
+
 // `error`, not `warn`: a request nobody mocked means the test is exercising something it
 // did not intend, which should fail rather than pass quietly against a dead fetch.
 beforeAll(() => server.listen({ onUnhandledRequest: 'error' }))

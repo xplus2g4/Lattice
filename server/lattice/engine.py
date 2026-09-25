@@ -15,6 +15,7 @@ from uuid import UUID, uuid4
 
 import cognee
 from cognee.infrastructure.databases.relational import create_db_and_tables
+from cognee.infrastructure.databases.vector.embeddings import get_embedding_engine
 from cognee.infrastructure.databases.vector.models.ScoredResult import ScoredResult
 from cognee.infrastructure.llm.LLMGateway import LLMGateway
 from cognee.modules.data.methods import (
@@ -35,6 +36,7 @@ from lattice.grounding import GROUNDING_POLICY, install_retrievers
 from lattice.note_review import ReviewChunk
 from lattice.page_notes import PageNote
 from lattice.retrieval import Evidence, TierResult
+from lattice.spend import register as register_spend_logger
 
 QUERY_TYPES = ("GRAPH_COMPLETION", "RAG_COMPLETION", "HYBRID_COMPLETION", "CHUNKS")
 
@@ -70,8 +72,11 @@ class Engine:
         self._ingest_lock = asyncio.Lock()
 
     async def start(self) -> None:
-        """Create Cognee's relational schema if this is a fresh root. Idempotent."""
+        """Create Cognee's relational schema if this is a fresh root, and put the Spend
+        logger on litellm's callbacks so every provider attempt reaches the ledger.
+        Idempotent."""
         await create_db_and_tables()
+        register_spend_logger(self.settings)
 
     # Identity
 
@@ -115,14 +120,30 @@ class Engine:
             self._enrolled.add((user.id, course))
         return global_ds, private_ds
 
+    # Embeddings
+
+    def embedding_model(self) -> str:
+        """The configured embedding model's name, recorded beside anything embedded here."""
+        return str(get_embedding_engine().model)
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        """Vectors from the model Cognify uses, so course summaries share its space."""
+        return await get_embedding_engine().embed_text(texts)
+
     # Ingest
 
-    async def replace(self, dataset: Dataset, user: User, path: Path) -> None:
-        """Drop any earlier data with this file's name, then add and cognify."""
+    async def replace(
+        self, dataset: Dataset, user: User, path: Path, chunk_size: int | None = None
+    ) -> None:
+        """Drop any earlier data with this file's name, then add and cognify.
+
+        `chunk_size` is in tokens; `None` takes Cognee's default (8,191 with the current
+        embedding config). The API never sets it; the evaluation harness sweeps it.
+        """
         async with self._ingest_lock:
             await self._remove_named(dataset, user, path.name)
             await cognee.add(str(path), dataset_id=dataset.id, user=user)
-            await cognee.cognify(datasets=[dataset.id], user=user)
+            await cognee.cognify(datasets=[dataset.id], user=user, chunk_size=chunk_size)
 
     async def _remove_named(self, dataset: Dataset, user: User, filename: str) -> None:
         for data in await get_dataset_data(dataset.id):
@@ -165,11 +186,13 @@ class Engine:
         question: str,
         query_type: str,
         session_id: str,
+        system_prompt: str = GROUNDING_POLICY,
     ) -> list[TierResult]:
         """One call across every non-empty dataset; Cognee returns one completion per dataset.
 
         A dataset with nothing cognified makes the whole call raise `NoDataError` (observed:
         a fresh private dataset before the first note), so empty datasets are left out.
+        The prompt is the grounding policy unless the caller answers for another tier.
         """
         searchable = [d for d in datasets if await has_dataset_data(d)]
         if not searchable:
@@ -181,7 +204,7 @@ class Engine:
                 user=user,
                 dataset_ids=searchable,
                 session_id=session_id,
-                system_prompt=GROUNDING_POLICY,
+                system_prompt=system_prompt,
                 verbose=True,
                 include_references=True,
             )
@@ -323,13 +346,18 @@ def _page_span(text: str | None) -> dict[str, int]:
 
 
 def _answer_text(text: Any) -> str | None:
-    """Completion types return a string; CHUNKS returns chunk dicts whose `text` is the payload."""
+    """Completion types return a string or a one-element list of strings (observed live:
+    `GraphCompletionRetriever.get_completion` wraps its completion in a list); CHUNKS returns
+    chunk dicts whose `text` is the payload. Cognee's evidence block is stripped either way."""
     if text is None:
         return text
     if isinstance(text, str):
         return _EVIDENCE_BLOCK.sub("", text)
     if isinstance(text, list):
-        parts = [t.get("text", str(t)) if isinstance(t, dict) else str(t) for t in text]
+        parts = [
+            t.get("text", str(t)) if isinstance(t, dict) else _EVIDENCE_BLOCK.sub("", str(t))
+            for t in text
+        ]
         return "\n\n".join(parts)
     return str(text)
 

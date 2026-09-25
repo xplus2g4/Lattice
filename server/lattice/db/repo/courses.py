@@ -10,6 +10,11 @@ async def by_code(session: AsyncSession, code: str) -> Course | None:
     return await session.scalar(select(Course).where(Course.code == code))
 
 
+async def all_courses(session: AsyncSession) -> list[Course]:
+    """Every course, for the summary refresh; not scoped, so never called from a request."""
+    return list(await session.scalars(select(Course).order_by(Course.code)))
+
+
 class CourseAccessError(PermissionError):
     def __init__(self, status_code: int, detail: str):
         super().__init__(detail)

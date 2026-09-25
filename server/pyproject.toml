@@ -9,8 +9,13 @@ dependencies = [
     "cognee[fastembed]==1.5.4",
     "fastapi",
     "filelock==3.32.6",
+    "httpx",
+    "litellm==1.96.2",
     "mcp==1.30.0",
+    "pgvector>=0.5.0",
     "pydantic-settings",
+    "pyjwt>=2.13.0",
+    "prometheus-client",
     "pypdf==6.18.0",
     "sqlalchemy[asyncio]>=2.0",
     "uvicorn",
@@ -21,7 +26,6 @@ exclude-newer = "2026-09-14T16:00:00Z"
 
 [dependency-groups]
 dev = [
-    "httpx",
     "pytest",
     "pytest-asyncio>=1.4.0",
     "ruff",

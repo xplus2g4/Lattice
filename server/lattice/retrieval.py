@@ -20,10 +20,16 @@ class Evidence(BaseModel):
     relationship_name: str | None = None
     page_start: int | None = None
     page_end: int | None = None
+    # Cognee's position and similarity for segment evidence; graph evidence carries neither.
+    rank: int | None = None
+    score: float | None = None
 
 
 class TierResult(BaseModel):
-    tier: Literal["course", "notes"]
+    # `related`: the global tier of a nearest-neighbour course, searched as reference material.
+    tier: Literal["course", "notes", "related"]
     dataset_name: str
+    # The course the result came from; for `related` it is not the Session's course.
+    course: str | None = None
     answer: str | None
     evidence: list[Evidence]

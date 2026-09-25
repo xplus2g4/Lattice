@@ -4,8 +4,10 @@ Product-specific modules that compose the shadcn primitives in `../ui`.
 
 - Home: `course-card` renders a `CourseSummary` from the API.
 - Course workspace (`/courses/$courseId`): `materials-panel` (upload + ingest
-  status), `notes-panel` (list + PDF upload), `ask-panel` (session turns, citations,
-  history). `status-badge` renders ingest status.
+  status), `notes-panel` (list + PDF upload), `ask-panel` (session turns, history;
+  one composed answer with its references, then a bullet-point block per Related
+  course whose references open that course's reader in a new tab; it scrolls to the
+  bottom only when a question is sent). `status-badge` renders ingest status.
 - Tabs: every Material and Note opens as a tab (`tab-group`) between the sidebar and
   Ask. The URL names the tab in front (`?material=` or `?note=`); the rest of the
   layout lives in `#/lib/tabs`. `material-viewer` shows a Material or PDF Note, and

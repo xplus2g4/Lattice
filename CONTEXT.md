@@ -37,6 +37,10 @@ The smallest retrievable unit of indexed content; what citations resolve to. Eve
 A contiguous run of pages about one idea within a Material, produced at Cognify time. What "the topic the student just read" resolves to.
 _Avoid_: unit, module, section, segment
 
+**Course summary**:
+One vector per course, the mean of one embedding per ready Material, refreshed on a timer; how courses are compared to each other. Not written by an LLM.
+_Avoid_: course embedding, course profile
+
 ### Identity
 
 **Principal**:
@@ -47,11 +51,19 @@ _Avoid_: engine user, service account
 The link between a user and a course; grants read on the course's global dataset and creates the user's private dataset.
 _Avoid_: membership, registration
 
+**Invite**:
+A single-use, expiring token that grants the right to create an account — the app-access gate. Carries a role, never a course; redemption creates the User and burns the Invite.
+_Avoid_: invitation link, access code
+
 ### Answering
 
 **Session**:
 A user's conversation within one course. Never spans courses.
 _Avoid_: chat, thread
+
+**Related course**:
+One of the three courses whose Course summary is nearest to the Session's course and above the similarity floor; its global tier is searched as reference material beside the course's own tiers. The Session still never spans courses.
+_Avoid_: neighbour course, similar course, cross-module
 
 **Turn**:
 One user question or one assistant answer within a session; the unit of citation audit and cost accounting.
@@ -75,6 +87,24 @@ A Quiz the assistant initiates on the Topic the student just read; at most three
 
 **Grill me**:
 A Quiz the student initiates over a scope they choose; about ten questions; ends with a per-Topic summary.
+
+### Measurement
+
+**Telemetry**:
+What the Backend emits about its own behaviour: latency, errors, queue age, Spend totals. Attributed to a course at most, never to a Principal.
+_Avoid_: metrics (unqualified), monitoring, logs (as a synonym)
+
+**Product event**:
+One recorded user action, attributed to a Principal and a course.
+_Avoid_: analytics event, tracking, hit
+
+**Spend**:
+The money one Turn or one Cognify cost at the LLM and embedding providers. Turn Spend belongs to its Principal; Cognify Spend belongs to the course.
+_Avoid_: cost, usage, tokens (a component of Spend, not Spend)
+
+**Ceiling**:
+The deployment-wide daily Spend limit; at 80% the operator is alerted, at 100% every LLM-spending action refuses until the day resets. Distinct from a per-Material budget, which bounds one Cognify.
+_Avoid_: cap, quota, limit, budget (for the daily total)
 
 ### Concept graph (Phase 2)
 

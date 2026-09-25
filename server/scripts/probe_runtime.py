@@ -11,10 +11,15 @@ from unittest.mock import patch
 import httpx
 
 PRICING = "https://api-docs.deepseek.com/quick_start/pricing"
-RATE_VERSION = "deepseek-flash-2026-09-20-peak-upper-bound"
+EMBEDDING_PRICING = "https://developers.openai.com/api/docs/models/text-embedding-3-small"
+RATE_VERSION = "deepseek-flash-2026-09-20-peak-upper-bound+openai-embedding-3-small-2026-09-24"
 MODELS = {"deepseek-flash", "deepseek-v4-flash"}
+EMBEDDING_MODELS = {"text-embedding-3-small"}
 CONTEXT_LIMIT = 1_048_576
 OUTPUT_LIMIT = 393_216
+# One embedding request: Cognee batches 36 inputs of at most 8,191 tokens; $0.02 per million.
+EMBEDDING_BATCH_LIMIT = 36
+EMBEDDING_INPUT_LIMIT = 8_191
 SERVER_ROOT = Path(__file__).resolve().parents[1]
 
 
@@ -51,6 +56,10 @@ class BudgetLedger:
     def cost_upper_bound(prompt_tokens: int, completion_tokens: int) -> int:
         return (prompt_tokens * 3 + completion_tokens * 12 + 9) // 10
 
+    @staticmethod
+    def embedding_cost_upper_bound(prompt_tokens: int) -> int:
+        return (prompt_tokens * 2 + 99) // 100
+
     def reserve(self, body: dict) -> int:
         if body.get("model") not in MODELS or body.get("stream") or body.get("n", 1) != 1:
             raise BudgetExceeded(
@@ -59,7 +68,27 @@ class BudgetLedger:
         output_limit = body.get("max_completion_tokens", body.get("max_tokens", OUTPUT_LIMIT))
         if type(output_limit) is not int or not 0 < output_limit <= OUTPUT_LIMIT:
             raise BudgetExceeded("Unknown output-token bound; request was not sent.")
-        reservation = self.cost_upper_bound(CONTEXT_LIMIT, output_limit)
+        return self._reserve(
+            body["model"], output_limit, self.cost_upper_bound(CONTEXT_LIMIT, output_limit)
+        )
+
+    def reserve_embedding(self, body: dict) -> int:
+        inputs = body.get("input")
+        if isinstance(inputs, str):
+            inputs = [inputs]
+        if (
+            body.get("model") not in EMBEDDING_MODELS
+            or not isinstance(inputs, list)
+            or not 0 < len(inputs) <= EMBEDDING_BATCH_LIMIT
+            or not all(isinstance(text, str) for text in inputs)
+        ):
+            raise BudgetExceeded(
+                "Only text-embedding-3-small requests of at most one Cognee batch are allowed."
+            )
+        prompt_limit = len(inputs) * EMBEDDING_INPUT_LIMIT
+        return self._reserve(body["model"], 0, self.embedding_cost_upper_bound(prompt_limit))
+
+    def _reserve(self, model: str, output_limit: int, reservation: int) -> int:
         with closing(sqlite3.connect(self.path)) as db, db:
             db.execute("BEGIN IMMEDIATE")
             used = db.execute("SELECT COALESCE(SUM(charge_micro), 0) FROM requests").fetchone()[0]
@@ -70,7 +99,7 @@ class BudgetLedger:
             row = db.execute(
                 "INSERT INTO requests (started_at, model, output_limit, charge_micro, outcome) "
                 "VALUES (?, ?, ?, ?, 'reserved')",
-                (datetime.now(UTC).isoformat(), body["model"], output_limit, reservation),
+                (datetime.now(UTC).isoformat(), model, output_limit, reservation),
             )
             return row.lastrowid
 
@@ -80,27 +109,36 @@ class BudgetLedger:
         try:
             body = response.json()
             usage = body["usage"]
-            prompt, completion = usage["prompt_tokens"], usage["completion_tokens"]
+            prompt = usage["prompt_tokens"]
+            completion = usage.get("completion_tokens", 0)
         except ValueError, KeyError, TypeError:
             return
         if any(type(n) is not int or n < 0 for n in (prompt, completion)):
             return
         with closing(sqlite3.connect(self.path)) as db, db:
-            output_limit = db.execute(
-                "SELECT output_limit FROM requests WHERE id = ?", (request_id,)
-            ).fetchone()[0]
-            if prompt > CONTEXT_LIMIT or completion > output_limit:
-                raise BudgetExceeded(
-                    "Provider usage exceeded the reserved token bounds; stop runs."
-                )
-            cached = usage.get("prompt_cache_hit_tokens")
-            if type(cached) is not int or not 0 <= cached <= prompt:
-                cached = None
+            model, output_limit = db.execute(
+                "SELECT model, output_limit FROM requests WHERE id = ?", (request_id,)
+            ).fetchone()
+            if model in EMBEDDING_MODELS:
+                if completion or prompt > EMBEDDING_BATCH_LIMIT * EMBEDDING_INPUT_LIMIT:
+                    raise BudgetExceeded(
+                        "Provider usage exceeded the reserved token bounds; stop runs."
+                    )
+                charge, cached = self.embedding_cost_upper_bound(prompt), None
+            else:
+                if prompt > CONTEXT_LIMIT or completion > output_limit:
+                    raise BudgetExceeded(
+                        "Provider usage exceeded the reserved token bounds; stop runs."
+                    )
+                charge = self.cost_upper_bound(prompt, completion)
+                cached = usage.get("prompt_cache_hit_tokens")
+                if type(cached) is not int or not 0 <= cached <= prompt:
+                    cached = None
             db.execute(
                 "UPDATE requests SET charge_micro=?, prompt_tokens=?, completion_tokens=?, "
                 "cache_hit_tokens=?, reported_model=?, outcome='measured' WHERE id=?",
                 (
-                    self.cost_upper_bound(prompt, completion),
+                    charge,
                     prompt,
                     completion,
                     cached,
@@ -117,6 +155,7 @@ class BudgetLedger:
             "limit_usd": self.limit / 1_000_000,
             "charged_or_reserved_upper_bound_usd": sum(r["charge_micro"] for r in rows) / 1_000_000,
             "pricing_source": PRICING,
+            "embedding_pricing_source": EMBEDDING_PRICING,
             "rate_version": RATE_VERSION,
             "unresolved_reservations": sum(r["outcome"] != "measured" for r in rows),
             "requests": rows,
@@ -131,6 +170,10 @@ def budgeted_requests(path: Path, limit_usd: Decimal = Decimal("2")):
     def reserve(request):
         if request.url.host == "testserver":
             return None
+        if request.url.host == "api.openai.com":
+            if request.method != "POST" or request.url.path != "/v1/embeddings":
+                raise BudgetExceeded("Unbudgeted provider endpoint; request was not sent.")
+            return ledger.reserve_embedding(json.loads(request.content))
         if request.url.host != "api.deepseek.com":
             if request.method in {"GET", "HEAD"}:
                 return None
@@ -201,8 +244,14 @@ def preflight(*, storage_only: bool = False) -> dict:
         "https://api.deepseek.com/v1",
     }:
         errors.append("The budget guard supports the official DeepSeek endpoint only.")
-    if os.getenv("EMBEDDING_PROVIDER") != "fastembed":
-        errors.append("Use local fastembed embeddings for these experiments.")
+    if os.getenv("EMBEDDING_PROVIDER") != "openai" or os.getenv("EMBEDDING_MODEL") not in {
+        f"openai/{model}" for model in EMBEDDING_MODELS
+    }:
+        errors.append("The budget guard prices openai/text-embedding-3-small embeddings only.")
+    if os.getenv("EMBEDDING_ENDPOINT") or os.getenv("EMBEDDING_API_BASE"):
+        errors.append("The budget guard supports the official OpenAI embeddings endpoint only.")
+    if os.getenv("EMBEDDING_API_KEY", "").strip() in {"", "sk-..."}:
+        errors.append("Configure EMBEDDING_API_KEY securely in this worktree.")
     if os.getenv("ENABLE_BACKEND_ACCESS_CONTROL", "true").lower() != "true":
         errors.append("Backend access control must remain enabled.")
     if os.getenv("STRUCTURED_OUTPUT_FRAMEWORK", "litellm_native") != "litellm_native":
@@ -211,7 +260,12 @@ def preflight(*, storage_only: bool = False) -> dict:
         if any(value for key, value in os.environ.items() if key.startswith(prefix)):
             errors.append("Remove stage-specific/fallback routing overrides for the experiment.")
             break
-    return {"ready": not errors, "errors": errors, "pricing_source": PRICING}
+    return {
+        "ready": not errors,
+        "errors": errors,
+        "pricing_source": PRICING,
+        "embedding_pricing_source": EMBEDDING_PRICING,
+    }
 
 
 def main() -> int:

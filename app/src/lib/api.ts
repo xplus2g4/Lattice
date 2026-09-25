@@ -1,23 +1,38 @@
 /** The API surface the app codes against: the persistent RPC API. */
 import { ApiError } from './api-error'
+import { apiToken, clearApiTokenCache, getSessionUser } from './auth'
 import type {
   AskOut as RpcAskOut,
   AskRequest as RpcAskRequest,
   CourseOut,
+  ExtendGrill,
+  GenerateGrill,
+  GradeGrill,
+  GradedQuizOut,
+  GrillPlanOut,
+  InviteOut,
+  InviteSummaryOut,
   MaterialOut,
+  MeOut,
   NoteOut,
   NoteUploadOut,
+  QuizOut,
+  QuizQuestionOut,
   SessionOut,
   TurnOut,
   UploadOut,
+  UserOut,
   ValidationError,
 } from './generated'
+
+export type InviteSummary = InviteSummaryOut
+export type UserSummary = UserOut
 
 export { ApiError } from './api-error'
 
 // The wire types are generated from contracts/openapi.json (ADR 0005); never redeclare them
 // here. The view models below normalize RPC records for both the reader and study routes;
-// this module also owns the X-User transport and how a FastAPI error becomes an Error.
+// this module also owns the Bearer transport and how a FastAPI error becomes an Error.
 const API_URL: string = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 export type IngestStatus = 'queued' | 'cognifying' | 'ready' | 'failed'
 // FastAPI inlines these unions into each field rather than naming them, so name them here.
@@ -37,9 +52,13 @@ export const QUERY_TYPES = Object.keys(
 
 export interface CourseSummary {
   code: string
+  /** Display title; defaults to the uppercase code until renamed. Absent for a code the
+   * user added locally that the server has not recorded yet. */
+  name?: string
   material_count: number
   note_count: number
   pending_count: number
+  failed_count: number
 }
 export interface SessionSummary {
   id: string
@@ -48,8 +67,13 @@ export interface SessionSummary {
   first_question: string | null
 }
 export interface Material {
+  id: string
   course: string
   filename: string
+  /** A readable title; defaults to the filename when the server has none better. */
+  title: string
+  /** Number of Pages for a PDF Material, when the loader recorded it. */
+  page_count: number | null
   /** Also the name Cognee knows the Material by, so citations carry it. */
   sha256: string
   status: IngestStatus
@@ -87,7 +111,10 @@ export interface Citation {
   page_end?: number | null
 }
 export interface TierResult {
-  tier: 'global' | 'private'
+  /** `related`: the global tier of a nearest-neighbour course, searched as reference. */
+  tier: 'global' | 'private' | 'related'
+  /** The course the result came from; another course's code for `related`. */
+  course: string | null
   answer: string | null
   citations: Array<Citation>
 }
@@ -124,6 +151,51 @@ export interface Turn {
   latency_ms: number | null
   created_at: string
 }
+export type GrillStatus = 'open' | 'submitted' | 'abandoned'
+export interface GrillAnswer {
+  text: string
+  /** Null when the model left a short answer ungraded. */
+  correct: boolean | null
+  reason: string | null
+}
+export interface GrillQuestion {
+  id: string
+  /** Page order across batches: each batch's questions take positions from its own block. */
+  position: number
+  kind: 'mcq' | 'short_answer'
+  prompt: string
+  options: Array<string> | null
+  /** The Page the question rests on. */
+  page: number | null
+  /** The model answer; the server withholds it until the Grill is graded. */
+  key: { answer: string; explanation: string | null } | null
+  given: GrillAnswer | null
+}
+export interface Grill {
+  id: string
+  status: GrillStatus
+  material_id: string
+  page_start: number
+  page_end: number
+  topic_label: string
+  score: number | null
+  questions: Array<GrillQuestion>
+}
+export interface GrillResult {
+  grill: Grill
+  /** One or two sentences on what to re-read, or "" when there is nothing to say. */
+  remark: string
+}
+/** One contiguous page range whose questions are written by one `extendGrill` call. */
+export interface GrillBatch {
+  index: number
+  page_start: number
+  page_end: number
+}
+export interface GrillPlan {
+  grill: Grill
+  batches: Array<GrillBatch>
+}
 export interface Session {
   id: string
   course: string
@@ -153,14 +225,31 @@ function formatDetail(status: number, statusText: string, body: unknown) {
   return `${status} ${statusText}`
 }
 
-async function fetchResponse(
-  user: string,
-  path: string,
-  init: RequestInit = {},
-) {
-  const headers = new Headers(init.headers)
-  headers.set('X-User', user)
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers })
+/** The caller's email for `owner` fields, cached once the session is known. */
+let sessionEmail: string | null = null
+async function meEmail(): Promise<string> {
+  sessionEmail ??= (await getSessionUser())?.email ?? ''
+  return sessionEmail
+}
+
+async function authedFetch(path: string, init: RequestInit) {
+  const send = async () => {
+    const headers = new Headers(init.headers)
+    const token = await apiToken()
+    if (token) headers.set('Authorization', `Bearer ${token}`)
+    return fetch(`${API_URL}${path}`, { ...init, headers })
+  }
+  let response = await send()
+  // A 401 can be an expired cached token: re-mint once before failing.
+  if (response.status === 401) {
+    clearApiTokenCache()
+    response = await send()
+  }
+  return response
+}
+
+async function fetchResponse(path: string, init: RequestInit = {}) {
+  const response = await authedFetch(path, init)
   if (!response.ok) {
     const text = await response.text()
     let body: unknown = text
@@ -176,12 +265,8 @@ async function fetchResponse(
   }
   return response
 }
-async function request<T>(
-  user: string,
-  path: string,
-  init?: RequestInit,
-): Promise<T> {
-  return (await fetchResponse(user, path, init)).json() as Promise<T>
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
+  return (await fetchResponse(path, init)).json() as Promise<T>
 }
 function json(payload: unknown): RequestInit {
   return {
@@ -202,8 +287,11 @@ function ingestStatus(value: string): IngestStatus {
 }
 function materialView(course: string, row: MaterialOut): Material {
   return {
+    id: row.id,
     course,
     filename: row.filename,
+    title: row.title,
+    page_count: row.page_count,
     sha256: row.sha256,
     status: ingestStatus(row.status),
     error: row.error,
@@ -274,7 +362,8 @@ function turnView(row: TurnOut): Turn {
   const results: Array<TierResult> = []
   for (const value of Array.isArray(content.results) ? content.results : []) {
     const r = record(value)
-    if (r.tier !== 'course' && r.tier !== 'notes') continue
+    if (r.tier !== 'course' && r.tier !== 'notes' && r.tier !== 'related')
+      continue
     const citations: Array<Citation> = []
     for (const item of Array.isArray(r.evidence) ? r.evidence : []) {
       const e = record(item)
@@ -301,7 +390,13 @@ function turnView(row: TurnOut): Turn {
     const lifted = liftEvidence(string(r.answer))
     const cited = new Set(citations.map((c) => c.chunk_id).filter(Boolean))
     results.push({
-      tier: r.tier === 'course' ? 'global' : 'private',
+      tier:
+        r.tier === 'course'
+          ? 'global'
+          : r.tier === 'notes'
+            ? 'private'
+            : 'related',
+      course: string(r.course),
       answer: lifted.answer,
       citations: [
         ...citations,
@@ -327,33 +422,36 @@ function turnView(row: TurnOut): Turn {
   }
 }
 
-export async function listCourses(user: string): Promise<Array<CourseSummary>> {
-  const rows = await request<Array<CourseOut>>(user, '/courses.list')
+export async function listCourses(): Promise<Array<CourseSummary>> {
+  const rows = await request<Array<CourseOut>>('/courses.list')
   return Promise.all(
     rows.map(async (row) => {
       const [materials, notes] = await Promise.all([
-        listMaterials(user, row.code),
-        listNotes(user, row.code),
+        listMaterials(row.code),
+        listNotes(row.code),
       ])
       return {
         code: row.code,
+        name: row.name,
         material_count: materials.length,
         note_count: notes.length,
         pending_count: [...materials, ...notes].filter(
           (r) => r.status === 'queued' || r.status === 'cognifying',
         ).length,
+        failed_count: [...materials, ...notes].filter(
+          (r) => r.status === 'failed',
+        ).length,
       }
     }),
   )
 }
-export async function joinCourse(user: string, course: string): Promise<void> {
+export async function joinCourse(course: string): Promise<void> {
   try {
-    await request(user, '/enrolments.join', json({ course }))
+    await request('/enrolments.join', json({ course }))
   } catch (error) {
     if (!(error instanceof ApiError) || error.status !== 404) throw error
     try {
       await request(
-        user,
         '/courses.create',
         json({ code: course, name: course.toUpperCase() }),
       )
@@ -361,15 +459,20 @@ export async function joinCourse(user: string, course: string): Promise<void> {
       if (!(creationError instanceof ApiError) || creationError.status !== 409)
         throw creationError
     }
-    await request(user, '/enrolments.join', json({ course }))
+    await request('/enrolments.join', json({ course }))
   }
 }
+/** Renames a course; the code (its identity) is unchanged. */
+export async function updateCourse(
+  course: string,
+  name: string,
+): Promise<CourseOut> {
+  return request<CourseOut>('/courses.update', json({ course, name }))
+}
 export async function listSessions(
-  user: string,
   course: string,
 ): Promise<Array<SessionSummary>> {
   const rows = await request<Array<SessionOut>>(
-    user,
     query('/sessions.list', { course }),
   )
   return rows.map((row) => ({
@@ -382,12 +485,10 @@ export async function listSessions(
   }))
 }
 export async function downloadMaterial(
-  user: string,
   course: string,
   filename: string,
 ): Promise<Blob> {
   const rows = await request<Array<MaterialOut>>(
-    user,
     query('/materials.list', { course }),
   )
   const row = rows
@@ -396,48 +497,36 @@ export async function downloadMaterial(
     .at(0)
   if (!row) throw new ApiError(404, 'no such material')
   return (
-    await fetchResponse(
-      user,
-      query('/materials.download', { material: row.id }),
-    )
+    await fetchResponse(query('/materials.download', { material: row.id }))
   ).blob()
 }
-export async function listMaterials(
-  user: string,
-  course: string,
-): Promise<Array<Material>> {
+export async function listMaterials(course: string): Promise<Array<Material>> {
   const rows = await request<Array<MaterialOut>>(
-    user,
     query('/materials.list', { course }),
   )
   return rows.map((row) => materialView(course, row))
 }
 export async function uploadMaterial(
-  user: string,
   course: string,
   file: File,
 ): Promise<Material> {
   const form = new FormData()
   form.append('course', course)
   form.append('file', file)
-  const saved = await request<UploadOut>(user, '/materials.upload', {
+  const saved = await request<UploadOut>('/materials.upload', {
     method: 'POST',
     body: form,
   })
   return materialView(course, saved.material)
 }
-export async function listNotes(
-  user: string,
-  course: string,
-): Promise<Array<Note>> {
-  const rows = await request<Array<NoteOut>>(
-    user,
-    query('/notes.list', { course }),
-  )
-  return rows.map((row) => noteView(user, course, row))
+export async function listNotes(course: string): Promise<Array<Note>> {
+  const [rows, owner] = await Promise.all([
+    request<Array<NoteOut>>(query('/notes.list', { course })),
+    meEmail(),
+  ])
+  return rows.map((row) => noteView(owner, course, row))
 }
 export async function saveNote(
-  user: string,
   course: string,
   id: string,
   body_md: string,
@@ -447,32 +536,24 @@ export async function saveNote(
       ? id
       : undefined
   return noteView(
-    user,
+    await meEmail(),
     course,
-    await request<NoteOut>(
-      user,
-      '/notes.save',
-      json({ course, note, body_md }),
-    ),
+    await request<NoteOut>('/notes.save', json({ course, note, body_md })),
   )
 }
-export async function uploadNote(
-  user: string,
-  course: string,
-  file: File,
-): Promise<Note> {
+export async function uploadNote(course: string, file: File): Promise<Note> {
   const form = new FormData()
   form.append('course', course)
   form.append('file', file)
-  const saved = await request<NoteUploadOut>(user, '/notes.upload', {
+  const saved = await request<NoteUploadOut>('/notes.upload', {
     method: 'POST',
     body: form,
   })
-  return noteView(user, course, saved.note)
+  return noteView(await meEmail(), course, saved.note)
 }
 /** A PDF Note's bytes. Unlike a Material, a Note is fetched by id: only its author has it. */
-export async function downloadNote(user: string, note: string): Promise<Blob> {
-  return (await fetchResponse(user, query('/notes.download', { note }))).blob()
+export async function downloadNote(note: string): Promise<Blob> {
+  return (await fetchResponse(query('/notes.download', { note }))).blob()
 }
 
 export interface UploadResult {
@@ -504,8 +585,86 @@ export function uploadEach(
     }),
   )
 }
+function str(value: unknown): string | null {
+  return typeof value === 'string' ? value : null
+}
+function num(value: unknown): number | null {
+  return typeof value === 'number' ? value : null
+}
+function grillQuestionView(row: QuizQuestionOut): GrillQuestion {
+  const answer = str(row.expected_json?.answer)
+  const last = row.answers.at(-1)
+  return {
+    id: row.id,
+    position: row.position,
+    kind: row.kind === 'mcq' ? 'mcq' : 'short_answer',
+    prompt: row.prompt,
+    options: row.options_json ?? null,
+    page: num(row.citation_json?.page),
+    key:
+      answer === null
+        ? null
+        : { answer, explanation: str(row.expected_json?.explanation) },
+    given: last
+      ? {
+          text: last.answer_text,
+          correct: last.correct,
+          reason: str(last.feedback_json?.reason),
+        }
+      : null,
+  }
+}
+function grillView(row: QuizOut): Grill {
+  const scope = row.scope_json
+  return {
+    id: row.id,
+    status:
+      row.status === 'submitted' || row.status === 'abandoned'
+        ? row.status
+        : 'open',
+    material_id: str(scope.material_id) ?? '',
+    page_start: num(scope.page_start) ?? 1,
+    page_end: num(scope.page_end) ?? 1,
+    topic_label: str(scope.topic_label) ?? '',
+    score: row.score,
+    questions: row.questions.map(grillQuestionView),
+  }
+}
+/** Plan a Grill over every page of a Material. No question is written yet: ask for each
+ * batch with `extendGrill`, all at once, and show them as they land. */
+export async function generateGrill(
+  course: string,
+  material: string,
+): Promise<GrillPlan> {
+  const body: GenerateGrill = { course, material }
+  const out = await request<GrillPlanOut>('/quizzes.generate', json(body))
+  return { grill: grillView(out.quiz), batches: out.batches }
+}
+/** One batch's questions, answer key withheld. Asking twice returns the same questions. */
+export async function extendGrill(
+  grill: string,
+  batch: number,
+): Promise<Array<GrillQuestion>> {
+  const body: ExtendGrill = { quiz: grill, batch }
+  const rows = await request<Array<QuizQuestionOut>>(
+    '/quizzes.extend',
+    json(body),
+  )
+  return rows.map(grillQuestionView)
+}
+/** Every answer at once; the Grill comes back graded, with its key, and a remark. */
+export async function gradeGrill(
+  grill: string,
+  answers: ReadonlyArray<{ question: string; answer_text: string }>,
+): Promise<GrillResult> {
+  const body: GradeGrill = { quiz: grill, answers: [...answers] }
+  const out = await request<GradedQuizOut>('/quizzes.grade', json(body))
+  return { grill: grillView(out.quiz), remark: out.remark }
+}
+export async function abandonGrill(grill: string): Promise<void> {
+  await request<QuizOut>('/quizzes.abandon', json({ quiz: grill }))
+}
 export async function ask(
-  user: string,
   course: string,
   req: AskRequest,
 ): Promise<AskResponse> {
@@ -515,26 +674,45 @@ export async function ask(
     query_type: req.query_type,
     session: req.session_id,
   }
-  const answer = await request<RpcAskOut>(user, '/ask', json(body))
+  const answer = await request<RpcAskOut>('/ask', json(body))
   return { session_id: answer.session, turn: turnView(answer.turn) }
 }
-export async function getSession(
-  user: string,
-  course: string,
-  id: string,
-): Promise<Session> {
-  const [row, scope] = await Promise.all([
-    request<SessionOut>(user, query('/sessions.get', { session: id })),
-    request<CourseOut>(user, query('/courses.get', { course })),
+export async function getSession(course: string, id: string): Promise<Session> {
+  const [row, scope, owner] = await Promise.all([
+    request<SessionOut>(query('/sessions.get', { session: id })),
+    request<CourseOut>(query('/courses.get', { course })),
+    meEmail(),
   ])
   if (row.course_id !== scope.id) throw new ApiError(404, 'no such session')
   return {
     id: row.id,
     course,
-    owner: user,
+    owner,
     created_at: row.created_at,
     turns: row.turns.map(turnView),
   }
+}
+
+export async function getMe(): Promise<MeOut> {
+  return request<MeOut>('/me.get')
+}
+
+export async function createInvite(
+  role: 'student' | 'instructor' | 'admin' = 'student',
+  expiresInDays = 7,
+): Promise<InviteOut> {
+  return request<InviteOut>(
+    '/invites.create',
+    json({ role, expires_in_days: expiresInDays }),
+  )
+}
+
+export async function listInvites(): Promise<Array<InviteSummary>> {
+  return request<Array<InviteSummaryOut>>('/invites.list')
+}
+
+export async function listUsers(): Promise<Array<UserSummary>> {
+  return request<Array<UserOut>>('/users.list')
 }
 
 /** react-query refetchInterval helper: poll while anything is still ingesting. */

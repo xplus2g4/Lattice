@@ -74,12 +74,12 @@ function GroupSlot({
         aria-hidden
         className={cn(
           'pointer-events-none absolute',
-          zone === 'pane' && 'inset-x-0 top-9 bottom-0',
+          zone === 'pane' && 'inset-x-0 top-12 bottom-0',
           zone === 'split' &&
             (wide
-              ? 'top-9 right-0 bottom-0 w-1/2'
+              ? 'top-12 right-0 bottom-0 w-1/2'
               : 'inset-x-0 bottom-0 h-1/2'),
-          isOver && 'bg-primary/10 ring-2 ring-primary/40 ring-inset',
+          isOver && 'border-2 border-dashed border-primary bg-primary/10',
         )}
       />
     </div>
@@ -169,8 +169,8 @@ export function EditorArea({
           <>
             <Separator
               className={cn(
-                'bg-border transition-colors outline-none hover:bg-primary/40 focus-visible:bg-primary/60',
-                wide ? 'w-1' : 'h-1',
+                'bg-border transition-colors outline-none hover:bg-primary focus-visible:bg-primary',
+                wide ? 'w-1.5' : 'h-1.5',
               )}
             />
             <Panel id="right" minSize="15%" className="h-full">

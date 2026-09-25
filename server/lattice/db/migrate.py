@@ -13,6 +13,8 @@ def alembic_config(database_url: str) -> Config:
     config = Config(str(CONFIG_PATH))
     config.set_main_option("script_location", str(CONFIG_PATH.parent / "migrations"))
     config.set_main_option("sqlalchemy.url", database_url)
+    # The caller owns logging (the API's JSON handler, or pytest's capture).
+    config.attributes["configure_logging"] = False
     return config
 
 

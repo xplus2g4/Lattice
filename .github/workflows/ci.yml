@@ -92,29 +92,23 @@ jobs:
       LLM_PROVIDER: custom
       LLM_MODEL: openai/deepseek-v4-flash
       LLM_ENDPOINT: https://api.deepseek.com/v1
-      EMBEDDING_PROVIDER: fastembed
-      EMBEDDING_MODEL: BAAI/bge-small-en-v1.5
-      EMBEDDING_DIMENSIONS: "384"
+      EMBEDDING_API_KEY: ${{ secrets.EMBEDDING_API_KEY }}
+      EMBEDDING_PROVIDER: openai
+      EMBEDDING_MODEL: openai/text-embedding-3-small
+      EMBEDDING_DIMENSIONS: "1536"
       AUTO_FEEDBACK: "false"
       ENABLE_BACKEND_ACCESS_CONTROL: "true"
-      HF_HOME: ${{ github.workspace }}/.hf-cache
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
           cache-dependency-glob: server/uv.lock
-      # Embeddings run locally through fastembed; without this every run re-downloads the
-      # model, which costs more wall time than the cognify the test is here for.
-      - uses: actions/cache@v4
-        with:
-          path: ${{ github.workspace }}/.hf-cache
-          key: fastembed-bge-small-en-v1.5
       - run: uv sync --locked
       - name: Private notes never leak
         run: |
-          if [ -z "$LLM_API_KEY" ]; then
-            echo "::warning title=Canary skipped::LLM_API_KEY is not set, so the isolation canary did not run."
+          if [ -z "$LLM_API_KEY" ] || [ -z "$EMBEDDING_API_KEY" ]; then
+            echo "::warning title=Canary skipped::LLM_API_KEY or EMBEDDING_API_KEY is not set, so the isolation canary did not run."
             exit 0
           fi
           uv run pytest -m canary -v

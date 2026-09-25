@@ -3,6 +3,10 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ApiError,
+  abandonGrill,
+  extendGrill,
+  generateGrill,
+  gradeGrill,
   listMaterials,
   listNotes,
   saveNote,
@@ -12,7 +16,56 @@ import { note } from '#/test/fixtures'
 import { resetStore } from '#/test/handlers'
 import { server } from '#/test/server'
 
+// The stubbed session is alice@example.com (see test/setup.ts): Bearer test-token
+// is who the mock handlers see, so `owner` and the per-user filters pin to her.
 describe('caller identity', () => {
+  it('sends every Grill request with session authentication and its RPC payload', async () => {
+    const received: Array<{
+      path: string
+      authorization: string | null
+      legacyIdentity: string | null
+      body: unknown
+    }> = []
+    server.use(
+      http.post('*/quizzes.*', async ({ request }) => {
+        received.push({
+          path: new URL(request.url).pathname,
+          authorization: request.headers.get('Authorization'),
+          legacyIdentity: request.headers.get('X-User'),
+          body: await request.clone().json(),
+        })
+      }),
+    )
+
+    const plan = await generateGrill('cs101', 'm-week1.pdf')
+    const questions = await extendGrill(plan.grill.id, 0)
+    const answers = [{ question: questions[0].id, answer_text: 'Chaining' }]
+    const result = await gradeGrill(plan.grill.id, answers)
+    const next = await generateGrill('cs101', 'm-week1.pdf')
+    await abandonGrill(next.grill.id)
+
+    expect(result.grill.status).toBe('submitted')
+    expect(received).toEqual(
+      [
+        {
+          path: '/quizzes.generate',
+          body: { course: 'cs101', material: 'm-week1.pdf' },
+        },
+        { path: '/quizzes.extend', body: { quiz: plan.grill.id, batch: 0 } },
+        { path: '/quizzes.grade', body: { quiz: plan.grill.id, answers } },
+        {
+          path: '/quizzes.generate',
+          body: { course: 'cs101', material: 'm-week1.pdf' },
+        },
+        { path: '/quizzes.abandon', body: { quiz: next.grill.id } },
+      ].map((request) => ({
+        ...request,
+        authorization: 'Bearer test-token',
+        legacyIdentity: null,
+      })),
+    )
+  })
+
   it('reads back only the calling user\u2019s notes', async () => {
     resetStore({
       notes: [
@@ -21,26 +74,25 @@ describe('caller identity', () => {
       ],
     })
 
-    const mine = await listNotes('alice@example.com', 'cs101')
+    const mine = await listNotes('cs101')
 
     expect(mine.map((n) => n.id)).toEqual(['alice-note'])
   })
 
   it('saves a note as the calling user', async () => {
-    const saved = await saveNote('bob@example.com', 'cs101', 'n7', 'my note')
+    const saved = await saveNote('cs101', 'n7', 'my note')
 
-    expect(saved.owner).toBe('bob@example.com')
+    expect(saved.owner).toBe('alice@example.com')
     expect(saved.body_md).toBe('my note')
   })
 
   it('uploads a PDF as a Note of the calling user', async () => {
     const saved = await uploadNote(
-      'bob@example.com',
       'cs101',
       new File(['%PDF'], 'summary.pdf', { type: 'application/pdf' }),
     )
 
-    expect(saved.owner).toBe('bob@example.com')
+    expect(saved.owner).toBe('alice@example.com')
     expect(saved.filename).toBe('summary.pdf')
     expect(saved.body_md).toBe('')
   })
@@ -54,7 +106,7 @@ describe('reporting an API error', () => {
       ),
     )
 
-    await expect(listMaterials('alice@example.com', 'cs101')).rejects.toThrow(
+    await expect(listMaterials('cs101')).rejects.toThrow(
       'not enrolled in cs101',
     )
   })
@@ -66,9 +118,7 @@ describe('reporting an API error', () => {
       ),
     )
 
-    const error = await listMaterials('alice@example.com', 'cs101').catch(
-      (e: unknown) => e,
-    )
+    const error = await listMaterials('cs101').catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ApiError)
     expect((error as ApiError).status).toBe(403)
@@ -97,7 +147,7 @@ describe('reporting an API error', () => {
       ),
     )
 
-    await expect(listMaterials('alice@example.com', 'cs101')).rejects.toThrow(
+    await expect(listMaterials('cs101')).rejects.toThrow(
       'body.question: Field required; body.course: Too short',
     )
   })
@@ -110,7 +160,7 @@ describe('reporting an API error', () => {
       ),
     )
 
-    await expect(listMaterials('alice@example.com', 'cs101')).rejects.toThrow(
+    await expect(listMaterials('cs101')).rejects.toThrow(
       '<html>502 Bad Gateway</html>',
     )
   })

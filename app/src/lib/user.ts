@@ -1,11 +1,16 @@
-// localStorage as an external store so SSR renders the fallback and the
-// client re-renders with the stored value after hydration.
+import { useQuery } from '@tanstack/react-query'
 
-import { useStored } from './storage'
+import { getSessionUser } from './auth'
 
 export { useStored } from './storage'
 
-/** The email sent as X-User on every API call. Dev-header auth, same as /dev. */
-export function useUser() {
-  return useStored('lattice.user', 'alice@example.com')
+/** The signed-in user's email, from the session. '' until the query resolves; there is
+ * no setter now that identity is server-owned rather than a localStorage dev header. */
+export function useUser(): string {
+  const { data } = useQuery({
+    queryKey: ['session-user'],
+    queryFn: () => getSessionUser(),
+    staleTime: 60_000,
+  })
+  return data?.email ?? ''
 }

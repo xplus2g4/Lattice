@@ -11,7 +11,10 @@ const statusStyle: Record<IngestStatus, string> = {
 
 export function StatusBadge({ status }: { status: IngestStatus }) {
   return (
-    <Badge variant="outline" className={`border-0 ${statusStyle[status]}`}>
+    <Badge
+      variant="outline"
+      className={`border-0 font-mono text-[11px] tracking-wide ${statusStyle[status]}`}
+    >
       {status}
     </Badge>
   )

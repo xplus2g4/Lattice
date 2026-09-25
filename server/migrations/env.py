@@ -10,8 +10,10 @@ from lattice.db import Base
 from lattice.db import models as _models  # noqa: F401 - import registers every table
 
 config = context.config
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# The CLI configures logging from `alembic.ini`; the API (`lattice.db.migrate`) has already
+# configured its own JSON logging and asks for it to be left alone.
+if config.config_file_name is not None and config.attributes.get("configure_logging", True):
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

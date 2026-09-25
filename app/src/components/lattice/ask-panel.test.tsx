@@ -1,7 +1,7 @@
 import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { HttpResponse, http } from 'msw'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import {
   assistantTurn,
@@ -64,7 +64,7 @@ describe('an answer', () => {
       evidence({ kind: 'relation', filename: null, relation: 'uses' }),
     ])
 
-    expect(await screen.findByText('References')).toBeInTheDocument()
+    expect(await screen.findByText('Citations')).toBeInTheDocument()
     const range = screen.getByRole('link', { name: 'week1.pdf, p. 3–4' })
     expect(range.getAttribute('href')).toBe(
       '/courses/cs101?material=week1.pdf&page=3&pageEnd=4',
@@ -77,6 +77,52 @@ describe('an answer', () => {
     expect(
       screen.getByText(/Related concepts/).parentElement,
     ).toHaveTextContent('uses')
+  })
+
+  it('shows a related course under its code, its references opening that reader in a new tab', async () => {
+    resetStore({
+      materials: [material({ filename: 'week1.pdf' })],
+      sessions: {
+        'sess-1': session({
+          turns: [
+            userTurn('what is hashing?'),
+            assistantTurn({
+              results: [
+                tierResult({ answer: 'Chaining.' }),
+                tierResult({
+                  tier: 'related',
+                  course: 'cs2040',
+                  answer: 'Open addressing probes.',
+                  citations: [
+                    evidence({ filename: 'week5.pdf', page_start: 2 }),
+                  ],
+                }),
+              ],
+            }),
+          ],
+        }),
+      },
+    })
+    localStorage.setItem('lattice.session.cs101.alice@example.com', 'sess-1')
+    renderRoute('/courses/cs101')
+
+    expect(
+      await screen.findByText('Related course · CS2040'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('Open addressing probes.')).toBeInTheDocument()
+    const page = screen.getByRole('link', { name: 'week5.pdf, p. 2' })
+    expect(page.getAttribute('href')).toBe(
+      '/courses/cs2040?material=week5.pdf&page=2',
+    )
+    expect(page.getAttribute('target')).toBe('_blank')
+    expect(page.getAttribute('rel')).toBe('noopener noreferrer')
+    expect(
+      screen.getByRole('link', { name: 'week5.pdf' }).getAttribute('target'),
+    ).toBe('_blank')
+    // The course's own reference still opens in place.
+    expect(
+      screen.getByRole('link', { name: 'week1.pdf' }).getAttribute('target'),
+    ).toBeNull()
   })
 
   it('turns an Evidence block of chunk ids into Page badges', async () => {
@@ -138,7 +184,7 @@ describe('an answer', () => {
     ).toBeInTheDocument()
     expect(screen.queryByText('Course materials')).toBeNull()
     expect(screen.queryByText('Your notes')).toBeNull()
-    expect(screen.getAllByText('References')).toHaveLength(1)
+    expect(screen.getAllByText('Citations')).toHaveLength(1)
     expect(
       screen.getByRole('link', { name: 'week1.pdf, p. 3' }),
     ).toBeInTheDocument()
@@ -170,6 +216,30 @@ describe('the ask bar', () => {
     await waitFor(() => expect(field).toBeEnabled())
     expect(field).toHaveValue('')
     expect(field).toHaveFocus()
+  })
+
+  it('scrolls to the bottom when a question is sent, not when the answer lands', async () => {
+    resetStore({ materials: [material()] })
+    answerNextAskWith(
+      assistantTurn({ results: [tierResult({ answer: 'Buckets.' })] }),
+      { after: 150 },
+    )
+    const scrolls = () =>
+      vi.mocked(HTMLElement.prototype.scrollTo).mock.calls.length
+    const user = userEvent.setup()
+    renderRoute('/courses/cs101')
+
+    const field = await screen.findByPlaceholderText(/Ask about CS101/)
+    const before = scrolls()
+    await user.type(field, 'what is a bucket?')
+    await user.keyboard('{Control>}{Enter}{/Control}')
+    expect(screen.getByText('Thinking…')).toBeInTheDocument()
+    const onSend = scrolls()
+    expect(onSend).toBeGreaterThan(before)
+
+    expect(await screen.findByText('Buckets.')).toBeInTheDocument()
+    await waitFor(() => expect(field).toBeEnabled())
+    expect(scrolls()).toBe(onSend)
   })
 
   it('puts the question back when the ask fails', async () => {

@@ -155,7 +155,7 @@ function PdfPages({
   }, [])
 
   return (
-    <div ref={containerRef} className="h-full overflow-y-auto">
+    <div ref={containerRef} className="h-full overflow-y-auto bg-muted">
       <Document
         file={blob}
         // react-pdf 11 suspends by default, and the nearest boundary is the route's, so
@@ -175,7 +175,7 @@ function PdfPages({
           </div>
         }
         onLoadSuccess={({ numPages: n }) => setNumPages(n)}
-        className="mx-auto flex max-w-4xl flex-col items-center gap-4 px-4 py-6"
+        className="mx-auto flex max-w-4xl flex-col items-center gap-6 px-4 py-6"
       >
         {Array.from({ length: numPages }, (_, i) => (
           <Page
@@ -189,8 +189,8 @@ function PdfPages({
             }
             className={
               target && last && i + 1 >= target && i + 1 <= last
-                ? 'shadow-lattice ring-2 ring-primary ring-offset-2 ring-offset-background'
-                : 'shadow-lattice'
+                ? 'ring-2 ring-primary ring-offset-2 ring-offset-muted'
+                : 'ring-1 ring-border'
             }
           />
         ))}
@@ -208,13 +208,13 @@ export function MaterialViewer({
   filename: string
 } & PageRange &
   ReadingPosition) {
-  const [user] = useUser()
+  const user = useUser()
   return (
     <FileViewer
       source={{
         queryKey: ['material-file', course, filename, user],
         filename,
-        load: () => downloadMaterial(user, course, filename),
+        load: () => downloadMaterial(course, filename),
       }}
       {...rest}
     />
@@ -236,7 +236,7 @@ export function FileViewer({
   useEffect(() => setMounted(true), [])
 
   return (
-    <div className="h-full min-h-0">
+    <div className="h-full min-h-0 bg-card">
       {file.isPending && (
         <p className="p-6 text-sm text-muted-foreground">Loading…</p>
       )}
@@ -261,7 +261,7 @@ export function FileViewer({
           <p className="p-6 text-sm text-muted-foreground">Loading…</p>
         ))}
       {file.data?.kind === 'text' && (
-        <div className="mx-auto h-full max-w-3xl overflow-y-auto px-6 py-8">
+        <div className="mx-auto h-full max-w-[72ch] overflow-y-auto px-6 py-8">
           <pre className="font-sans text-sm leading-7 whitespace-pre-wrap">
             {file.data.text}
           </pre>
@@ -269,7 +269,7 @@ export function FileViewer({
       )}
       {/* Rendered, as a Note's preview is; a Material has no editor to switch to. */}
       {file.data?.kind === 'markdown' && (
-        <div className="mx-auto h-full max-w-3xl overflow-y-auto px-6 py-8">
+        <div className="mx-auto h-full max-w-[72ch] overflow-y-auto px-6 py-8">
           <Markdown>{file.data.text ?? ''}</Markdown>
         </div>
       )}

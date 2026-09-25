@@ -20,7 +20,7 @@ import {
   TooltipTrigger,
 } from '#/components/ui/tooltip'
 
-export const Route = createFileRoute('/foundation')({
+export const Route = createFileRoute('/_authed/foundation')({
   component: FoundationPreview,
 })
 
@@ -64,15 +64,15 @@ const spacing = [
 
 function FoundationPreview() {
   return (
-    <main className="min-h-screen bg-background px-5 py-10 text-foreground sm:px-10 sm:py-14">
+    <main className="flex-1 px-5 py-10 text-foreground sm:px-10 sm:py-14">
       <div className="mx-auto max-w-6xl">
         <header className="mb-10 border-b border-border pb-8 sm:mb-14">
-          <p className="text-lattice-meta font-semibold tracking-[0.18em] text-primary">
+          <p className="text-lattice-meta font-semibold tracking-[0.18em] text-primary-ink">
             LATTICE · DESIGN SYSTEM
           </p>
           <div className="mt-3 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
             <div>
-              <h1 className="text-lattice-display font-semibold tracking-tight">
+              <h1 className="fieldnotes-display fieldnotes-reveal">
                 Foundation
               </h1>
               <p className="mt-3 max-w-2xl text-lattice-prompt text-muted-foreground">
@@ -80,7 +80,7 @@ function FoundationPreview() {
                 tokens used across Lattice.
               </p>
             </div>
-            <Badge variant="secondary">Light mode · Teal</Badge>
+            <Badge variant="secondary">Fieldnotes · Mint & green</Badge>
           </div>
         </header>
 
@@ -112,13 +112,13 @@ function FoundationPreview() {
           <Section
             eyebrow="03 · Typography"
             title="A clear reading hierarchy"
-            description="Figtree is the active family; the scale balances focused reading and quiet metadata."
+            description="Editorial serif for expressive headings, variable Figtree for reading and controls, and monospace for metadata."
           >
             <Card className="gap-0 overflow-hidden py-0 shadow-none">
               <TypeRow
-                token="text-lattice-display"
-                label="Display"
-                value="3rem / 48px"
+                token="fieldnotes-display"
+                label="Editorial display"
+                value="44–88px · responsive"
               >
                 Know your course, not just your notes.
               </TypeRow>
@@ -182,10 +182,13 @@ function FoundationPreview() {
               <div className="border-t border-border pt-6 lg:border-t-0 lg:border-l lg:pl-8 lg:pt-0">
                 <p className="text-sm font-medium">Radius</p>
                 <div className="mt-4 grid grid-cols-2 gap-4">
-                  <RadiusSample className="rounded-sm" label="sm · 4px" />
-                  <RadiusSample className="rounded-md" label="md · 6px" />
-                  <RadiusSample className="rounded-lg" label="lg · 8px" />
-                  <RadiusSample className="rounded-xl" label="xl · 12px" />
+                  <RadiusSample
+                    className="rounded-none"
+                    label="Structure · 0px"
+                  />
+                  <RadiusSample className="rounded-sm" label="Control · 2px" />
+                  <RadiusSample className="rounded-md" label="Overlay · 4px" />
+                  <RadiusSample className="rounded-lg" label="Maximum · 6px" />
                 </div>
               </div>
             </Card>
@@ -193,13 +196,22 @@ function FoundationPreview() {
 
           <Section
             eyebrow="05 · Elevation"
-            title="Soft depth"
-            description="Shadows indicate hierarchy without competing with reading content."
+            title="Structure before elevation"
+            description="Use rules for hierarchy, grain on outer canvases, and a restrained shadow only for overlays."
           >
             <div className="grid gap-5 sm:grid-cols-3">
-              <ShadowSample className="shadow-xs" label="shadow-xs" />
-              <ShadowSample className="shadow-lg" label="shadow-lg" />
-              <ShadowSample className="shadow-xl" label="shadow-xl" />
+              <ShadowSample
+                className="shadow-none"
+                label="Reading · no shadow"
+              />
+              <ShadowSample
+                className="fieldnotes-canvas shadow-none"
+                label="Canvas · static grain"
+              />
+              <ShadowSample
+                className="shadow-lattice"
+                label="Overlay · restrained depth"
+              />
             </div>
           </Section>
 
@@ -217,13 +229,13 @@ function FoundationPreview() {
                   >
                     <TabsTrigger
                       value="material"
-                      className="rounded-none px-1 pb-3 data-active:text-primary after:bg-primary"
+                      className="rounded-none px-1 pb-3 data-active:text-primary-ink after:bg-primary"
                     >
                       Material
                     </TabsTrigger>
                     <TabsTrigger
                       value="notes"
-                      className="rounded-none px-1 pb-3 data-active:text-primary after:bg-primary"
+                      className="rounded-none px-1 pb-3 data-active:text-primary-ink after:bg-primary"
                     >
                       Notes
                     </TabsTrigger>
@@ -304,7 +316,7 @@ function FoundationPreview() {
             <div className="dark rounded-xl border border-sidebar-border bg-sidebar p-6 text-sidebar-foreground">
               <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                 <div>
-                  <p className="text-xs font-semibold tracking-[0.16em] text-primary">
+                  <p className="text-xs font-semibold tracking-[0.16em] text-primary-ink">
                     DARK MODE
                   </p>
                   <p className="mt-2 text-xl font-semibold">
@@ -356,7 +368,7 @@ function Section({
   return (
     <section>
       <div className="mb-6">
-        <p className="text-lattice-meta font-semibold tracking-[0.16em] text-primary">
+        <p className="text-lattice-meta font-semibold tracking-[0.16em] text-primary-ink">
           {eyebrow}
         </p>
         <h2 className="mt-2 text-lattice-heading font-semibold tracking-tight">

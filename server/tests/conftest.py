@@ -16,6 +16,7 @@ import shutil
 import tempfile
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
+from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 import pytest
@@ -32,6 +33,7 @@ from sqlalchemy.sql import text
 
 from lattice.config import Settings, get_settings
 from lattice.db.migrate import upgrade
+from lattice.db.models.course_summary import EMBEDDING_DIMENSIONS
 from lattice.retrieval import TierResult
 
 os.environ.setdefault("COGNEE_LOG_FILE", "false")
@@ -64,30 +66,33 @@ def workspace(monkeypatch) -> Iterator[Path]:
         shutil.rmtree(root, ignore_errors=True)
 
 
-def llm_key_configured() -> bool:
-    """Cognee takes `LLM_API_KEY` from the environment or `server/.env`; check both."""
-    if os.environ.get("LLM_API_KEY", "").strip() not in ("", PLACEHOLDER):
+def key_configured(name: str) -> bool:
+    """Cognee takes provider keys from the environment or `server/.env`; check both."""
+    if os.environ.get(name, "").strip() not in ("", PLACEHOLDER):
         return True
     env_file = SERVER_ROOT / ".env"
     if not env_file.exists():
         return False
     for line in env_file.read_text(encoding="utf-8").splitlines():
-        name, _, value = line.partition("=")
-        if name.strip() == "LLM_API_KEY":
+        key, _, value = line.partition("=")
+        if key.strip() == name:
             return value.strip().strip("\"'") not in ("", PLACEHOLDER)
     return False
 
 
 def pytest_configure(config: pytest.Config) -> None:
     config.addinivalue_line(
-        "markers", "canary: spends real LLM calls; needs LLM_API_KEY (see tests/test_canary.py)"
+        "markers",
+        "canary: spends real LLM and embedding calls; needs LLM_API_KEY and EMBEDDING_API_KEY "
+        "(see tests/test_canary.py)",
     )
 
 
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
-    if llm_key_configured():
+    missing = [name for name in ("LLM_API_KEY", "EMBEDDING_API_KEY") if not key_configured(name)]
+    if not missing:
         return
-    skip = pytest.mark.skip(reason="no LLM_API_KEY: the canary needs a real cognify")
+    skip = pytest.mark.skip(reason=f"no {', '.join(missing)}: the canary needs a real cognify")
     for item in items:
         if "canary" in item.keywords:
             item.add_marker(skip)
@@ -146,6 +151,8 @@ async def session(connection: AsyncConnection) -> AsyncIterator[AsyncSession]:
 
 @pytest.fixture
 def settings(tmp_path, migrated_database: str) -> Settings:
+    # Cognee loads `server/.env` into the process env on import, so `_env_file=None` alone
+    # does not isolate a test from a developer's tokens; pin what the tests assert on.
     return Settings(
         _env_file=None,
         database_url=migrated_database,
@@ -154,7 +161,18 @@ def settings(tmp_path, migrated_database: str) -> Settings:
         database_auto_migrate=False,
         cognee_root=tmp_path / "cognee",
         uploads_dir=tmp_path / "uploads",
+        metrics_token=None,
+        spend_ceiling_usd=None,
+        telegram_bot_token=None,
+        telegram_chat_id=None,
     )
+
+
+def basis(axis: int) -> list[float]:
+    """A unit vector along one axis of the summary space."""
+    vector = [0.0] * EMBEDDING_DIMENSIONS
+    vector[axis] = 1.0
+    return vector
 
 
 class FakePrincipal:
@@ -177,11 +195,31 @@ class FakeEngine:
         self.cognified: list[str] = []
         self.cleared: list[tuple[UUID, str]] = []
         self.searched: list[dict[UUID, str]] = []
+        self.searched_as: list[str] = []
+        # The prompt each search was given; None when the caller left it at the default.
+        self.system_prompts: list[str | None] = []
         self.results: list[TierResult] = []
         self.fail_with: Exception | None = None
+        # Embeddings: a basis vector per keyword, so a test decides which courses are near.
+        self.axes: dict[str, int] = {}
+        self.model_name = "fake-embedding"
+        self.embedded: list[list[str]] = []
+        # Structured output, stubbed per schema: an instance, or a callable taking the data.
+        self.generated: dict[type, Any] = {}
+        self.generate_calls: list[tuple[type, str, dict]] = []
 
     async def start(self) -> None:
         pass
+
+    def embedding_model(self) -> str:
+        return self.model_name
+
+    async def embed(self, texts: list[str]) -> list[list[float]]:
+        self.embedded.append(list(texts))
+        return [
+            basis(next((axis for word, axis in self.axes.items() if word in text), 0))
+            for text in texts
+        ]
 
     async def principal(self, email: str) -> FakePrincipal:
         return FakePrincipal(email)
@@ -196,7 +234,9 @@ class FakeEngine:
     async def global_dataset(self, course: str) -> FakeDataset:
         return FakeDataset(f"{course}-global")
 
-    async def replace(self, dataset: FakeDataset, owner: FakePrincipal, path) -> None:
+    async def replace(
+        self, dataset: FakeDataset, owner: FakePrincipal, path, chunk_size: int | None = None
+    ) -> None:
         if self.fail_with is not None:
             raise self.fail_with
         self.cognified.append(str(path))
@@ -213,12 +253,24 @@ class FakeEngine:
         question: str,
         query_type: str,
         session_id: str,
+        system_prompt: str | None = None,
     ) -> list[TierResult]:
         if self.fail_with is not None:
             raise self.fail_with
         self.searched.append(datasets)
+        self.searched_as.append(user.email)
+        self.system_prompts.append(system_prompt)
         tiers = set(datasets.values())
         return [result for result in self.results if result.tier in tiers]
+
+    async def generate(self, schema: type, system_prompt: str, data: dict) -> Any:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.generate_calls.append((schema, system_prompt, data))
+        if schema not in self.generated:
+            raise AssertionError(f"no stubbed {schema.__name__} for this test")
+        stub = self.generated[schema]
+        return stub(data) if callable(stub) else stub
 
 
 class RecordingIngest:

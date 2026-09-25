@@ -168,6 +168,65 @@ class TopicStat(BaseModel):
     misses: int
 
 
+def question_out(question: Any, *, withhold: bool) -> QuizQuestionOut:
+    out = QuizQuestionOut.model_validate(question)
+    if withhold:
+        out.expected_json = None
+    return out
+
+
+def quiz_out(quiz: Any) -> QuizOut:
+    """The answer key stays on the server while a Quiz is open."""
+    out = QuizOut.model_validate(quiz)
+    # Batches append in memory in arrival order; on the wire they go by position (page order).
+    out.questions.sort(key=lambda question: question.position)
+    if out.status == "open":
+        for question in out.questions:
+            question.expected_json = None
+    return out
+
+
+class BatchOut(BaseModel):
+    index: int
+    page_start: int
+    page_end: int
+
+
+class GrillPlanOut(BaseModel):
+    """A Grill just planned: the Quiz without questions, and the batches to ask for."""
+
+    quiz: QuizOut
+    batches: list[BatchOut]
+
+
+class GradedQuizOut(BaseModel):
+    quiz: QuizOut
+    # Drawn from the student's history at submit time and not stored; "" when there is
+    # nothing to say or the model did not answer.
+    remark: str
+
+
+class InviteOut(BaseModel):
+    """Returned once at creation: `token` is the only copy of the invite secret."""
+
+    token: str
+    role: str
+    expires_at: datetime
+    created_at: datetime
+
+
+class InviteSummaryOut(BaseModel):
+    """An invite's status for the manage view. Never carries the token itself."""
+
+    id: UUID
+    role: str
+    expires_at: datetime
+    created_at: datetime
+    created_by_email: str | None
+    used_at: datetime | None
+    used_by_email: str | None
+
+
 class MeOut(BaseModel):
     user: UserOut
     courses: list[CourseOut]

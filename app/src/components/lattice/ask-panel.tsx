@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { ChatQuestionIcon, HistoryIcon } from '@hugeicons/core-free-icons'
+import {
+  ChatQuestionIcon,
+  HistoryIcon,
+  Quiz01Icon,
+} from '@hugeicons/core-free-icons'
 import { useEffect, useRef, useState } from 'react'
 
 import { Markdown, ReferenceList } from '#/components/lattice/answer'
+import { GrillPanel } from '#/components/lattice/grill-panel'
 import { Button } from '#/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { Textarea } from '#/components/ui/textarea'
@@ -15,12 +20,27 @@ import {
   listNotes,
   listSessions,
 } from '#/lib/api'
-import { groupReferences } from '#/lib/references'
+import { groupReferences, relatedReferences } from '#/lib/references'
 import { useStored } from '#/lib/user'
 
-import type { Enrolment, Material, Note, Session, Turn } from '#/lib/api'
+import type {
+  Enrolment,
+  Material,
+  Note,
+  Session,
+  TierResult,
+  Turn,
+} from '#/lib/api'
+import type { TabKey } from '#/lib/tabs'
 
-export function AskPanel({ course, user }: Enrolment) {
+export function AskPanel({
+  course,
+  user,
+  front = null,
+}: Enrolment & {
+  /** The tab in front of the reader, so a Grill can default to what is open. */
+  front?: TabKey | null
+}) {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('ask')
   const [sessionId, setSessionId] = useStored(
@@ -31,18 +51,18 @@ export function AskPanel({ course, user }: Enrolment) {
   const sessionKey = ['session', course, user, sessionId]
   const session = useQuery({
     queryKey: sessionKey,
-    queryFn: () => getSession(user, course, sessionId),
+    queryFn: () => getSession(course, sessionId),
     enabled: sessionId !== '',
     retry: false,
   })
   const sessions = useQuery({
     queryKey: ['sessions', course, user],
-    queryFn: () => listSessions(user, course),
+    queryFn: () => listSessions(course),
   })
   // Shared with the rail; used for the pending notice and to resolve references.
   const materials = useQuery({
     queryKey: ['materials', course, user],
-    queryFn: () => listMaterials(user, course),
+    queryFn: () => listMaterials(course),
   })
   const pending =
     materials.data?.filter(
@@ -50,7 +70,7 @@ export function AskPanel({ course, user }: Enrolment) {
     ).length ?? 0
   const notes = useQuery({
     queryKey: ['notes', course, user],
-    queryFn: () => listNotes(user, course),
+    queryFn: () => listNotes(course),
   })
   const sources = {
     course,
@@ -68,7 +88,7 @@ export function AskPanel({ course, user }: Enrolment) {
   const [question, setQuestion] = useState('')
   const submit = useMutation({
     mutationFn: (q: string) =>
-      ask(user, course, {
+      ask(course, {
         question: q,
         query_type: 'HYBRID_COMPLETION',
         session_id: sessionId || null,
@@ -117,10 +137,13 @@ export function AskPanel({ course, user }: Enrolment) {
   }, [submit.isPending])
 
   const turns = session.data?.turns ?? []
+  // Scroll to the bottom when a question is sent, so its echo and the pending mark are in
+  // view; not when the answer lands, so a student reading further up is not pulled down.
   const scrollRef = useRef<HTMLDivElement>(null)
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
-  }, [turns.length, submit.isPending])
+    if (submit.isPending)
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight })
+  }, [submit.isPending])
 
   return (
     <Tabs
@@ -128,7 +151,7 @@ export function AskPanel({ course, user }: Enrolment) {
       onValueChange={setTab}
       className="flex min-h-0 flex-1 flex-col gap-0"
     >
-      <div className="flex items-center justify-between border-b border-border px-5">
+      <div className="flex min-h-12 shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border px-4">
         <TabsList variant="line" className="gap-5 p-0">
           <TabsTrigger value="ask" className="rounded-none px-1 pb-3">
             <HugeiconsIcon icon={ChatQuestionIcon} data-icon="inline-start" />
@@ -137,6 +160,10 @@ export function AskPanel({ course, user }: Enrolment) {
           <TabsTrigger value="history" className="rounded-none px-1 pb-3">
             <HugeiconsIcon icon={HistoryIcon} data-icon="inline-start" />
             History
+          </TabsTrigger>
+          <TabsTrigger value="grill" className="rounded-none px-1 pb-3">
+            <HugeiconsIcon icon={Quiz01Icon} data-icon="inline-start" />
+            Grill
           </TabsTrigger>
         </TabsList>
         <Button
@@ -158,17 +185,20 @@ export function AskPanel({ course, user }: Enrolment) {
         )}
         <div ref={scrollRef} className="flex-1 overflow-y-auto px-6 py-5">
           {turns.length === 0 && !submit.isPending && (
-            <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
-              <p className="text-lattice-heading font-semibold tracking-tight">
-                Ask {course.toUpperCase()} anything
+            <div className="flex h-full flex-col justify-center py-8">
+              <p className="fieldnotes-kicker mb-5 text-primary-ink">
+                Ask · {course.toUpperCase()}
               </p>
-              <p className="max-w-md text-sm leading-6 text-muted-foreground">
-                Answers cite the materials and your notes they came from. Upload
-                materials in the left rail to feed this course.
+              <h2 className="font-editorial text-4xl leading-[1.1] tracking-tight">
+                What isn&apos;t <span className="italic">clicking yet?</span>
+              </h2>
+              <p className="mt-5 max-w-md border-l border-border pl-4 text-sm leading-7 text-muted-foreground">
+                Bring a question. Answers draw on this course&apos;s Materials
+                and your Notes, with Citations to follow up.
               </p>
             </div>
           )}
-          <ol className="space-y-4">
+          <ol className="space-y-6">
             {turns.map((t, i) => (
               <li key={t.id ?? i}>
                 <TurnView turn={t} sources={sources} />
@@ -182,7 +212,7 @@ export function AskPanel({ course, user }: Enrolment) {
           </ol>
         </div>
         <form
-          className="space-y-2 border-t border-border p-4"
+          className="shrink-0 space-y-3 border-t border-border bg-background p-4"
           onSubmit={(e) => {
             e.preventDefault()
             send()
@@ -194,7 +224,7 @@ export function AskPanel({ course, user }: Enrolment) {
             maxLength={2000}
             disabled={submit.isPending}
             placeholder={`Ask about ${course.toUpperCase()} materials or your notes…`}
-            className="min-h-20 bg-background"
+            className="min-h-24 max-h-[30dvh] overflow-y-auto bg-card leading-6"
             onChange={(e) => setQuestion(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -207,7 +237,7 @@ export function AskPanel({ course, user }: Enrolment) {
             {submit.error ? (
               <p className="text-xs text-destructive">{submit.error.message}</p>
             ) : (
-              <p className="text-lattice-meta text-muted-foreground">
+              <p className="font-mono text-[11px] text-muted-foreground">
                 ⌘↵ to send
               </p>
             )}
@@ -223,9 +253,9 @@ export function AskPanel({ course, user }: Enrolment) {
 
       <TabsContent
         value="history"
-        className="min-h-0 flex-1 overflow-y-auto p-4"
+        className="min-h-0 flex-1 overflow-y-auto px-4 py-2"
       >
-        <ul className="space-y-2">
+        <ul className="divide-y divide-border">
           {sessions.data?.map((s) => (
             <li key={s.id}>
               <button
@@ -234,10 +264,11 @@ export function AskPanel({ course, user }: Enrolment) {
                   setSessionId(s.id)
                   setTab('ask')
                 }}
-                className={`block w-full rounded-lg border px-3 py-2 text-left transition-colors hover:border-primary/50 ${
+                aria-pressed={s.id === sessionId}
+                className={`block min-h-14 w-full border-l-2 px-3 py-4 text-left transition-colors hover:bg-accent ${
                   s.id === sessionId
-                    ? 'border-primary/50 bg-accent'
-                    : 'border-border bg-card'
+                    ? 'border-primary bg-accent'
+                    : 'border-transparent'
                 }`}
               >
                 <span className="block truncate text-sm font-medium">
@@ -257,18 +288,29 @@ export function AskPanel({ course, user }: Enrolment) {
           )}
         </ul>
       </TabsContent>
+
+      <TabsContent value="grill" className="flex min-h-0 flex-1 flex-col">
+        <GrillPanel course={course} user={user} front={front} />
+      </TabsContent>
     </Tabs>
+  )
+}
+
+function QuestionBlock({ children }: { children: string }) {
+  return (
+    <div className="border-l-2 border-primary bg-background px-4 py-3">
+      <p className="fieldnotes-kicker mb-2 text-primary-ink">Your question</p>
+      <p className="whitespace-pre-wrap break-words text-sm font-medium leading-7">
+        {children}
+      </p>
+    </div>
   )
 }
 
 function PendingTurn({ question }: { question: string }) {
   return (
-    <div className="space-y-4">
-      <div className="flex justify-end">
-        <p className="max-w-[85%] whitespace-pre-wrap rounded-xl bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-          {question}
-        </p>
-      </div>
+    <div className="space-y-6">
+      <QuestionBlock>{question}</QuestionBlock>
       <p className="text-sm italic text-muted-foreground">Thinking…</p>
     </div>
   )
@@ -282,16 +324,13 @@ interface Sources {
 
 function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
   if (turn.role === 'user') {
-    return (
-      <div className="flex justify-end">
-        <p className="max-w-[85%] whitespace-pre-wrap rounded-xl bg-primary px-4 py-2.5 text-sm text-primary-foreground">
-          {turn.content}
-        </p>
-      </div>
-    )
+    return <QuestionBlock>{turn.content}</QuestionBlock>
   }
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4 shadow-lattice">
+    <div className="space-y-4 border-b border-border pb-6">
+      <p className="fieldnotes-kicker text-muted-foreground">
+        Lattice / Answer
+      </p>
       {turn.results.length === 0 ? (
         <p className="text-sm italic text-muted-foreground">
           Nothing cognified in this course yet — upload a material and try
@@ -299,8 +338,8 @@ function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
         </p>
       ) : (
         <>
-          {/* The server composes one answer across tiers (study.py); the references
-              it drew on are listed once too, Materials and Notes alike. */}
+          {/* The server composes one answer across the course's own tiers (study.py); the
+              references it drew on are listed once too, Materials and Notes alike. */}
           {turn.content ? (
             <Markdown>{turn.content}</Markdown>
           ) : (
@@ -309,16 +348,48 @@ function TurnView({ turn, sources }: { turn: Turn; sources: Sources }) {
           <ReferenceList
             course={sources.course}
             references={groupReferences(
-              turn.results.flatMap((r) => r.citations),
+              turn.results
+                .filter((r) => r.tier !== 'related')
+                .flatMap((r) => r.citations),
               sources.materials,
               sources.notes,
             )}
           />
+          {turn.results
+            .filter((r) => r.tier === 'related')
+            .map((r) => (
+              <RelatedCourseView key={r.course ?? ''} result={r} />
+            ))}
         </>
       )}
-      <p className="text-lattice-meta text-muted-foreground">
+      <p className="font-mono text-[11px] text-muted-foreground">
         {turn.latency_ms ?? '?'} ms
       </p>
+    </div>
+  )
+}
+
+/** A related course's answer stays apart from the course's own, under the code it came
+ * from: a few bullet points, with each reference opening that course's reader in a new
+ * tab so this workspace stays put. */
+function RelatedCourseView({ result }: { result: TierResult }) {
+  return (
+    <div className="border-l-2 border-border bg-background px-4 py-3">
+      <p className="text-lattice-meta font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+        {`Related course · ${result.course?.toUpperCase() ?? '?'}`}
+      </p>
+      <div className="mt-1.5">
+        {result.answer ? (
+          <Markdown>{result.answer}</Markdown>
+        ) : (
+          <p className="text-sm italic text-muted-foreground">no answer</p>
+        )}
+      </div>
+      <ReferenceList
+        course={result.course ?? ''}
+        references={relatedReferences(result.citations, result.course)}
+        newTab
+      />
     </div>
   )
 }
