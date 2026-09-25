@@ -16,6 +16,7 @@ import shutil
 import tempfile
 from collections.abc import AsyncIterator, Iterator
 from pathlib import Path
+from typing import Any
 from uuid import NAMESPACE_URL, UUID, uuid5
 
 import pytest
@@ -197,6 +198,9 @@ class FakeEngine:
         self.axes: dict[str, int] = {}
         self.model_name = "fake-embedding"
         self.embedded: list[list[str]] = []
+        # Structured output, stubbed per schema: an instance, or a callable taking the data.
+        self.generated: dict[type, Any] = {}
+        self.generate_calls: list[tuple[type, str, dict]] = []
 
     async def start(self) -> None:
         pass
@@ -252,6 +256,15 @@ class FakeEngine:
         self.system_prompts.append(system_prompt)
         tiers = set(datasets.values())
         return [result for result in self.results if result.tier in tiers]
+
+    async def generate(self, schema: type, system_prompt: str, data: dict) -> Any:
+        if self.fail_with is not None:
+            raise self.fail_with
+        self.generate_calls.append((schema, system_prompt, data))
+        if schema not in self.generated:
+            raise AssertionError(f"no stubbed {schema.__name__} for this test")
+        stub = self.generated[schema]
+        return stub(data) if callable(stub) else stub
 
 
 class RecordingIngest:

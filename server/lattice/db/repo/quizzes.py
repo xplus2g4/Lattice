@@ -32,6 +32,19 @@ async def create(
     return quiz
 
 
+async def append(
+    db: AsyncSession, quiz: Quiz, *, base: int, questions: list[dict[str, Any]]
+) -> list[QuizQuestion]:
+    """Questions written later take positions from `base` up, so a batch keeps its place."""
+    added = [
+        QuizQuestion(position=base + offset, answers=[], **question)
+        for offset, question in enumerate(questions)
+    ]
+    quiz.questions.extend(added)
+    await db.flush()
+    return added
+
+
 async def for_course(
     db: AsyncSession,
     *,
@@ -106,4 +119,34 @@ async def by_topic(db: AsyncSession, *, user: User, course: Course) -> list[dict
     return [
         {"topic_id": topic_id, "attempts": attempts, "misses": misses}
         for topic_id, attempts, misses in rows
+    ]
+
+
+async def history(
+    db: AsyncSession, *, user: User, course: Course, limit: int = 30
+) -> list[dict[str, Any]]:
+    """The student's most recent answers in a course, newest first: what the remark reads."""
+    rows = await db.execute(
+        select(
+            Quiz.scope_json,
+            QuizQuestion.prompt,
+            QuizQuestion.citation_json,
+            QuizAnswer.correct,
+            QuizAnswer.created_at,
+        )
+        .join(QuizQuestion, QuizQuestion.quiz_id == Quiz.id)
+        .join(QuizAnswer, QuizAnswer.question_id == QuizQuestion.id)
+        .where(Quiz.user_id == user.id, Quiz.course_id == course.id)
+        .order_by(QuizAnswer.created_at.desc())
+        .limit(limit)
+    )
+    return [
+        {
+            "topic_label": (citation or {}).get("topic") or (scope or {}).get("topic_label"),
+            "page": (citation or {}).get("page"),
+            "prompt": prompt,
+            "correct": correct,
+            "when": created_at.isoformat(timespec="minutes"),
+        }
+        for scope, prompt, citation, correct, created_at in rows
     ]

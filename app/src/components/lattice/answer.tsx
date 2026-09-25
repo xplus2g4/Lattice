@@ -42,12 +42,14 @@ function pages(span: PageSpan): string {
   return describePages({ page_start: span.start, page_end: span.end })
 }
 
-const bumpJump = (prev: HistoryState) => ({
+/** History state for a Page link: a changed `jump` makes the reader scroll even when the
+ * URL already names that Page. */
+export const bumpJump = (prev: HistoryState) => ({
   ...prev,
   jump: (prev.jump ?? 0) + 1,
 })
 
-function pageSearch(material: string, span: PageSpan | undefined) {
+export function pageSearch(material: string, span: PageSpan | undefined) {
   return {
     material,
     page: span?.start,

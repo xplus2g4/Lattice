@@ -1,9 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { ChatQuestionIcon, HistoryIcon } from '@hugeicons/core-free-icons'
+import {
+  ChatQuestionIcon,
+  HistoryIcon,
+  Quiz01Icon,
+} from '@hugeicons/core-free-icons'
 import { useEffect, useRef, useState } from 'react'
 
 import { Markdown, ReferenceList } from '#/components/lattice/answer'
+import { GrillPanel } from '#/components/lattice/grill-panel'
 import { Button } from '#/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 import { Textarea } from '#/components/ui/textarea'
@@ -26,8 +31,16 @@ import type {
   TierResult,
   Turn,
 } from '#/lib/api'
+import type { TabKey } from '#/lib/tabs'
 
-export function AskPanel({ course, user }: Enrolment) {
+export function AskPanel({
+  course,
+  user,
+  front = null,
+}: Enrolment & {
+  /** The tab in front of the reader, so a Grill can default to what is open. */
+  front?: TabKey | null
+}) {
   const queryClient = useQueryClient()
   const [tab, setTab] = useState('ask')
   const [sessionId, setSessionId] = useStored(
@@ -147,6 +160,10 @@ export function AskPanel({ course, user }: Enrolment) {
           <TabsTrigger value="history" className="rounded-none px-1 pb-3">
             <HugeiconsIcon icon={HistoryIcon} data-icon="inline-start" />
             History
+          </TabsTrigger>
+          <TabsTrigger value="grill" className="rounded-none px-1 pb-3">
+            <HugeiconsIcon icon={Quiz01Icon} data-icon="inline-start" />
+            Grill
           </TabsTrigger>
         </TabsList>
         <Button
@@ -270,6 +287,10 @@ export function AskPanel({ course, user }: Enrolment) {
             </li>
           )}
         </ul>
+      </TabsContent>
+
+      <TabsContent value="grill" className="flex min-h-0 flex-1 flex-col">
+        <GrillPanel course={course} user={user} front={front} />
       </TabsContent>
     </Tabs>
   )

@@ -14,6 +14,7 @@ from lattice.api import (
     me,
     note_records,
     quiz_records,
+    quizzes,
     study_tools,
 )
 from lattice.config import Settings, get_settings
@@ -79,6 +80,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         ask.router,
         quiz_records.router,
         study_tools.router,
+        quizzes.router,
     ):
         app.include_router(router)
     return app

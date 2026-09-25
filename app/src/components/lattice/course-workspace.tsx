@@ -299,7 +299,7 @@ export function CourseWorkspace({
       <div
         className={`${pane('ask')} min-h-0 min-w-0 flex-1 flex-col bg-card lg:flex lg:w-80 lg:flex-none lg:border-l lg:border-border xl:w-96`}
       >
-        <AskPanel course={course} user={user} />
+        <AskPanel course={course} user={user} front={front} />
       </div>
     </div>
   )
