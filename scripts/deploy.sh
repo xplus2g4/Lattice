@@ -28,6 +28,8 @@ compose="docker compose -f compose.yaml -f compose.prod.yaml"
 \$compose up -d postgres
 \$compose run --rm --no-deps -e DATABASE_AUTO_MIGRATE=false api alembic upgrade head
 \$compose up -d --remove-orphans
+# The Caddyfile is a bind mount, so a changed file does not recreate the container.
+\$compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
 docker image prune -f >/dev/null
 \$compose ps
 EOF

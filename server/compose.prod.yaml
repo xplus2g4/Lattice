@@ -47,7 +47,9 @@ services:
       - "443:443"
       - "443:443/udp"
     volumes:
-      - ./ops/Caddyfile:/etc/caddy/Caddyfile:ro
+      # A directory, not the file: a single-file bind mount keeps the old inode after git
+      # replaces the file, so reloads would read stale config.
+      - ./ops/caddy:/etc/caddy:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
