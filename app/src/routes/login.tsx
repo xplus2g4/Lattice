@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
@@ -231,7 +231,13 @@ function Login() {
               </form>
 
               <p className="text-sm text-muted-foreground">
-                No invite yet? Ask an instructor for an invite link.
+                No invite yet? Ask an instructor for an invite link.{' '}
+                <Link
+                  to="/landing"
+                  className="fieldnotes-action font-medium text-foreground underline"
+                >
+                  What is Lattice?
+                </Link>
               </p>
             </>
           )}

@@ -1,75 +1,39 @@
-import { fireEvent, render, screen } from '@testing-library/react'
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it } from 'vitest'
 
-import { LandingPage } from './landing-page'
+import { renderRoute } from '#/test/render'
 
-describe('landing page preview', () => {
-  beforeEach(() => {
-    // jsdom does not implement modal dialog behavior.
-    Object.defineProperties(HTMLDialogElement.prototype, {
-      showModal: {
-        configurable: true,
-        value: function (this: HTMLDialogElement) {
-          this.setAttribute('open', '')
-        },
-      },
-      close: {
-        configurable: true,
-        value: function (this: HTMLDialogElement) {
-          this.removeAttribute('open')
-        },
-      },
-    })
-    render(<LandingPage siteUrl="https://example.org/landing" />)
+describe('landing page', () => {
+  it('sends every Sign up and Sign in action to the real login', async () => {
+    renderRoute('/landing')
+    await screen.findByRole('heading', { level: 1, name: /Stay curious/ })
+
+    const actions = [
+      ...screen.getAllByRole('link', { name: 'Sign up' }),
+      ...screen.getAllByRole('link', { name: 'Sign in' }),
+    ]
+    expect(actions.length).toBeGreaterThan(1)
+    for (const link of actions) expect(link).toHaveAttribute('href', '/login')
   })
 
-  afterEach(() => {
-    Reflect.deleteProperty(HTMLDialogElement.prototype, 'showModal')
-    Reflect.deleteProperty(HTMLDialogElement.prototype, 'close')
-  })
+  it('opens the invite form when a visitor signs up', async () => {
+    const user = userEvent.setup()
+    const { router } = renderRoute('/landing')
+    await user.click(
+      (await screen.findAllByRole('link', { name: 'Sign up' }))[0],
+    )
 
-  it('changes the sample explanation and selected concept together', () => {
-    const vectors = screen.getByRole('button', {
-      name: /Vectors & spaces/,
-    })
-    fireEvent.click(vectors)
-    expect(vectors).toHaveAttribute('aria-pressed', 'true')
     expect(
-      screen.getByRole('heading', { name: 'Start with vectors & spaces' }),
-    ).toBeVisible()
-    expect(
-      screen.getByRole('button', { name: /Linear transformations/ }),
-    ).toHaveAttribute('aria-pressed', 'false')
+      await screen.findByRole('textbox', { name: 'Enter your invite code' }),
+    ).toBeInTheDocument()
+    expect(router.state.location.pathname).toBe('/login')
   })
 
-  it('keeps registration and provider actions informational', () => {
-    fireEvent.click(
-      screen.getAllByRole('button', { name: /Join the waitlist/ })[0],
-    )
-    expect(screen.getByRole('dialog')).toHaveTextContent(
-      'no registration has been recorded',
-    )
-    fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }))
-    fireEvent.click(screen.getByRole('button', { name: /Sign-in preview/ }))
-    fireEvent.click(
-      screen.getByRole('button', { name: /Continue with Google/ }),
-    )
-    expect(screen.getByRole('dialog')).toHaveTextContent(
-      'Google sign-in is a demo only.',
-    )
-  })
-
-  it('uses the frontend address for sharing and offers a local Story download', () => {
-    expect(screen.getByRole('link', { name: /Telegram/ })).toHaveAttribute(
-      'href',
-      expect.stringContaining('https%3A%2F%2Fexample.org%2Flanding'),
-    )
-    fireEvent.click(screen.getByRole('button', { name: /Instagram Story/ }))
-    expect(screen.getByLabelText('Website address')).toHaveValue(
-      'https://example.org/landing',
-    )
+  it('is reachable from the login page', async () => {
+    renderRoute('/login')
     expect(
-      screen.getByRole('link', { name: /Download Story image/ }),
-    ).toHaveAttribute('href', '/landing-assets/instagram-story.png')
+      await screen.findByRole('link', { name: 'What is Lattice?' }),
+    ).toHaveAttribute('href', '/landing')
   })
 })
