@@ -225,9 +225,7 @@ export function CourseWorkspace({
         className={cn(
           pane('course'),
           'min-h-0 flex-1 flex-col bg-sidebar lg:border-r lg:border-border',
-          sidebarOpen
-            ? 'lg:flex lg:w-64 lg:flex-none xl:w-72'
-            : 'lg:hidden',
+          sidebarOpen ? 'lg:flex lg:w-64 lg:flex-none xl:w-72' : 'lg:hidden',
         )}
       >
         <div className="space-y-5 border-b border-border px-5 py-5">
