@@ -1,4 +1,4 @@
-import { screen, within } from '@testing-library/react'
+import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
@@ -78,18 +78,21 @@ describe('landing page', () => {
       expect(
         screen.getByRole('tabpanel', { name: 'Private Notes' }),
       ).toBeVisible()
-      expect(
-        screen.getByRole('figure', {
-          name: 'Private Notes illustration',
-        }),
-      ).toBeVisible()
+      await waitFor(() =>
+        expect(
+          screen.getByRole('figure', { name: 'Private Notes illustration' }),
+        ).toBeVisible(),
+      )
 
       await user.keyboard('{ArrowDown}')
       expect(screen.getByRole('tab', { name: 'Grill me' })).toHaveFocus()
       expect(screen.getByRole('tabpanel', { name: 'Grill me' })).toBeVisible()
-      expect(
-        screen.getByRole('figure', { name: 'Grill me illustration' }),
-      ).toBeVisible()
+      await waitFor(() =>
+        expect(
+          screen.getByRole('figure', { name: 'Grill me illustration' }),
+        ).toBeVisible(),
+      )
+      expect(screen.getAllByRole('tabpanel')).toHaveLength(1)
     })
 
     it('separates future direction from current features and explains beta access', async () => {
