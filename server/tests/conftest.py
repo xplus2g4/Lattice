@@ -11,6 +11,7 @@ Tests run inside a transaction on a single connection that is rolled back afterw
 see each other's schema but never each other's rows.
 """
 
+import asyncio
 import os
 import shutil
 import tempfile
@@ -191,8 +192,12 @@ class FakeEngine:
     """Stands in for the Cognee seam: records the calls, touches no embedded store."""
 
     def __init__(self) -> None:
+        # One ingest at a time, as with the real engine; Ingest holds this around each call.
+        self.turn = asyncio.Lock()
         self.enrolled: list[tuple[str, str]] = []
         self.cognified: list[str] = []
+        self.batches: list[list[str]] = []
+        self.fail_paths: set[str] = set()
         self.cleared: list[tuple[UUID, str]] = []
         self.searched: list[dict[UUID, str]] = []
         self.searched_as: list[str] = []
@@ -239,7 +244,20 @@ class FakeEngine:
     ) -> None:
         if self.fail_with is not None:
             raise self.fail_with
+        if str(path) in self.fail_paths:
+            raise RuntimeError(f"cannot cognify {path}")
         self.cognified.append(str(path))
+
+    async def replace_many(
+        self, dataset: FakeDataset, owner: FakePrincipal, paths, chunk_size: int | None = None
+    ) -> None:
+        """All-or-nothing, as the real engine: one bad path fails the whole batch."""
+        self.batches.append([str(path) for path in paths])
+        if self.fail_with is not None:
+            raise self.fail_with
+        if any(str(path) in self.fail_paths for path in paths):
+            raise RuntimeError("one item failed; Cognee rolled the run back")
+        self.cognified.extend(str(path) for path in paths)
 
     async def clear(self, dataset: FakeDataset, owner: FakePrincipal, filename: str) -> None:
         if self.fail_with is not None:
@@ -279,6 +297,7 @@ class RecordingIngest:
     def __init__(self) -> None:
         self.queued: list[UUID] = []
         self.notes: list[UUID] = []
+        self.recovered: list[UUID] = []
 
     async def material(self, material_id: UUID) -> None:
         self.queued.append(material_id)
@@ -288,6 +307,9 @@ class RecordingIngest:
 
     async def recover_notes(self) -> None:
         pass
+
+    async def recover_materials(self) -> list[UUID]:
+        return self.recovered
 
     async def cognify_pending(self) -> bool:
         return False

@@ -1,4 +1,5 @@
 import asyncio
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 from uuid import UUID
@@ -130,3 +131,71 @@ def test_clearing_a_page_note_removes_only_its_own_private_content(engine, monke
     assert deleted.await_args.args[:2] == (PRIVATE, CHUNK)
     assert deleted.await_count == 1
     added.assert_not_awaited()
+
+
+def test_replace_forgets_the_file_when_cognify_fails(engine, monkeypatch):
+    """Cognee re-runs every item without a completed marker on the next Cognify of the Dataset,
+    so a file whose Cognify failed would fail every later file in the course too."""
+    added = SimpleNamespace(id=CHUNK, name="deck")
+    # Nothing under this name before the add; the half-cognified item afterwards.
+    monkeypatch.setattr(module, "get_dataset_data", AsyncMock(side_effect=[[], [added]]))
+    monkeypatch.setattr(module.cognee, "add", AsyncMock())
+    monkeypatch.setattr(module.cognee, "cognify", AsyncMock(side_effect=RuntimeError("timeout")))
+    deleted = AsyncMock()
+    monkeypatch.setattr(module.cognee.datasets, "delete_data", deleted)
+    dataset, user = SimpleNamespace(id=GLOBAL), SimpleNamespace(id=PRIVATE)
+
+    async def replace():
+        async with engine.turn:
+            await engine.replace(dataset, user, Path("/uploads/deck.pdf"))
+
+    with pytest.raises(RuntimeError, match="timeout"):
+        asyncio.run(replace())
+    deleted.assert_awaited_once_with(GLOBAL, CHUNK, user=user, mode="hard")
+
+
+def test_replace_many_cognifies_several_files_in_one_call(engine, monkeypatch):
+    """BENCH-0001: one add and one cognify for the batch; earlier data under a name goes first."""
+    stale = SimpleNamespace(id=CHUNK, name="b")
+    monkeypatch.setattr(module, "get_dataset_data", AsyncMock(return_value=[stale]))
+    added, cognified, deleted = AsyncMock(), AsyncMock(), AsyncMock()
+    monkeypatch.setattr(module.cognee, "add", added)
+    monkeypatch.setattr(module.cognee, "cognify", cognified)
+    monkeypatch.setattr(module.cognee.datasets, "delete_data", deleted)
+    dataset, user = SimpleNamespace(id=GLOBAL), SimpleNamespace(id=PRIVATE)
+    paths = [Path("/uploads/a.pdf"), Path("/uploads/b.pdf")]
+
+    async def replace_many():
+        async with engine.turn:
+            await engine.replace_many(dataset, user, paths)
+
+    asyncio.run(replace_many())
+    deleted.assert_awaited_once_with(GLOBAL, CHUNK, user=user, mode="hard")
+    added.assert_awaited_once_with(
+        ["/uploads/a.pdf", "/uploads/b.pdf"], dataset_id=GLOBAL, user=user
+    )
+    cognified.assert_awaited_once_with(
+        datasets=[GLOBAL], user=user, data_per_batch=2, chunk_size=None
+    )
+
+
+def test_replace_many_drops_every_file_when_the_batch_fails(engine, monkeypatch):
+    """Cognee rolls the whole run back when one item fails, so no half-done file may stay."""
+    other = UUID("00000000-0000-0000-0000-000000000004")
+    after = [SimpleNamespace(id=CHUNK, name="a"), SimpleNamespace(id=other, name="b")]
+    monkeypatch.setattr(module, "get_dataset_data", AsyncMock(side_effect=[[], after]))
+    monkeypatch.setattr(module.cognee, "add", AsyncMock())
+    monkeypatch.setattr(module.cognee, "cognify", AsyncMock(side_effect=RuntimeError("timeout")))
+    deleted = AsyncMock()
+    monkeypatch.setattr(module.cognee.datasets, "delete_data", deleted)
+    dataset, user = SimpleNamespace(id=GLOBAL), SimpleNamespace(id=PRIVATE)
+
+    async def replace_many():
+        async with engine.turn:
+            await engine.replace_many(
+                dataset, user, [Path("/uploads/a.pdf"), Path("/uploads/b.pdf")]
+            )
+
+    with pytest.raises(RuntimeError, match="timeout"):
+        asyncio.run(replace_many())
+    assert sorted(call.args[1] for call in deleted.await_args_list) == sorted([CHUNK, other])

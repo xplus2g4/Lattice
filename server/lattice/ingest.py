@@ -24,6 +24,14 @@ from lattice.spend import Attribution, CeilingReached, check_ceiling, collect
 
 MAX_NOTE_ATTEMPTS = 3
 
+# How many queued Materials of one course go into one Cognify call. BENCH-0001 measured this
+# width (ADR 0009); the panels cap a selection at the same number.
+MAX_BATCH_FILES = 10
+
+
+def _describe(exc: BaseException) -> str:
+    return f"{type(exc).__name__}: {exc}"
+
 
 class Ingest:
     def __init__(
@@ -35,47 +43,106 @@ class Ingest:
         self._note_lock = asyncio.Lock()
 
     async def material(self, material_id: UUID, chunk_size: int | None = None) -> None:
-        """Cognify one Material into the course's global Dataset. Under the Ceiling it fails
-        without touching the engine; the instructor retries after the reset. The Spend is
-        the course's: no Principal, this Material."""
-        async with self.sessionmaker() as session:
-            material = await materials.get(session, material_id)
-            if material is None:
-                return
-            try:
-                await check_ceiling(session, self.settings)
-            except CeilingReached as exc:
-                await self._finish_material(
-                    session, material, f"Ceiling reached; retry after {exc.reset_at.isoformat()}"
-                )
-                await session.commit()
-                return
-            path = Path(material.storage_uri)
-            await materials.set_status(session, material, "cognifying")
-            await session.commit()
+        """Cognify this Material with whatever else its course has queued (ADR 0009).
 
-            code = material.course.code
-            attribution = Attribution(
-                user_id=None,
-                course_id=material.course_id,
-                material_id=material.id,
-                course_code=code,
+        Every upload kicks this once, but a batch takes up to MAX_BATCH_FILES queued Materials
+        of the course, so most kicks find their Material already taken and return. Under the
+        Ceiling the batch fails without touching the engine; the instructor retries after the
+        reset. The Spend is the course's: no Principal, and no single Material for a batch.
+        """
+        # Wait for the engine before opening a session or claiming "cognifying": while another
+        # batch has the turn these files are still queued, and hold no connection from the pool.
+        async with self.engine.turn:
+            async with self.sessionmaker() as session:
+                material = await materials.get(session, material_id)
+                if material is None or material.status != "queued":
+                    return
+                batch = await materials.queued_for(session, material.course, MAX_BATCH_FILES)
+                try:
+                    await check_ceiling(session, self.settings)
+                except CeilingReached as exc:
+                    for row in batch:
+                        await self._finish_material(
+                            session,
+                            row,
+                            f"Ceiling reached; retry after {exc.reset_at.isoformat()}",
+                        )
+                    await session.commit()
+                    return
+                for row in batch:
+                    await materials.set_status(session, row, "cognifying")
+                await session.commit()
+
+                code = material.course.code
+                started = time.monotonic()
+                outcomes = await self._cognify(code, material.course_id, batch, chunk_size)
+                telemetry.COGNIFY_DURATION.labels(course=code, kind="material").observe(
+                    time.monotonic() - started
+                )
+                for row, error in zip(batch, outcomes, strict=True):
+                    await self._finish_material(session, row, error)
+                await session.commit()
+
+    async def _cognify(
+        self, code: str, course_id: UUID, batch: list[Material], chunk_size: int | None
+    ) -> list[str | None]:
+        """One error text per Material, None where it is ready. Under the engine's turn.
+
+        A batch goes to the engine as one call, billed to the course since one call covers
+        every file. Cognee treats that call as all-or-nothing, so a batch that fails is retried
+        one file at a time, each billed to its Material: the bad file fails alone and the
+        others pay one extra Cognify for it.
+        """
+        paths = [Path(row.storage_uri).resolve() for row in batch]
+
+        def bill(material_id: UUID | None) -> Attribution:
+            return Attribution(
+                user_id=None, course_id=course_id, material_id=material_id, course_code=code
             )
-            started = time.monotonic()
-            try:
-                dataset = await self.engine.global_dataset(code)
-                instructor = await self.engine.instructor()
-                async with collect(self.sessionmaker, attribution):
-                    await self.engine.replace(dataset, instructor, path.resolve(), chunk_size)
-            except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
-                error = f"{type(exc).__name__}: {exc}"
+
+        try:
+            dataset = await self.engine.global_dataset(code)
+            instructor = await self.engine.instructor()
+        except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
+            return [_describe(exc)] * len(batch)
+        try:
+            if len(batch) == 1:
+                async with collect(self.sessionmaker, bill(batch[0].id)):
+                    await self.engine.replace(dataset, instructor, paths[0], chunk_size)
             else:
-                error = None
-            telemetry.COGNIFY_DURATION.labels(course=code, kind="material").observe(
-                time.monotonic() - started
+                async with collect(self.sessionmaker, bill(None)):
+                    await self.engine.replace_many(dataset, instructor, paths, chunk_size)
+            return [None] * len(batch)
+        except Exception as exc:  # noqa: BLE001
+            if len(batch) == 1:
+                return [_describe(exc)]
+        outcomes: list[str | None] = []
+        for row, path in zip(batch, paths, strict=True):
+            try:
+                async with collect(self.sessionmaker, bill(row.id)):
+                    await self.engine.replace(dataset, instructor, path, chunk_size)
+                outcomes.append(None)
+            except Exception as exc:  # noqa: BLE001
+                outcomes.append(_describe(exc))
+        return outcomes
+
+    async def recover_materials(self) -> list[UUID]:
+        """Materials the last process left queued or cognifying: their background task died
+        with it. Re-queued here, in upload order, and handed back for start-up to schedule."""
+        async with self.sessionmaker() as session:
+            ids = list(
+                await session.scalars(
+                    select(Material.id)
+                    .where(Material.status.in_(("queued", "cognifying")))
+                    .order_by(Material.created_at)
+                )
             )
-            await self._finish_material(session, material, error)
+            if ids:
+                await session.execute(
+                    update(Material).where(Material.id.in_(ids)).values(status="queued", error=None)
+                )
             await session.commit()
+        return ids
 
     async def _finish_material(
         self, session: AsyncSession, material: Material, error: str | None
@@ -151,21 +218,24 @@ class Ingest:
             error = None
             started = time.monotonic()
             try:
-                principal = await self.engine.principal(owner)
-                _, private = await self.engine.enrol(course, principal)
-                async with collect(self.sessionmaker, attribution):
-                    if storage_uri is not None:
-                        # A PDF Note: hand the stored file to the engine's own loader. The
-                        # name is <sha256>.pdf, so a re-cognify replaces rather than
-                        # duplicates.
-                        await self.engine.replace(private, principal, Path(storage_uri).resolve())
-                    else:
-                        path = self._note_path(course, note_id, principal.id)
-                        path.write_text(body, encoding="utf-8")
-                        if body.strip():
-                            await self.engine.replace(private, principal, path.resolve())
+                async with self.engine.turn:
+                    principal = await self.engine.principal(owner)
+                    _, private = await self.engine.enrol(course, principal)
+                    async with collect(self.sessionmaker, attribution):
+                        if storage_uri is not None:
+                            # A PDF Note: hand the stored file to the engine's own loader. The
+                            # name is <sha256>.pdf, so a re-cognify replaces rather than
+                            # duplicates.
+                            await self.engine.replace(
+                                private, principal, Path(storage_uri).resolve()
+                            )
                         else:
-                            await self.engine.clear(private, principal, path.name)
+                            path = self._note_path(course, note_id, principal.id)
+                            path.write_text(body, encoding="utf-8")
+                            if body.strip():
+                                await self.engine.replace(private, principal, path.resolve())
+                            else:
+                                await self.engine.clear(private, principal, path.name)
             except Exception as exc:  # noqa: BLE001 - surfaced to the client as status=failed
                 error = f"{type(exc).__name__}: {exc}"
             telemetry.COGNIFY_DURATION.labels(course=course, kind="note").observe(
