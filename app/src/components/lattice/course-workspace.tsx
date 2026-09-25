@@ -1,8 +1,14 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { ArrowLeft01Icon, CloudUploadIcon } from '@hugeicons/core-free-icons'
+import {
+  ArrowLeft01Icon,
+  ChevronFirstIcon,
+  ChevronLastIcon,
+  CloudUploadIcon,
+} from '@hugeicons/core-free-icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Group, Panel, Separator } from 'react-resizable-panels'
 
 import { Badge } from '#/components/ui/badge'
 import { Button } from '#/components/ui/button'
@@ -32,7 +38,7 @@ import {
   retainTabs,
   useTabLayout,
 } from '#/lib/tabs'
-import { useUser } from '#/lib/user'
+import { useStored, useUser } from '#/lib/user'
 import { cn } from '#/lib/utils'
 
 import type { PageRange } from '#/components/lattice/material-viewer'
@@ -45,6 +51,13 @@ const VIEWS: Array<[View, string]> = [
   ['reader', 'Reader'],
   ['ask', 'Ask'],
 ]
+
+// The reader and Ask columns share a draggable divider on lg+; Ask's share of that pair
+// defaults small, matching its old fixed width, but can be pulled up to more than half so
+// a long chat can take over, and never below what a chat panel needs to stay usable.
+const DEFAULT_ASK_SPLIT = 25
+const MIN_ASK_SPLIT = 20
+const MAX_ASK_SPLIT = 65
 
 function tabSearch(tab: TabKey) {
   const parsed = parseTab(tab)
@@ -78,6 +91,24 @@ export function CourseWorkspace({
   // Below lg one column shows at a time. The columns never change with what is open,
   // so opening a tab leaves the sidebar and Ask where they are.
   const [view, setView] = useState<View>(requested ? 'reader' : 'course')
+  // On lg+ the sidebar can be closed so the reader takes the space instead; the choice
+  // sticks per course and user, the same way the tab layout does.
+  const [sidebarStored, setSidebarStored] = useStored(
+    `lattice.sidebar.${course}.${user}`,
+    'open',
+  )
+  const sidebarOpen = sidebarStored !== 'closed'
+  // The reader/Ask divider's position, also stuck per course and user; the Panels'
+  // own minSize is what actually keeps either side usable, this just guards against a
+  // stale or hand-edited value putting the divider somewhere no longer valid.
+  const [askSplitStored, setAskSplitStored] = useStored(
+    `lattice.ask-split.${course}.${user}`,
+    '',
+  )
+  const askSplit = Math.min(
+    Math.max(Number(askSplitStored) || DEFAULT_ASK_SPLIT, MIN_ASK_SPLIT),
+    MAX_ASK_SPLIT,
+  )
 
   const show = useCallback(
     (tab: TabKey | null, replace = false) =>
@@ -210,16 +241,30 @@ export function CourseWorkspace({
         ))}
       </nav>
       <aside
-        className={`${pane('course')} min-h-0 flex-1 flex-col bg-sidebar lg:flex lg:w-64 lg:flex-none lg:border-r lg:border-border xl:w-72`}
+        className={cn(
+          pane('course'),
+          'min-h-0 flex-1 flex-col bg-sidebar lg:border-r lg:border-border',
+          sidebarOpen ? 'lg:flex lg:w-64 lg:flex-none xl:w-72' : 'lg:hidden',
+        )}
       >
         <div className="space-y-5 border-b border-border px-5 py-5">
-          <Link
-            to="/"
-            className="fieldnotes-action inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            Home
-          </Link>
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              to="/"
+              className="fieldnotes-action inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+              Home
+            </Link>
+            <button
+              type="button"
+              aria-label="Collapse sidebar"
+              onClick={() => setSidebarStored('closed')}
+              className="hidden min-h-11 min-w-11 items-center justify-center text-muted-foreground hover:text-foreground lg:flex"
+            >
+              <HugeiconsIcon icon={ChevronFirstIcon} className="size-4" />
+            </button>
+          </div>
           <div>
             <p className="fieldnotes-kicker mb-2 text-muted-foreground">
               Course workspace
@@ -237,70 +282,105 @@ export function CourseWorkspace({
           <NotesPanel course={course} user={user} />
         </div>
       </aside>
-      <main className={`${pane('reader')} min-h-0 min-w-0 flex-1 lg:flex`}>
-        {layout.groups[0].tabs.length === 0 ? (
-          materials.data?.length === 0 ? (
-            <FirstUpload
-              course={course}
-              user={user}
-              onUploaded={(filename) => show(materialTab(filename))}
-            />
-          ) : (
-            <div className="fieldnotes-canvas flex flex-1 items-center justify-center p-8">
-              <div className="max-w-sm border-l-2 border-primary pl-6">
-                <p className="fieldnotes-kicker mb-4 text-muted-foreground">
-                  Room to think
-                </p>
-                <h1 className="font-editorial text-4xl leading-tight tracking-tight">
-                  Start with a little reading.
-                </h1>
-                <p className="mt-4 text-sm leading-7 text-muted-foreground">
-                  Open a Material or Note from the sidebar to read it here.
-                </p>
-              </div>
-            </div>
-          )
-        ) : (
-          <EditorArea
-            layout={layout}
-            label={label}
-            onMove={(tab, to, index) =>
-              follow(updateTabs((l) => moveTab(l, tab, to, index)))
-            }
-            onResize={(split) => updateTabs((l) => resizeSplit(l, split))}
-            onFocusGroup={(i) => {
-              const active = layout.groups[i]?.active
-              if (i !== layout.focused && active) show(active)
-            }}
-          >
-            {(group, i) => (
-              <TabGroupView
-                index={i}
-                user={user}
-                course={course}
-                group={group}
-                loaded={loaded}
-                focused={i === layout.focused}
-                request={{ tab: requested, page, pageEnd, jump }}
-                label={label}
-                dirty={dirty}
-                onSelect={(tab) => show(tab)}
-                onClose={close}
-                onNudge={(tab, step) =>
-                  follow(updateTabs((l) => nudgeTab(l, tab, step)))
-                }
-                onDirtyChange={onDirtyChange}
-                onSaved={onSaved}
-              />
-            )}
-          </EditorArea>
-        )}
-      </main>
-      <div
-        className={`${pane('ask')} min-h-0 min-w-0 flex-1 flex-col bg-card lg:flex lg:w-80 lg:flex-none lg:border-l lg:border-border xl:w-96`}
+      {!sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Expand sidebar"
+          onClick={() => setSidebarStored('open')}
+          className="hidden min-h-11 w-18 shrink-0 items-center justify-center border-r border-border bg-sidebar text-muted-foreground hover:text-foreground lg:flex"
+        >
+          <HugeiconsIcon icon={ChevronLastIcon} className="size-5" />
+        </button>
+      )}
+      <Group
+        id="workspace-columns"
+        orientation="horizontal"
+        defaultLayout={{ reader: 100 - askSplit, ask: askSplit }}
+        onLayoutChanged={(sizes, meta) => {
+          if (meta.isUserInteraction && 'ask' in sizes) {
+            setAskSplitStored(String(sizes.ask))
+          }
+        }}
+        className="min-h-0 min-w-0 flex-1"
       >
-        <AskPanel course={course} user={user} front={front} />
-      </div>
+        <Panel
+          id="reader"
+          minSize={420}
+          className={cn(pane('reader'), 'h-full min-h-0 min-w-0 lg:flex')}
+        >
+          <main className="flex h-full min-h-0 min-w-0 flex-1">
+            {layout.groups[0].tabs.length === 0 ? (
+              materials.data?.length === 0 ? (
+                <FirstUpload
+                  course={course}
+                  user={user}
+                  onUploaded={(filename) => show(materialTab(filename))}
+                />
+              ) : (
+                <div className="fieldnotes-canvas flex flex-1 items-center justify-center p-8">
+                  <div className="max-w-sm border-l-2 border-primary pl-6">
+                    <p className="fieldnotes-kicker mb-4 text-muted-foreground">
+                      Room to think
+                    </p>
+                    <h1 className="font-editorial text-4xl leading-tight tracking-tight">
+                      Start with a little reading.
+                    </h1>
+                    <p className="mt-4 text-sm leading-7 text-muted-foreground">
+                      Open a Material or Note from the sidebar to read it here.
+                    </p>
+                  </div>
+                </div>
+              )
+            ) : (
+              <EditorArea
+                layout={layout}
+                label={label}
+                onMove={(tab, to, index) =>
+                  follow(updateTabs((l) => moveTab(l, tab, to, index)))
+                }
+                onResize={(split) => updateTabs((l) => resizeSplit(l, split))}
+                onFocusGroup={(i) => {
+                  const active = layout.groups[i]?.active
+                  if (i !== layout.focused && active) show(active)
+                }}
+              >
+                {(group, i) => (
+                  <TabGroupView
+                    index={i}
+                    user={user}
+                    course={course}
+                    group={group}
+                    loaded={loaded}
+                    focused={i === layout.focused}
+                    request={{ tab: requested, page, pageEnd, jump }}
+                    label={label}
+                    dirty={dirty}
+                    onSelect={(tab) => show(tab)}
+                    onClose={close}
+                    onNudge={(tab, step) =>
+                      follow(updateTabs((l) => nudgeTab(l, tab, step)))
+                    }
+                    onDirtyChange={onDirtyChange}
+                    onSaved={onSaved}
+                  />
+                )}
+              </EditorArea>
+            )}
+          </main>
+        </Panel>
+        <Separator className="hidden w-1.5 shrink-0 bg-border transition-colors outline-none hover:bg-primary focus-visible:bg-primary lg:flex" />
+        <Panel
+          id="ask"
+          minSize={280}
+          maxSize="65%"
+          className={cn(
+            pane('ask'),
+            'h-full min-h-0 min-w-0 flex-col bg-card lg:flex lg:border-l lg:border-border',
+          )}
+        >
+          <AskPanel course={course} user={user} front={front} />
+        </Panel>
+      </Group>
     </div>
   )
 }
