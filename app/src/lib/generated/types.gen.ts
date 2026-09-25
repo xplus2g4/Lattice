@@ -88,6 +88,24 @@ export type AskResponse = {
 }
 
 /**
+ * BatchOut
+ */
+export type BatchOut = {
+  /**
+   * Index
+   */
+  index: number
+  /**
+   * Page End
+   */
+  page_end: number
+  /**
+   * Page Start
+   */
+  page_start: number
+}
+
+/**
  * Body_upload_material_materials_upload_post
  */
 export type BodyUploadMaterialMaterialsUploadPost = {
@@ -312,6 +330,20 @@ export type Evidence = {
 }
 
 /**
+ * ExtendGrill
+ */
+export type ExtendGrill = {
+  /**
+   * Batch
+   */
+  batch: number
+  /**
+   * Quiz
+   */
+  quiz: string
+}
+
+/**
  * Finding
  */
 export type Finding = {
@@ -341,6 +373,72 @@ export type Finding = {
    * Verdict
    */
   verdict: 'supported' | 'contradicted' | 'insufficient_evidence'
+}
+
+/**
+ * GenerateGrill
+ */
+export type GenerateGrill = {
+  /**
+   * Course
+   */
+  course: string
+  /**
+   * Material
+   */
+  material: string
+}
+
+/**
+ * GivenAnswer
+ */
+export type GivenAnswer = {
+  /**
+   * Answer Text
+   */
+  answer_text: string
+  /**
+   * Question
+   */
+  question: string
+}
+
+/**
+ * GradeGrill
+ */
+export type GradeGrill = {
+  /**
+   * Answers
+   */
+  answers: Array<GivenAnswer>
+  /**
+   * Quiz
+   */
+  quiz: string
+}
+
+/**
+ * GradedQuizOut
+ */
+export type GradedQuizOut = {
+  quiz: QuizOut
+  /**
+   * Remark
+   */
+  remark: string
+}
+
+/**
+ * GrillPlanOut
+ *
+ * A Grill just planned: the Quiz without questions, and the batches to ask for.
+ */
+export type GrillPlanOut = {
+  /**
+   * Batches
+   */
+  batches: Array<BatchOut>
+  quiz: QuizOut
 }
 
 /**
@@ -2747,6 +2845,82 @@ export type DeleteQuizQuizzesDeletePostResponses = {
 export type DeleteQuizQuizzesDeletePostResponse =
   DeleteQuizQuizzesDeletePostResponses[keyof DeleteQuizQuizzesDeletePostResponses]
 
+export type ExtendQuizQuizzesExtendPostData = {
+  body: ExtendGrill
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.extend'
+}
+
+export type ExtendQuizQuizzesExtendPostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type ExtendQuizQuizzesExtendPostError =
+  ExtendQuizQuizzesExtendPostErrors[keyof ExtendQuizQuizzesExtendPostErrors]
+
+export type ExtendQuizQuizzesExtendPostResponses = {
+  /**
+   * Response Extend Quiz Quizzes Extend Post
+   *
+   * Successful Response
+   */
+  200: Array<QuizQuestionOut>
+}
+
+export type ExtendQuizQuizzesExtendPostResponse =
+  ExtendQuizQuizzesExtendPostResponses[keyof ExtendQuizQuizzesExtendPostResponses]
+
+export type GenerateQuizQuizzesGeneratePostData = {
+  body: GenerateGrill
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.generate'
+}
+
+export type GenerateQuizQuizzesGeneratePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GenerateQuizQuizzesGeneratePostError =
+  GenerateQuizQuizzesGeneratePostErrors[keyof GenerateQuizQuizzesGeneratePostErrors]
+
+export type GenerateQuizQuizzesGeneratePostResponses = {
+  /**
+   * Successful Response
+   */
+  201: GrillPlanOut
+}
+
+export type GenerateQuizQuizzesGeneratePostResponse =
+  GenerateQuizQuizzesGeneratePostResponses[keyof GenerateQuizQuizzesGeneratePostResponses]
+
 export type GetQuizQuizzesGetGetData = {
   body?: never
   headers?: {
@@ -2788,6 +2962,43 @@ export type GetQuizQuizzesGetGetResponses = {
 
 export type GetQuizQuizzesGetGetResponse =
   GetQuizQuizzesGetGetResponses[keyof GetQuizQuizzesGetGetResponses]
+
+export type GradeQuizQuizzesGradePostData = {
+  body: GradeGrill
+  headers?: {
+    /**
+     * X-User
+     */
+    'x-user'?: string | null
+    /**
+     * Authorization
+     */
+    authorization?: string | null
+  }
+  path?: never
+  query?: never
+  url: '/quizzes.grade'
+}
+
+export type GradeQuizQuizzesGradePostErrors = {
+  /**
+   * Validation Error
+   */
+  422: HttpValidationError
+}
+
+export type GradeQuizQuizzesGradePostError =
+  GradeQuizQuizzesGradePostErrors[keyof GradeQuizQuizzesGradePostErrors]
+
+export type GradeQuizQuizzesGradePostResponses = {
+  /**
+   * Successful Response
+   */
+  200: GradedQuizOut
+}
+
+export type GradeQuizQuizzesGradePostResponse =
+  GradeQuizQuizzesGradePostResponses[keyof GradeQuizQuizzesGradePostResponses]
 
 export type ListQuizzesQuizzesListGetData = {
   body?: never

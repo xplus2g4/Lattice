@@ -1,7 +1,7 @@
 """Quiz records (#44) and the per-Topic counts weighting feeds on (#49).
 
-Generation and grading are the caller's business: a Quiz arrives already written, and an answer
-arrives already marked. This module only remembers them.
+Writing and grading live in `quizzes.py`; this module only remembers. `quizzes.create` still
+takes a Quiz already written, for callers that bring their own questions.
 """
 
 from typing import Any, Literal
@@ -12,7 +12,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from lattice.api.deps import COURSE_CODE, CurrentUser, SessionDep
-from lattice.api.schemas import QuizAnswerOut, QuizOut, TopicStat
+from lattice.api.schemas import QuizAnswerOut, QuizOut, TopicStat, quiz_out
 from lattice.db.models import Course, Quiz, QuizQuestion, User
 from lattice.db.repo import courses, materials, quizzes
 
@@ -105,7 +105,7 @@ async def create_quiz(body: NewQuiz, user: CurrentUser, session: SessionDep) -> 
         scope=body.scope,
         questions=[question.model_dump() for question in body.questions],
     )
-    return QuizOut.model_validate(quiz)
+    return quiz_out(quiz)
 
 
 @router.get("/quizzes.list")
@@ -121,12 +121,12 @@ async def list_quizzes(
     found = await quizzes.for_course(
         session, user=user, course=row, kind=kind, status=status, topic_id=topic_id
     )
-    return [QuizOut.model_validate(quiz) for quiz in found]
+    return [quiz_out(quiz) for quiz in found]
 
 
 @router.get("/quizzes.get")
 async def get_quiz(quiz: UUID, user: CurrentUser, session: SessionDep) -> QuizOut:
-    return QuizOut.model_validate(await _own_quiz(session, user, quiz))
+    return quiz_out(await _own_quiz(session, user, quiz))
 
 
 @router.post("/quizzes.submit")
@@ -134,9 +134,7 @@ async def submit_quiz(body: SubmitQuiz, user: CurrentUser, session: SessionDep) 
     quiz = await _own_quiz(session, user, body.quiz)
     if quiz.status != "open":
         raise HTTPException(409, f"quiz already {quiz.status}")
-    return QuizOut.model_validate(
-        await quizzes.close(session, quiz, status="submitted", score=body.score)
-    )
+    return quiz_out(await quizzes.close(session, quiz, status="submitted", score=body.score))
 
 
 @router.post("/quizzes.abandon")
@@ -144,7 +142,7 @@ async def abandon_quiz(body: QuizRef, user: CurrentUser, session: SessionDep) ->
     quiz = await _own_quiz(session, user, body.quiz)
     if quiz.status != "open":
         raise HTTPException(409, f"quiz already {quiz.status}")
-    return QuizOut.model_validate(await quizzes.close(session, quiz, status="abandoned"))
+    return quiz_out(await quizzes.close(session, quiz, status="abandoned"))
 
 
 @router.post("/quizzes.delete")

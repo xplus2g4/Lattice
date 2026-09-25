@@ -1,6 +1,8 @@
 import type {
   AskResponse,
   Citation,
+  Grill,
+  GrillQuestion,
   Material,
   Note,
   Session,
@@ -15,9 +17,12 @@ import type {
 const AT = '2026-01-01T00:00:00.000Z'
 
 export function material(over: Partial<Material> = {}): Material {
+  const filename = over.filename ?? 'week1.pdf'
   return {
+    // Distinct per filename, so two fixtures in one course never share a key.
+    id: `m-${filename}`,
     course: 'cs101',
-    filename: 'week1.pdf',
+    filename,
     sha256: 'a'.repeat(64),
     status: 'ready',
     error: null,
@@ -113,3 +118,56 @@ export function session(over: Partial<Session> = {}): Session {
 export function askResponse(over: Partial<AskResponse> = {}): AskResponse {
   return { session_id: 'sess-1', turn: assistantTurn(), ...over }
 }
+
+export function grillQuestion(
+  over: Partial<GrillQuestion> = {},
+): GrillQuestion {
+  return {
+    id: 'q1',
+    position: 0,
+    kind: 'mcq',
+    prompt: 'What resolves a collision?',
+    options: ['Chaining', 'Sorting', 'Hashing twice', 'Deleting'],
+    page: 3,
+    key: {
+      answer: 'Chaining',
+      explanation: 'Chaining keeps colliding keys in one bucket.',
+    },
+    given: null,
+    ...over,
+  }
+}
+
+/** What the mock server will write, batch by batch: positions 0-99 belong to batch 0,
+ * 100-199 to batch 1. The key is present here; the handler withholds it on the wire while
+ * the Grill is open, as the server does, and grades against it on submit. */
+export function grill(over: Partial<Grill> = {}): Grill {
+  return {
+    id: 'grill-1',
+    status: 'open',
+    material_id: 'm-week1.pdf',
+    page_start: 1,
+    page_end: 24,
+    topic_label: 'week1.pdf',
+    score: null,
+    questions: [
+      grillQuestion(),
+      grillQuestion({
+        id: 'q2',
+        position: 100,
+        kind: 'short_answer',
+        prompt: 'Define a hash collision.',
+        options: null,
+        page: 14,
+        key: { answer: 'Two keys hash to the same bucket.', explanation: null },
+      }),
+    ],
+    ...over,
+  }
+}
+
+/** The plan the mock server hands out for any Material: two batches of twelve pages. */
+export const GRILL_BATCHES = [
+  { index: 0, page_start: 1, page_end: 12 },
+  { index: 1, page_start: 13, page_end: 24 },
+]

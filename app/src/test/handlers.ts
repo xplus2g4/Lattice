@@ -1,16 +1,33 @@
 import { HttpResponse, delay, http } from 'msw'
 
-import type { Material, Note, Session, Turn } from '#/lib/api'
+import type {
+  Grill,
+  GrillResult,
+  Material,
+  Note,
+  Session,
+  Turn,
+} from '#/lib/api'
 import type {
   CourseOut,
+  GradedQuizOut,
+  GrillPlanOut,
   MaterialOut,
   NoteOut,
   NoteUploadOut,
+  QuizOut,
+  QuizQuestionOut,
   SessionOut,
   TurnOut,
   UploadOut,
 } from '#/lib/generated'
-import { assistantTurn, session, userTurn } from './fixtures'
+import {
+  GRILL_BATCHES,
+  assistantTurn,
+  grill,
+  session,
+  userTurn,
+} from './fixtures'
 
 // Mocking happens at the HTTP boundary, never at `src/lib/api.ts`: the transport, the
 // `Authorization` header and the error flattening are behaviour under test, not scaffolding.
@@ -22,11 +39,25 @@ export interface Store {
   notes: Array<Note>
   // Partial, because a lookup by id can miss and the 404 path depends on saying so.
   sessions: Partial<Record<string, Session>>
+  // `written` is the batches `quizzes.extend` has served; only their questions are on
+  // the wire, the rest wait in the fixture the way unwritten batches wait on the server.
+  grills: Partial<
+    Record<string, { grill: Grill; course: string; written: Array<number> }>
+  >
 }
-export const store: Store = { materials: [], notes: [], sessions: {} }
+export const store: Store = {
+  materials: [],
+  notes: [],
+  sessions: {},
+  grills: {},
+}
 let nextAnswer: Turn | null = null
 let nextAnswerAfterMs = 0
 let nextNote = 1
+let nextGrill: Grill | null = null
+let nextGraded: GrillResult | null = null
+let batchDelays: Partial<Record<number, number>> = {}
+let batchFailures: Partial<Record<number, number>> = {}
 
 /** Shape the next answer without replacing the handler, which would skip the session
  * bookkeeping the client depends on and leave `/ask` returning an id nothing can read.
@@ -35,13 +66,34 @@ export function answerNextAskWith(turn: Turn, { after = 0 } = {}) {
   nextAnswer = turn
   nextAnswerAfterMs = after
 }
+/** The Grill the next `quizzes.generate` writes, in place of the fixture. */
+export function grillNextWith(next: Grill) {
+  nextGrill = next
+}
+/** What the next `quizzes.grade` returns, in place of grading against the fixture's key. */
+export function gradeNextGrillWith(result: GrillResult) {
+  nextGraded = result
+}
+/** Holds one batch back, so a test can look at the form while it is still being written. */
+export function holdBatch(index: number, ms: number) {
+  batchDelays[index] = ms
+}
+/** Makes the next `times` requests for one batch fail with a 502. */
+export function failBatch(index: number, times = 1) {
+  batchFailures[index] = times
+}
 export function resetStore(next: Partial<Store> = {}) {
   store.materials = next.materials ?? []
   store.notes = next.notes ?? []
   store.sessions = next.sessions ?? {}
+  store.grills = next.grills ?? {}
   nextAnswer = null
   nextAnswerAfterMs = 0
   nextNote = 1
+  nextGrill = null
+  nextGraded = null
+  batchDelays = {}
+  batchFailures = {}
 }
 function idFor(value: string): string {
   let hash = 2166136261
@@ -63,7 +115,7 @@ function courseOut(code: string): CourseOut {
 }
 function materialOut(m: Material): MaterialOut {
   return {
-    id: idFor(`${m.course}:${m.filename}`),
+    id: m.id,
     course_id: idFor(m.course),
     title: m.filename,
     filename: m.filename,
@@ -151,6 +203,107 @@ function sessionOut(s: Session): SessionOut {
     turns: s.turns.map((t) => turnOut(t, s.id)),
   }
 }
+const AT = '2026-01-01T00:00:00.000Z'
+function batchOf(q: { position: number }) {
+  return Math.floor(q.position / 100)
+}
+function questionOut(
+  g: Grill,
+  q: Grill['questions'][number],
+  withhold: boolean,
+): QuizQuestionOut {
+  return {
+    id: q.id,
+    quiz_id: g.id,
+    topic_id: null,
+    material_id: g.material_id,
+    position: q.position,
+    kind: q.kind,
+    prompt: q.prompt,
+    options_json: q.options,
+    // The server withholds the key while the Quiz is open (schemas.quiz_out).
+    expected_json:
+      withhold || !q.key
+        ? null
+        : { answer: q.key.answer, explanation: q.key.explanation },
+    citation_json: q.page === null ? null : { page: q.page },
+    answers: q.given
+      ? [
+          {
+            id: `${q.id}-a1`,
+            question_id: q.id,
+            attempt_no: 1,
+            answer_text: q.given.text,
+            correct: q.given.correct,
+            feedback_json:
+              q.given.reason === null ? null : { reason: q.given.reason },
+            created_at: AT,
+          },
+        ]
+      : [],
+  }
+}
+function quizOut(g: Grill, course: string, written: Array<number>): QuizOut {
+  return {
+    id: g.id,
+    course_id: idFor(course),
+    kind: 'grill',
+    scope_json: {
+      material_id: g.material_id,
+      page_start: g.page_start,
+      page_end: g.page_end,
+      topic_label: g.topic_label,
+    },
+    status: g.status,
+    score: g.score,
+    created_at: AT,
+    submitted_at: g.status === 'open' ? null : AT,
+    questions: g.questions
+      .filter((q) => written.includes(batchOf(q)))
+      .sort((a, b) => a.position - b.position)
+      .map((q) => questionOut(g, q, g.status === 'open')),
+  }
+}
+/** Grades the way the server does in spirit: an mcq by comparison, a short answer by
+ * whether it mentions the model answer's key word, so a test can steer the verdict. */
+function gradeAgainstKey(
+  g: Grill,
+  answers: Array<{ question: string; answer_text: string }>,
+): GrillResult {
+  const given = new Map(answers.map((a) => [a.question, a.answer_text]))
+  const questions = g.questions.map((q) => {
+    const text = given.get(q.id) ?? ''
+    const correct =
+      q.kind === 'mcq'
+        ? text.trim().toLowerCase() === q.key?.answer.toLowerCase()
+        : /bucket/i.test(text)
+    return {
+      ...q,
+      given: {
+        text,
+        correct,
+        reason: correct
+          ? 'Correct.'
+          : q.kind === 'mcq'
+            ? `The correct option is: ${q.key?.answer}`
+            : 'A collision is about two keys sharing a bucket.',
+      },
+    }
+  })
+  const right = questions.filter((q) => q.given.correct).length
+  return {
+    grill: {
+      ...g,
+      status: 'submitted',
+      score: right / questions.length,
+      questions,
+    },
+    remark:
+      right === questions.length
+        ? ''
+        : 'Re-read p. 3 on hash collisions before moving on.',
+  }
+}
 function scope(request: Request) {
   return new URL(request.url).searchParams.get('course') ?? ''
 }
@@ -189,6 +342,7 @@ export const handlers = [
     const course = /name="course"\r?\n\r?\n([^\r\n]+)/.exec(body)?.[1] ?? ''
     const at = new Date().toISOString()
     const created: Material = {
+      id: idFor(`${course}:${filename}`),
       course,
       filename: filename || 'unknown',
       sha256: '0'.repeat(64),
@@ -322,6 +476,93 @@ export const handlers = [
       session: current.id,
       turn: turnOut(answered, current.id),
     })
+  }),
+  http.post('*/quizzes.generate', async ({ request }) => {
+    const body = (await request.json()) as { course: string; material: string }
+    const planned: Grill = {
+      ...(nextGrill ?? grill()),
+      material_id: body.material,
+      page_start: 1,
+      page_end: GRILL_BATCHES.at(-1)?.page_end ?? 1,
+    }
+    nextGrill = null
+    store.grills[planned.id] = {
+      grill: planned,
+      course: body.course,
+      written: [],
+    }
+    const out: GrillPlanOut = {
+      quiz: quizOut(planned, body.course, []),
+      batches: GRILL_BATCHES,
+    }
+    return HttpResponse.json(out, { status: 201 })
+  }),
+  http.post('*/quizzes.extend', async ({ request }) => {
+    const body = (await request.json()) as { quiz: string; batch: number }
+    const found = store.grills[body.quiz]
+    if (!found)
+      return HttpResponse.json({ detail: 'no such quiz' }, { status: 404 })
+    if (found.grill.status !== 'open')
+      return HttpResponse.json(
+        { detail: `quiz already ${found.grill.status}` },
+        { status: 409 },
+      )
+    const wait = batchDelays[body.batch] ?? 0
+    if (wait > 0) await delay(wait)
+    const failures = batchFailures[body.batch] ?? 0
+    if (failures > 0) {
+      batchFailures[body.batch] = failures - 1
+      return HttpResponse.json(
+        { detail: 'Questions could not be written; please retry' },
+        { status: 502 },
+      )
+    }
+    if (!found.written.includes(body.batch)) found.written.push(body.batch)
+    const rows: Array<QuizQuestionOut> = found.grill.questions
+      .filter((q) => batchOf(q) === body.batch)
+      .map((q) => questionOut(found.grill, q, true))
+    return HttpResponse.json(rows)
+  }),
+  http.post('*/quizzes.grade', async ({ request }) => {
+    const body = (await request.json()) as {
+      quiz: string
+      answers: Array<{ question: string; answer_text: string }>
+    }
+    const found = store.grills[body.quiz]
+    if (!found)
+      return HttpResponse.json({ detail: 'no such quiz' }, { status: 404 })
+    if (found.grill.status !== 'open')
+      return HttpResponse.json(
+        { detail: `quiz already ${found.grill.status}` },
+        { status: 409 },
+      )
+    const asked: Grill = {
+      ...found.grill,
+      questions: found.grill.questions.filter((q) =>
+        found.written.includes(batchOf(q)),
+      ),
+    }
+    const result = nextGraded ?? gradeAgainstKey(asked, body.answers)
+    nextGraded = null
+    store.grills[body.quiz] = {
+      grill: result.grill,
+      course: found.course,
+      written: found.written,
+    }
+    const out: GradedQuizOut = {
+      quiz: quizOut(result.grill, found.course, found.written),
+      remark: result.remark,
+    }
+    return HttpResponse.json(out)
+  }),
+  http.post('*/quizzes.abandon', async ({ request }) => {
+    const body = (await request.json()) as { quiz: string }
+    const found = store.grills[body.quiz]
+    if (!found)
+      return HttpResponse.json({ detail: 'no such quiz' }, { status: 404 })
+    const abandoned: Grill = { ...found.grill, status: 'abandoned' }
+    store.grills[body.quiz] = { ...found, grill: abandoned }
+    return HttpResponse.json(quizOut(abandoned, found.course, found.written))
   }),
   http.get('*/sessions.list', ({ request }) =>
     HttpResponse.json(
