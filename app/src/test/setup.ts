@@ -54,7 +54,10 @@ vi.mock('@tanstack/react-devtools', () => ({
 // unit run there is no Nitro server behind the server functions, so the session is
 // stubbed to one fixed user and the API mocks see Bearer test-token instead.
 vi.mock('#/lib/auth', () => ({
-  getSessionUser: async () => ({ sub: 'g|alice', email: 'alice@example.com' }),
+  getSessionUser: vi.fn(async () => ({
+    sub: 'g|alice',
+    email: 'alice@example.com',
+  })),
   getApiToken: async () => ({
     token: 'test-token',
     expiresAt: Math.floor(Date.now() / 1000) + 3600,
