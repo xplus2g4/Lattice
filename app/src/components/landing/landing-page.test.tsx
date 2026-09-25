@@ -55,6 +55,16 @@ describe('landing page', () => {
         screen.getByRole('tablist', { name: 'Explore Lattice features' }),
       ).toHaveClass('flex-col', 'min-w-0', 'w-full')
       expect(ask).toHaveClass('w-full', 'min-w-0', 'whitespace-normal')
+      const panels = screen.getAllByRole('tabpanel', { hidden: true })
+      expect(panels).toHaveLength(3)
+      for (const panel of panels) {
+        expect(panel).not.toHaveAttribute('hidden')
+        if (panel.getAttribute('data-state') === 'inactive') {
+          expect(panel).toHaveAttribute('aria-hidden', 'true')
+          expect(panel).toHaveAttribute('inert')
+          expect(panel).toHaveStyle({ visibility: 'hidden' })
+        }
+      }
       expect(
         screen.getByRole('figure', {
           name: 'Course workspace illustration',
