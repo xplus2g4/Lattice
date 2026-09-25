@@ -43,20 +43,18 @@ describe('landing page', () => {
       expect(router.state.location.pathname).toBe('/login')
     })
 
-    it('lets students explore clearly labelled screenshot placeholders', async () => {
+    it('lets students explore labelled product illustrations with the keyboard', async () => {
       const user = userEvent.setup()
       renderRoute('/')
       const ask = await screen.findByRole('tab', { name: 'Ask with Citations' })
       expect(ask).toHaveAttribute('aria-selected', 'true')
       expect(
         screen.getByRole('figure', {
-          name: 'Course workspace screenshot placeholder',
+          name: 'Course workspace illustration',
         }),
       ).toBeVisible()
       expect(
-        within(screen.getByRole('tabpanel')).getByText(
-          'Screenshot placeholder',
-        ),
+        within(screen.getByRole('tabpanel')).getByText('Illustrative UI'),
       ).toBeVisible()
 
       await user.click(screen.getByRole('tab', { name: 'Private Notes' }))
@@ -65,7 +63,7 @@ describe('landing page', () => {
       ).toBeVisible()
       expect(
         screen.getByRole('figure', {
-          name: 'Private Notes screenshot placeholder',
+          name: 'Private Notes illustration',
         }),
       ).toBeVisible()
 
@@ -73,7 +71,7 @@ describe('landing page', () => {
       expect(screen.getByRole('tab', { name: 'Grill me' })).toHaveFocus()
       expect(screen.getByRole('tabpanel', { name: 'Grill me' })).toBeVisible()
       expect(
-        screen.getByRole('figure', { name: 'Grill me screenshot placeholder' }),
+        screen.getByRole('figure', { name: 'Grill me illustration' }),
       ).toBeVisible()
     })
 
@@ -98,6 +96,36 @@ describe('landing page', () => {
         screen.getByText(/Your Invite lets you create an account/),
       ).toBeVisible()
       expect(screen.queryByText(/exact Page/)).not.toBeInTheDocument()
+    })
+
+    it('markets Pop quiz as in development, with a static concept preview', async () => {
+      renderRoute('/')
+      const popQuiz = await screen.findByRole('article', { name: 'Pop quiz' })
+      expect(within(popQuiz).getByText('In development')).toBeVisible()
+      expect(
+        within(popQuiz).getByText('Small check-ins. A clearer next step.'),
+      ).toBeVisible()
+      expect(within(popQuiz).getByText(/at learning intervals/)).toBeVisible()
+      expect(within(popQuiz).getByText(/suggest what to revise/)).toBeVisible()
+      expect(within(popQuiz).getByText(/not yet available/)).toBeVisible()
+      const preview = within(popQuiz).getByRole('figure', {
+        name: 'Pop quiz illustration',
+      })
+      expect(within(preview).getByText('Concept preview')).toBeVisible()
+      expect(within(preview).getByText('Suggested revision')).toBeVisible()
+      expect(within(preview).getByText(/Cache misses/)).toBeVisible()
+      expect(
+        screen.queryByRole('tab', { name: 'Pop quiz' }),
+      ).not.toBeInTheDocument()
+      for (const illustration of screen.getAllByRole('figure')) {
+        expect(
+          within(illustration).queryByRole('button'),
+        ).not.toBeInTheDocument()
+        expect(within(illustration).queryByRole('link')).not.toBeInTheDocument()
+      }
+      expect(
+        screen.queryByText('Screenshot placeholder'),
+      ).not.toBeInTheDocument()
     })
 
     it('still sends any other signed-in page to the login', async () => {

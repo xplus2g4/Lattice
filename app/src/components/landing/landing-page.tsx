@@ -6,6 +6,7 @@ import {
   StickyNote01Icon,
 } from '@hugeicons/core-free-icons'
 
+import { ProductIllustration } from './product-illustration'
 import { LoginGrid } from '#/components/lattice/login-grid'
 import { LogoMark } from '#/components/lattice/top-bar'
 import { Button } from '#/components/ui/button'
@@ -55,7 +56,7 @@ const FEATURES = [
     title: 'An explanation you can follow back.',
     body: 'Ask about what you are studying, with your course Materials open beside the answer. Follow its Citations to read the supporting Material for yourself.',
     detail: 'Less switching between tabs. More time making sense of the idea.',
-    screenshot: 'Ask and Citations',
+    illustration: 'Ask and Citations',
     caption: 'An answer beside a Material, with its Citations visible.',
   },
   {
@@ -66,7 +67,7 @@ const FEATURES = [
     body: 'Write a Note or add a PDF of your own notes. Keep your thinking beside the course Materials, and let Lattice draw on it when answering your questions.',
     detail:
       'Materials are shared with enrolled students. Your Notes are private to you.',
-    screenshot: 'Private Notes',
+    illustration: 'Private Notes',
     caption: 'A private Note open beside the Material it helps explain.',
   },
   {
@@ -76,10 +77,10 @@ const FEATURES = [
     title: 'Go from “that makes sense” to “I can explain it.”',
     body: 'Choose a Material and practise with questions grounded in it. Submit your answers, read the feedback and return to the ideas that need another look.',
     detail: 'A chance to check your understanding, not just reread the answer.',
-    screenshot: 'Grill me',
+    illustration: 'Grill me',
     caption: 'A practice question and the feedback after submitting an answer.',
   },
-]
+] as const
 
 const STEPS = [
   [
@@ -129,66 +130,6 @@ function InviteAction({ onDark = false }: { onDark?: boolean }) {
         Use your Invite
       </Link>
     </Button>
-  )
-}
-
-function ScreenshotPlaceholder({
-  title,
-  caption,
-}: {
-  title: string
-  caption: string
-}) {
-  return (
-    <figure
-      aria-label={`${title} screenshot placeholder`}
-      className="min-w-0 overflow-hidden rounded-sm border border-border bg-card text-card-foreground shadow-lattice"
-    >
-      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
-        <span className="flex items-center gap-2 text-xs font-medium">
-          <LogoMark />
-          {title}
-        </span>
-        <span className="fieldnotes-kicker shrink-0 text-muted-foreground">
-          Preview space
-        </span>
-      </div>
-      <div className="relative isolate flex aspect-[4/3] min-h-64 items-center justify-center p-5 sm:aspect-[16/10]">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-4 -z-10 grid grid-cols-[1fr_2.5fr_1.5fr] gap-3 opacity-50"
-        >
-          <div className="space-y-4 border-r border-border p-3">
-            {[0, 1, 2, 3].map((line) => (
-              <div key={line} className="h-2 rounded-sm bg-border" />
-            ))}
-          </div>
-          <div className="space-y-3 border border-border bg-muted/50 p-5">
-            <div className="mb-6 h-3 w-2/3 bg-border" />
-            {[0, 1, 2, 3, 4].map((line) => (
-              <div key={line} className="h-2 bg-border" />
-            ))}
-            <div className="mt-6 h-16 border border-dashed border-primary-ink/40 bg-secondary/50" />
-          </div>
-          <div className="space-y-4 p-2">
-            <div className="h-12 rounded-sm bg-secondary" />
-            <div className="h-20 rounded-sm border border-border" />
-          </div>
-        </div>
-        <div className="max-w-64 border border-dashed border-primary-ink/50 bg-card/95 px-6 py-5 text-center">
-          <p className="fieldnotes-kicker text-primary-ink">
-            Screenshot placeholder
-          </p>
-          <p className="mt-2 font-editorial text-2xl">{title}</p>
-          <p className="mt-2 text-xs leading-5 text-muted-foreground">
-            Product capture to come. This is not a live preview.
-          </p>
-        </div>
-      </div>
-      <figcaption className="border-t border-border px-4 py-3 text-xs leading-5 text-muted-foreground">
-        {caption}
-      </figcaption>
-    </figure>
   )
 }
 
@@ -269,7 +210,8 @@ export function LandingPage() {
                 Private beta · Invite required
               </p>
             </div>
-            <ScreenshotPlaceholder
+            <ProductIllustration
+              kind="workspace"
               title="Course workspace"
               caption="The full picture: a Material, your question and a cited answer, side by side."
             />
@@ -353,8 +295,9 @@ export function LandingPage() {
                         {feature.detail}
                       </p>
                     </div>
-                    <ScreenshotPlaceholder
-                      title={feature.screenshot}
+                    <ProductIllustration
+                      kind={feature.id}
+                      title={feature.illustration}
                       caption={feature.caption}
                     />
                   </div>
@@ -402,43 +345,85 @@ export function LandingPage() {
           aria-labelledby="roadmap-title"
           className="scroll-mt-6 px-5 py-16 sm:px-10 lg:py-24"
         >
-          <div className="mx-auto grid max-w-[1200px] gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
-            <div>
-              <p className="fieldnotes-kicker mb-4 text-primary-ink">
-                What’s next
-              </p>
-              <h2
-                id="roadmap-title"
-                className="font-editorial text-4xl tracking-tight sm:text-5xl"
-              >
-                A little further ahead.
-              </h2>
-              <p className="mt-4 max-w-md text-base leading-7 text-muted-foreground">
-                The beta starts with reading, asking, Notes and practice. Here’s
-                a direction we’re exploring beyond that.
-              </p>
-              <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
-                A look ahead, not a release commitment. Plans can change as we
-                learn from the beta.
-              </p>
-            </div>
-            <article className="border border-dashed border-primary-ink/40 bg-card/60 p-6 sm:p-8">
-              <span className="fieldnotes-kicker inline-block border border-border px-2.5 py-1.5 text-primary-ink">
-                Exploring
-              </span>
-              <h3 className="mt-6 font-editorial text-3xl tracking-tight">
-                Related concepts
-              </h3>
-              <p className="mt-3 max-w-lg text-base leading-7 text-muted-foreground">
-                A way to discover how ideas in your course connect, so one
-                question can lead to a deeper understanding.
-              </p>
-              <p className="mt-6 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">
-                This planned experience is not available in the beta. We’re
-                evaluating its quality before making it part of your study
-                workflow.
-              </p>
+          <div className="mx-auto max-w-[1200px]">
+            <p className="fieldnotes-kicker mb-4 text-primary-ink">
+              What’s next
+            </p>
+            <h2
+              id="roadmap-title"
+              className="font-editorial text-4xl tracking-tight sm:text-5xl"
+            >
+              A little further ahead.
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+              Read, ask and practise today. Next, we’re working on helping you
+              notice what’s sticking—and what deserves another look.
+            </p>
+            <article
+              aria-labelledby="popquiz-title"
+              className="mt-10 grid items-center gap-8 rounded-sm border border-border bg-secondary/30 p-5 sm:p-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12"
+            >
+              <div>
+                <span className="fieldnotes-kicker inline-block border border-primary-ink/30 bg-card px-2.5 py-1.5 text-primary-ink">
+                  In development
+                </span>
+                <h3 id="popquiz-title" className="mt-6 text-lg font-semibold">
+                  Pop quiz
+                </h3>
+                <p className="mt-3 max-w-sm font-editorial text-3xl leading-tight tracking-tight sm:text-4xl">
+                  Small check-ins. A clearer next step.
+                </p>
+                <p className="mt-5 text-base leading-7 text-muted-foreground">
+                  It can make sense while you’re reading. But what stays with
+                  you? Pop quiz will offer short, skippable questions at
+                  learning intervals, grounded in the Topic you’ve just read.
+                </p>
+                <p className="mt-4 text-base leading-7 text-muted-foreground">
+                  These check-ins will help track your understanding and suggest
+                  what to revise, so you have a clearer idea of where to spend
+                  your next study break.
+                </p>
+                <ul className="mt-6 space-y-3 border-l-2 border-primary pl-4 text-sm leading-6">
+                  <li>Up to three questions. A pause, not a detour.</li>
+                  <li>Notice the ideas that need another look.</li>
+                  <li>Revisit with a suggestion, not a blank page.</li>
+                </ul>
+                <p className="mt-6 text-xs leading-6 text-muted-foreground">
+                  In the pipeline, not yet available. This concept preview shows
+                  the intended experience; the final design may change.
+                </p>
+              </div>
+              <ProductIllustration
+                kind="pop"
+                title="Pop quiz"
+                caption="A short check-in followed by a suggested Topic to revisit. Not a working Quiz."
+              />
             </article>
+            <article className="mt-6 grid gap-4 border border-dashed border-primary-ink/40 bg-card/60 p-6 sm:grid-cols-[1fr_1.5fr] sm:gap-8 sm:p-8">
+              <div>
+                <span className="fieldnotes-kicker text-primary-ink">
+                  Exploring
+                </span>
+                <h3 className="mt-3 font-editorial text-3xl tracking-tight">
+                  Related concepts
+                </h3>
+              </div>
+              <div>
+                <p className="text-base leading-7 text-muted-foreground">
+                  A way to discover how ideas in your course connect, so one
+                  question can lead to a deeper understanding.
+                </p>
+                <p className="mt-3 text-sm leading-6 text-muted-foreground">
+                  This planned experience is not available in the beta. We’re
+                  evaluating its quality before making it part of your study
+                  workflow.
+                </p>
+              </div>
+            </article>
+            <p className="mt-6 text-sm leading-6 text-muted-foreground">
+              A look ahead, not a release commitment. Plans can change as we
+              learn from the beta.
+            </p>
           </div>
         </section>
 
