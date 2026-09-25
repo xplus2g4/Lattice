@@ -22,9 +22,7 @@ export function material(over: Partial<Material> = {}): Material {
     // Distinct per filename, so two fixtures in one course never share a key.
     id: `m-${filename}`,
     course: 'cs101',
-    filename: 'week1.pdf',
-    title: 'week1.pdf',
-    page_count: null,
+    filename,
     sha256: 'a'.repeat(64),
     status: 'ready',
     error: null,
