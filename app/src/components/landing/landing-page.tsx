@@ -1,7 +1,6 @@
 import { Link } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
-  CloudUploadIcon,
   MessageQuestionIcon,
   Quiz01Icon,
   StickyNote01Icon,
@@ -10,6 +9,7 @@ import {
 import { LoginGrid } from '#/components/lattice/login-grid'
 import { LogoMark } from '#/components/lattice/top-bar'
 import { Button } from '#/components/ui/button'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '#/components/ui/tabs'
 
 const LOGIN = { error: undefined, invite: undefined }
 
@@ -17,9 +17,9 @@ const LOGIN = { error: undefined, invite: undefined }
 const origin = new URL(import.meta.env.VITE_SITE_URL || 'http://localhost:3000')
 const siteUrl = new URL('/', origin).href
 const imageUrl = new URL('/landing-assets/social-preview.png', origin).href
-const pageTitle = 'Lattice — Stay curious. Go a little deeper.'
+const pageTitle = 'Lattice — Understand your course. Not just the answer.'
 const description =
-  'Ask questions about your course and get answers from its own Materials and your Notes, with Citations back to the exact Page.'
+  'Read, ask and practise in one course workspace, with private Notes and Citations back to your course Materials. Join the private beta with your Invite.'
 
 /** Metadata for `/` when nobody is signed in, the one place the landing page shows. */
 export const landingHead = {
@@ -49,52 +49,146 @@ export const landingHead = {
 
 const FEATURES = [
   {
-    icon: CloudUploadIcon,
-    title: 'Bring your course Materials together.',
-    body: 'Slides, tutorials and memos for a course live in one place, shared with everyone enrolled in it.',
-  },
-  {
+    id: 'ask',
     icon: MessageQuestionIcon,
-    title: 'Ask a question. Follow the Citations.',
-    body: 'Answers come from your course’s own Materials, and every Citation points back to the Page it came from. Related concepts come alongside each answer.',
+    label: 'Ask with Citations',
+    title: 'An explanation you can follow back.',
+    body: 'Ask about what you are studying, with your course Materials open beside the answer. Follow its Citations to read the supporting Material for yourself.',
+    detail: 'Less switching between tabs. More time making sense of the idea.',
+    screenshot: 'Ask and Citations',
+    caption: 'An answer beside a Material, with its Citations visible.',
   },
   {
+    id: 'notes',
     icon: StickyNote01Icon,
-    title: 'Make space for your own Notes.',
-    body: 'Write Notes or add your own PDFs. They are private to you, and Lattice draws on them when it answers your questions.',
+    label: 'Private Notes',
+    title: 'Your course. Your own way of understanding it.',
+    body: 'Write a Note or add a PDF of your own notes. Keep your thinking beside the course Materials, and let Lattice draw on it when answering your questions.',
+    detail:
+      'Materials are shared with enrolled students. Your Notes are private to you.',
+    screenshot: 'Private Notes',
+    caption: 'A private Note open beside the Material it helps explain.',
   },
   {
+    id: 'grill',
     icon: Quiz01Icon,
-    title: 'Grill me when you are ready.',
-    body: 'Pick what to be tested on and get about ten questions grounded in your course’s Materials, with a summary of how you did on each Topic.',
+    label: 'Grill me',
+    title: 'Go from “that makes sense” to “I can explain it.”',
+    body: 'Choose a Material and practise with questions grounded in it. Submit your answers, read the feedback and return to the ideas that need another look.',
+    detail: 'A chance to check your understanding, not just reread the answer.',
+    screenshot: 'Grill me',
+    caption: 'A practice question and the feedback after submitting an answer.',
   },
 ]
 
 const STEPS = [
   [
-    'Get an Invite',
-    'Lattice is in private beta. Ask an instructor for an invite code or link.',
+    'Use your Invite',
+    'Open the Invite you received, or enter it on the sign-in page. Then continue with your Google account.',
   ],
   [
-    'Sign up',
-    'Enter your invite code, then continue with your Google account.',
+    'Find your course',
+    'Search for your course code and join it. Your Invite gives you access to Lattice; you choose your course separately.',
   ],
   [
-    'Open your course',
-    'Type your course code and start reading, asking and taking Notes.',
+    'Start with a question',
+    'Open a Material, ask about an idea and follow the Citations. Keep a Note of what clicks.',
   ],
 ]
 
-function SignUp({ onDark = false }: { onDark?: boolean }) {
+const FAQS = [
+  [
+    'Do I need an Invite?',
+    'Yes. Lattice is in private beta. Your Invite lets you create an account with Google. Already joined? Just sign in; you do not need another Invite. If you have not received one, ask your instructor about access.',
+  ],
+  [
+    'Does my Invite include a course?',
+    'No. An Invite gives you access to Lattice, not Enrolment in a particular course. After signing in, search for your course code to see whether it is available and join it.',
+  ],
+  [
+    'Who can read my Notes?',
+    'Your Notes are private to you, unlike the course Materials shared with enrolled students. Lattice can draw on your Notes to answer your questions; they are not shared with classmates.',
+  ],
+  [
+    'Can an answer be wrong?',
+    'Yes. AI-generated explanations can make mistakes. Use the Citations to check the supporting Materials. Page locations may be approximate or unavailable, so treat answers as a study aid rather than an authority.',
+  ],
+  [
+    'What if my Invite does not work?',
+    'Invites expire and can only be used once. If you already created an account, sign in with the same Google account. Otherwise, ask the person who sent your Invite for a new one.',
+  ],
+]
+
+function InviteAction({ onDark = false }: { onDark?: boolean }) {
   return (
     <Button
       asChild
       className={`h-12 rounded-sm px-6 text-base font-semibold ${onDark ? 'focus-visible:outline-[#5CD1BE]' : ''}`}
     >
       <Link to="/login" search={LOGIN}>
-        Sign up
+        Use your Invite
       </Link>
     </Button>
+  )
+}
+
+function ScreenshotPlaceholder({
+  title,
+  caption,
+}: {
+  title: string
+  caption: string
+}) {
+  return (
+    <figure
+      aria-label={`${title} screenshot placeholder`}
+      className="min-w-0 overflow-hidden rounded-sm border border-border bg-card text-card-foreground shadow-lattice"
+    >
+      <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+        <span className="flex items-center gap-2 text-xs font-medium">
+          <LogoMark />
+          {title}
+        </span>
+        <span className="fieldnotes-kicker shrink-0 text-muted-foreground">
+          Preview space
+        </span>
+      </div>
+      <div className="relative isolate flex aspect-[4/3] min-h-64 items-center justify-center p-5 sm:aspect-[16/10]">
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-4 -z-10 grid grid-cols-[1fr_2.5fr_1.5fr] gap-3 opacity-50"
+        >
+          <div className="space-y-4 border-r border-border p-3">
+            {[0, 1, 2, 3].map((line) => (
+              <div key={line} className="h-2 rounded-sm bg-border" />
+            ))}
+          </div>
+          <div className="space-y-3 border border-border bg-muted/50 p-5">
+            <div className="mb-6 h-3 w-2/3 bg-border" />
+            {[0, 1, 2, 3, 4].map((line) => (
+              <div key={line} className="h-2 bg-border" />
+            ))}
+            <div className="mt-6 h-16 border border-dashed border-primary-ink/40 bg-secondary/50" />
+          </div>
+          <div className="space-y-4 p-2">
+            <div className="h-12 rounded-sm bg-secondary" />
+            <div className="h-20 rounded-sm border border-border" />
+          </div>
+        </div>
+        <div className="max-w-64 border border-dashed border-primary-ink/50 bg-card/95 px-6 py-5 text-center">
+          <p className="fieldnotes-kicker text-primary-ink">
+            Screenshot placeholder
+          </p>
+          <p className="mt-2 font-editorial text-2xl">{title}</p>
+          <p className="mt-2 text-xs leading-5 text-muted-foreground">
+            Product capture to come. This is not a live preview.
+          </p>
+        </div>
+      </div>
+      <figcaption className="border-t border-border px-4 py-3 text-xs leading-5 text-muted-foreground">
+        {caption}
+      </figcaption>
+    </figure>
   )
 }
 
@@ -102,22 +196,28 @@ export function LandingPage() {
   return (
     <div className="fieldnotes-canvas min-h-dvh text-foreground">
       <header className="border-b border-border px-5 sm:px-10">
-        <div className="mx-auto flex min-h-20 max-w-[1200px] items-center justify-between gap-4">
+        <div className="mx-auto flex min-h-20 max-w-[1200px] flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
           <Link to="/" className="flex min-h-11 items-center gap-3">
             <LogoMark />
             <span className="text-2xl font-semibold tracking-[-0.05em]">
               Lattice<span className="text-primary-ink">.</span>
             </span>
-            <span className="fieldnotes-kicker ml-4 hidden border-l border-border pl-5 text-muted-foreground md:block">
-              For the curious mind
-            </span>
           </Link>
-          <nav className="flex items-center gap-2 sm:gap-4">
+          <nav
+            aria-label="Main navigation"
+            className="flex items-center gap-3 sm:gap-6"
+          >
             <a
               href="#how-it-works"
-              className="fieldnotes-action hidden text-sm font-medium sm:inline"
+              className="fieldnotes-action hidden py-3 text-sm font-medium sm:inline"
             >
               How it works
+            </a>
+            <a
+              href="#whats-next"
+              className="fieldnotes-action py-3 text-sm font-medium"
+            >
+              What’s next
             </a>
             <Button
               asChild
@@ -133,90 +233,140 @@ export function LandingPage() {
       </header>
 
       <main>
-        <section className="relative isolate overflow-hidden bg-[#0E2622] px-5 py-20 text-white sm:px-10 lg:py-28">
+        <section className="relative isolate overflow-hidden bg-[#0E2622] px-5 py-16 text-white sm:px-10 lg:py-24">
           <LoginGrid />
-          <div className="relative z-10 mx-auto max-w-[1200px]">
-            <p className="fieldnotes-kicker mb-7 text-[#5CD1BE]">
-              A little more understanding
-            </p>
-            <h1 className="fieldnotes-display max-w-4xl">
-              <span className="fieldnotes-reveal block">Stay curious.</span>
-              <span className="fieldnotes-reveal fieldnotes-reveal-late mt-2 block italic">
-                Go a little deeper.
-              </span>
-            </h1>
-            <p className="mt-8 max-w-xl text-lg leading-8 text-[#C9DAD6]">
-              Lattice answers questions about your course from its own Materials
-              and your Notes, with Citations back to the exact Page.
-            </p>
-            <div className="mt-10 flex flex-wrap items-center gap-6">
-              <SignUp onDark />
-              <a
-                href="#how-it-works"
-                className="group fieldnotes-action text-sm font-medium text-[#C9DAD6]"
-              >
-                See how it works <span className="fieldnotes-arrow">→</span>
-              </a>
+          <div className="relative z-10 mx-auto grid max-w-[1200px] items-center gap-12 lg:grid-cols-[1fr_1.05fr] lg:gap-14">
+            <div className="min-w-0">
+              <p className="fieldnotes-kicker mb-6 text-[#5CD1BE]">
+                Your course. A little clearer.
+              </p>
+              <h1 className="font-editorial text-[clamp(2.75rem,4.6vw,4.5rem)] leading-[1.05] tracking-[-0.045em]">
+                <span className="fieldnotes-reveal block">
+                  Understand your course.
+                </span>{' '}
+                <span className="fieldnotes-reveal fieldnotes-reveal-late mt-2 block italic text-[#C9DAD6]">
+                  Not just the answer.
+                </span>
+              </h1>
+              <p className="mt-7 max-w-xl text-lg leading-8 text-[#C9DAD6]">
+                Read your course Materials, ask questions grounded in them and
+                your private Notes, and follow Citations back to what you’re
+                studying.
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-5">
+                <InviteAction onDark />
+                <a
+                  href="#how-it-works"
+                  className="group fieldnotes-action py-3 text-sm font-medium text-[#C9DAD6]"
+                >
+                  Explore the workspace{' '}
+                  <span aria-hidden="true" className="fieldnotes-arrow">
+                    →
+                  </span>
+                </a>
+              </div>
+              <p className="fieldnotes-kicker mt-5 text-[#8FA7A2]">
+                Private beta · Invite required
+              </p>
             </div>
-            <p className="fieldnotes-kicker mt-6 text-[#8FA7A2]">
-              Private beta · Invite only
-            </p>
+            <ScreenshotPlaceholder
+              title="Course workspace"
+              caption="The full picture: a Material, your question and a cited answer, side by side."
+            />
           </div>
         </section>
 
+        <div className="border-b border-border px-5 sm:px-10">
+          <ul className="mx-auto grid max-w-[1200px] gap-4 py-6 text-sm font-medium sm:grid-cols-3 sm:gap-8">
+            {[
+              'Course Materials, together',
+              'Your Notes, kept private',
+              'Understanding, put into practice',
+            ].map((benefit, i) => (
+              <li key={benefit} className="flex items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className="font-mono text-xs text-primary-ink"
+                >
+                  0{i + 1}
+                </span>
+                {benefit}
+              </li>
+            ))}
+          </ul>
+        </div>
+
         <section
           id="how-it-works"
-          aria-labelledby="features-title"
-          className="scroll-mt-4 px-5 py-20 sm:px-10"
+          aria-labelledby="product-title"
+          className="scroll-mt-6 px-5 py-16 sm:px-10 lg:py-24"
         >
-          <div className="mx-auto grid max-w-[1200px] gap-12 lg:grid-cols-[1fr_1.4fr]">
-            <div>
-              <p className="fieldnotes-kicker mb-4 text-primary-ink">
-                What you can do
-              </p>
-              <h2
-                id="features-title"
-                className="font-editorial text-4xl leading-tight tracking-tight sm:text-5xl"
+          <div className="mx-auto max-w-[1200px]">
+            <p className="fieldnotes-kicker mb-4 text-primary-ink">
+              Inside Lattice
+            </p>
+            <h2
+              id="product-title"
+              className="font-editorial text-4xl tracking-tight sm:text-5xl"
+            >
+              One place to work it out.
+            </h2>
+            <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
+              From the first question to a little more confidence. Keep your
+              reading, thinking and practice in the same course workspace.
+            </p>
+            <Tabs defaultValue="ask" className="mt-8 gap-8">
+              <TabsList
+                aria-label="Explore Lattice features"
+                variant="line"
+                className="w-full justify-start gap-1 border-b border-border pb-2 group-data-horizontal/tabs:h-auto sm:w-fit sm:gap-6"
               >
-                One course at a time.
-              </h2>
-              <p className="mt-4 max-w-sm text-base leading-7 text-muted-foreground">
-                Everything in Lattice belongs to a single course, so answers
-                stay grounded in what you are actually being taught.
-              </p>
-            </div>
-            <ul className="border-t border-border">
-              {FEATURES.map(({ icon, title, body }, i) => (
-                <li
-                  key={title}
-                  className="grid grid-cols-[auto_1fr_auto] gap-x-5 gap-y-2 border-b border-border py-6"
-                >
-                  <span
-                    aria-hidden="true"
-                    className="pt-1 font-mono text-[11px] text-primary-ink"
+                {FEATURES.map(({ id, icon, label }) => (
+                  <TabsTrigger
+                    key={id}
+                    value={id}
+                    className="min-h-12 whitespace-normal px-2 text-xs sm:px-3 sm:text-sm"
                   >
-                    0{i + 1}
-                  </span>
-                  <div>
-                    <h3 className="text-lg font-semibold">{title}</h3>
-                    <p className="mt-1.5 text-sm leading-6 text-muted-foreground">
-                      {body}
-                    </p>
+                    <HugeiconsIcon
+                      icon={icon}
+                      aria-hidden="true"
+                      className="hidden size-4 sm:block"
+                    />
+                    {label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+              {FEATURES.map((feature, i) => (
+                <TabsContent key={feature.id} value={feature.id}>
+                  <div className="grid items-center gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+                    <div>
+                      <p className="fieldnotes-kicker mb-4 text-primary-ink">
+                        0{i + 1} / {feature.label}
+                      </p>
+                      <h3 className="max-w-md font-editorial text-3xl leading-tight tracking-tight sm:text-4xl">
+                        {feature.title}
+                      </h3>
+                      <p className="mt-5 max-w-md text-base leading-7 text-muted-foreground">
+                        {feature.body}
+                      </p>
+                      <p className="mt-6 max-w-md border-l-2 border-primary pl-4 text-sm leading-6">
+                        {feature.detail}
+                      </p>
+                    </div>
+                    <ScreenshotPlaceholder
+                      title={feature.screenshot}
+                      caption={feature.caption}
+                    />
                   </div>
-                  <HugeiconsIcon
-                    icon={icon}
-                    className="size-5 shrink-0 text-muted-foreground"
-                    strokeWidth={1.5}
-                  />
-                </li>
+                </TabsContent>
               ))}
-            </ul>
+            </Tabs>
           </div>
         </section>
 
         <section
           aria-labelledby="join-title"
-          className="border-t border-border px-5 py-20 sm:px-10"
+          className="border-y border-border bg-card/60 px-5 py-16 sm:px-10 lg:py-20"
         >
           <div className="mx-auto max-w-[1200px]">
             <p className="fieldnotes-kicker mb-4 text-primary-ink">
@@ -224,15 +374,15 @@ export function LandingPage() {
             </p>
             <h2
               id="join-title"
-              className="font-editorial text-4xl leading-tight tracking-tight sm:text-5xl"
+              className="font-editorial text-4xl tracking-tight sm:text-5xl"
             >
-              Three steps in.
+              Your Invite is the first step.
             </h2>
-            <ol className="mt-10 grid gap-6 md:grid-cols-3">
+            <ol className="mt-10 grid gap-8 md:grid-cols-3">
               {STEPS.map(([title, body], i) => (
                 <li
                   key={title}
-                  className="flex flex-col gap-2 border-l-2 border-primary pl-5"
+                  className="flex flex-col gap-3 border-l-2 border-primary pl-5"
                 >
                   <span className="fieldnotes-kicker text-muted-foreground">
                     Step 0{i + 1}
@@ -244,14 +394,115 @@ export function LandingPage() {
                 </li>
               ))}
             </ol>
-            <div className="mt-12 flex flex-wrap items-center gap-6">
-              <SignUp />
-              <p className="text-sm text-muted-foreground">
-                Already in the beta?{' '}
+          </div>
+        </section>
+
+        <section
+          id="whats-next"
+          aria-labelledby="roadmap-title"
+          className="scroll-mt-6 px-5 py-16 sm:px-10 lg:py-24"
+        >
+          <div className="mx-auto grid max-w-[1200px] gap-10 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
+            <div>
+              <p className="fieldnotes-kicker mb-4 text-primary-ink">
+                What’s next
+              </p>
+              <h2
+                id="roadmap-title"
+                className="font-editorial text-4xl tracking-tight sm:text-5xl"
+              >
+                A little further ahead.
+              </h2>
+              <p className="mt-4 max-w-md text-base leading-7 text-muted-foreground">
+                The beta starts with reading, asking, Notes and practice. Here’s
+                a direction we’re exploring beyond that.
+              </p>
+              <p className="mt-4 max-w-md text-sm leading-6 text-muted-foreground">
+                A look ahead, not a release commitment. Plans can change as we
+                learn from the beta.
+              </p>
+            </div>
+            <article className="border border-dashed border-primary-ink/40 bg-card/60 p-6 sm:p-8">
+              <span className="fieldnotes-kicker inline-block border border-border px-2.5 py-1.5 text-primary-ink">
+                Exploring
+              </span>
+              <h3 className="mt-6 font-editorial text-3xl tracking-tight">
+                Related concepts
+              </h3>
+              <p className="mt-3 max-w-lg text-base leading-7 text-muted-foreground">
+                A way to discover how ideas in your course connect, so one
+                question can lead to a deeper understanding.
+              </p>
+              <p className="mt-6 border-t border-border pt-4 text-sm leading-6 text-muted-foreground">
+                This planned experience is not available in the beta. We’re
+                evaluating its quality before making it part of your study
+                workflow.
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="faq-title"
+          className="border-t border-border px-5 py-16 sm:px-10 lg:py-20"
+        >
+          <div className="mx-auto grid max-w-[1200px] gap-8 lg:grid-cols-[1fr_1.2fr] lg:gap-16">
+            <div>
+              <p className="fieldnotes-kicker mb-4 text-primary-ink">
+                A few useful answers
+              </p>
+              <h2
+                id="faq-title"
+                className="font-editorial text-4xl tracking-tight sm:text-5xl"
+              >
+                Before you settle in.
+              </h2>
+            </div>
+            <div className="border-t border-border">
+              {FAQS.map(([question, answer]) => (
+                <details
+                  key={question}
+                  className="group border-b border-border"
+                >
+                  <summary className="cursor-pointer py-5 pr-3 text-base font-semibold marker:text-primary-ink focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
+                    {question}
+                  </summary>
+                  <p className="pb-6 pr-4 text-sm leading-7 text-muted-foreground">
+                    {answer}
+                  </p>
+                </details>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section
+          aria-labelledby="ready-title"
+          className="bg-[#0E2622] px-5 py-16 text-white sm:px-10 lg:py-20"
+        >
+          <div className="mx-auto flex max-w-[1200px] flex-col justify-between gap-8 md:flex-row md:items-center">
+            <div>
+              <p className="fieldnotes-kicker mb-4 text-[#5CD1BE]">
+                Make yourself at home
+              </p>
+              <h2
+                id="ready-title"
+                className="font-editorial text-4xl tracking-tight sm:text-5xl"
+              >
+                Stay curious. Go a little deeper.
+              </h2>
+              <p className="mt-4 text-base leading-7 text-[#C9DAD6]">
+                Have your Invite ready? Your course workspace is next.
+              </p>
+            </div>
+            <div className="shrink-0">
+              <InviteAction onDark />
+              <p className="mt-4 text-sm text-[#C9DAD6]">
+                Already joined?{' '}
                 <Link
                   to="/login"
                   search={LOGIN}
-                  className="fieldnotes-action font-medium text-foreground underline"
+                  className="fieldnotes-action inline-flex min-h-11 items-center font-semibold underline"
                 >
                   Sign in
                 </Link>
@@ -267,7 +518,15 @@ export function LandingPage() {
             <LogoMark />
             <span>Built for students. One course at a time.</span>
           </div>
-          <span className="fieldnotes-kicker">Stay curious</span>
+          <a
+            href="#whats-next"
+            className="fieldnotes-action inline-flex min-h-11 items-center"
+          >
+            Growing with the beta{' '}
+            <span aria-hidden="true" className="ml-2">
+              ↗
+            </span>
+          </a>
         </div>
       </footer>
     </div>
