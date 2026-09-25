@@ -27,7 +27,7 @@ const description =
 /** Metadata for `/` when nobody is signed in, the one place the landing page shows. */
 export const landingHead = {
   meta: [
-    { title: pageTitle },
+    { title: 'Lattice' },
     { name: 'description', content: description },
     { property: 'og:type', content: 'website' },
     { property: 'og:site_name', content: 'Lattice' },

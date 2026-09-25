@@ -156,6 +156,14 @@ describe('landing page', () => {
     })
   })
 
+  it('keeps the browser tab title short and the sharing title descriptive', () => {
+    expect(landingHead.meta).toContainEqual({ title: 'Lattice' })
+    expect(landingHead.meta).toContainEqual({
+      property: 'og:title',
+      content: 'Lattice — Understand your course. Not just the answer.',
+    })
+  })
+
   it('describes the product without promising exact Page attribution in metadata', () => {
     expect(landingHead.meta).toContainEqual({
       name: 'description',
