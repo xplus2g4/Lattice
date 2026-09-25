@@ -6,7 +6,7 @@ requires-python = ">=3.14"
 dependencies = [
     "alembic>=1.19.2",
     "asyncpg>=0.31.0",
-    "cognee==1.5.4",
+    "cognee[fastembed]==1.5.4",
     "fastapi",
     "filelock==3.32.6",
     "httpx",
