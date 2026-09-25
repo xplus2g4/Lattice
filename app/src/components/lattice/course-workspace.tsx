@@ -1,7 +1,12 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { HugeiconsIcon } from '@hugeicons/react'
-import { ArrowLeft01Icon, CloudUploadIcon } from '@hugeicons/core-free-icons'
+import {
+  ArrowLeft01Icon,
+  ChevronFirstIcon,
+  ChevronLastIcon,
+  CloudUploadIcon,
+} from '@hugeicons/core-free-icons'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Badge } from '#/components/ui/badge'
@@ -32,7 +37,7 @@ import {
   retainTabs,
   useTabLayout,
 } from '#/lib/tabs'
-import { useUser } from '#/lib/user'
+import { useStored, useUser } from '#/lib/user'
 import { cn } from '#/lib/utils'
 
 import type { PageRange } from '#/components/lattice/material-viewer'
@@ -78,6 +83,13 @@ export function CourseWorkspace({
   // Below lg one column shows at a time. The columns never change with what is open,
   // so opening a tab leaves the sidebar and Ask where they are.
   const [view, setView] = useState<View>(requested ? 'reader' : 'course')
+  // On lg+ the sidebar can be closed so the reader takes the space instead; the choice
+  // sticks per course and user, the same way the tab layout does.
+  const [sidebarStored, setSidebarStored] = useStored(
+    `lattice.sidebar.${course}.${user}`,
+    'open',
+  )
+  const sidebarOpen = sidebarStored !== 'closed'
 
   const show = useCallback(
     (tab: TabKey | null, replace = false) =>
@@ -210,16 +222,32 @@ export function CourseWorkspace({
         ))}
       </nav>
       <aside
-        className={`${pane('course')} min-h-0 flex-1 flex-col bg-sidebar lg:flex lg:w-64 lg:flex-none lg:border-r lg:border-border xl:w-72`}
+        className={cn(
+          pane('course'),
+          'min-h-0 flex-1 flex-col bg-sidebar lg:border-r lg:border-border',
+          sidebarOpen
+            ? 'lg:flex lg:w-64 lg:flex-none xl:w-72'
+            : 'lg:hidden',
+        )}
       >
         <div className="space-y-5 border-b border-border px-5 py-5">
-          <Link
-            to="/"
-            className="fieldnotes-action inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
-          >
-            <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
-            Home
-          </Link>
+          <div className="flex items-center justify-between gap-2">
+            <Link
+              to="/"
+              className="fieldnotes-action inline-flex min-h-11 items-center gap-2 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <HugeiconsIcon icon={ArrowLeft01Icon} className="size-4" />
+              Home
+            </Link>
+            <button
+              type="button"
+              aria-label="Collapse sidebar"
+              onClick={() => setSidebarStored('closed')}
+              className="hidden min-h-11 min-w-11 items-center justify-center text-muted-foreground hover:text-foreground lg:flex"
+            >
+              <HugeiconsIcon icon={ChevronFirstIcon} className="size-4" />
+            </button>
+          </div>
           <div>
             <p className="fieldnotes-kicker mb-2 text-muted-foreground">
               Course workspace
@@ -237,6 +265,16 @@ export function CourseWorkspace({
           <NotesPanel course={course} user={user} />
         </div>
       </aside>
+      {!sidebarOpen && (
+        <button
+          type="button"
+          aria-label="Expand sidebar"
+          onClick={() => setSidebarStored('open')}
+          className="hidden min-h-11 w-18 shrink-0 items-center justify-center border-r border-border bg-sidebar text-muted-foreground hover:text-foreground lg:flex"
+        >
+          <HugeiconsIcon icon={ChevronLastIcon} className="size-5" />
+        </button>
+      )}
       <main className={`${pane('reader')} min-h-0 min-w-0 flex-1 lg:flex`}>
         {layout.groups[0].tabs.length === 0 ? (
           materials.data?.length === 0 ? (
