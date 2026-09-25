@@ -4,11 +4,11 @@ Deployment shape, CI gates, backups, pins, and what happens when things fail.
 
 ## Deployment
 
-One GCE VM (`lattice`, `e2-standard-2`, Debian 12, `asia-southeast1-b`, project `jianxi-experiments`, static IP `lattice-ip`), running `docker compose -f compose.yaml -f compose.prod.yaml` from `~/lattice/server`:
+One GCE VM (`e2-standard-2`, Debian 12, a static IP; project, zone and instance name live in the ignored `.env.deploy`, see `.env.deploy.example`), running `docker compose -f compose.yaml -f compose.prod.yaml` from `~/lattice/server`:
 
 ```
-caddy      :80/:443 → lattice.xplus2g4.site → web:3000      Let's Encrypt, two hostnames
-                      api.lattice.xplus2g4.site → api:8000
+caddy      :80/:443 → $PUBLIC_HOST → web:3000      Let's Encrypt, two hostnames
+                      $API_HOST    → api:8000
 web        TanStack Start (Nitro node server), app/Dockerfile; VITE_* baked in at build
 api        FastAPI + cognee (library), server/Dockerfile   env: DATABASE_URL, LLM_*, EMBEDDING_*, COGNEE_*,
                                                                 RELATED_COURSES_K, COURSE_SUMMARY_REFRESH_S,
@@ -19,7 +19,7 @@ neo4j      intended compose profile, not built
 worker     intended second service from the api image, not built; the API runs its loops
 ```
 
-`server/compose.prod.yaml` adds `web` and `caddy` to the dev file, closes the published Postgres and API ports, and interpolates hostnames and secrets from `server/.env` (`server/.env.production.example` lists them; `PUBLIC_HOST` and `API_HOST` name the two hosts, and `CORS_ORIGINS` is derived from the first). The API keeps its root-level RPC paths on its own hostname, so the browser talks to it cross-origin with `Authorization: Bearer`. Firewall: tcp 80/443 and udp 443 from anywhere to the `lattice-web` tag; SSH only through IAP (`gcloud compute ssh lattice --tunnel-through-iap`). The `observability` profile below works there too but is off.
+`server/compose.prod.yaml` adds `web` and `caddy` to the dev file, closes the published Postgres and API ports, and interpolates hostnames and secrets from `server/.env` (`server/.env.production.example` lists them; `PUBLIC_HOST` and `API_HOST` name the two hosts, and `CORS_ORIGINS` is derived from the first). The API keeps its root-level RPC paths on its own hostname, so the browser talks to it cross-origin with `Authorization: Bearer`. Firewall: tcp 80/443 and udp 443 from anywhere to the `lattice-web` tag; SSH only through IAP (`gcloud compute ssh <vm> --tunnel-through-iap`). The `observability` profile below works there too but is off.
 
 Cognee's own config (`ENABLE_BACKEND_ACCESS_CONTROL`, storage backends, LLM/embedding providers) comes from the same env. One API process per Cognee root, so `api` never scales past one replica on this shape.
 
@@ -60,7 +60,7 @@ cd server && docker compose --profile observability up -d
 
 Prometheus (`:9090`, 15 s scrape, 30 d retention, config in `server/ops/prometheus.yml`) reads `METRICS_TOKEN` from `.env` as a compose secret and scrapes `api:8000/metrics` with it, so the one token serves both sides. Grafana (`:3001`, admin / `GRAFANA_ADMIN_PASSWORD` or `admin`) is provisioned from `server/ops/grafana/`: the Prometheus datasource and the **Lattice API** dashboard (loop staleness, ingest queue, request rate and p95 by route, ask outcomes and citations, Cognify outcomes and duration, Spend by course and model, tokens by model). Dashboards are file-provisioned and read-only in the UI; edit the JSON and restart Grafana. Each API process has its own in-memory registry, so this is one target for one process; Alertmanager is not part of the stack because the alerts below come from the API itself.
 
-On the VM the profile is on (`COMPOSE_PROFILES=observability` in `server/.env`, so `deploy.sh` needs no flag). `compose.prod.yaml` closes both host ports: Grafana is served by Caddy at `https://lattice.xplus2g4.site/grafana/` (`GF_SERVER_SERVE_FROM_SUB_PATH`, admin / `GRAFANA_ADMIN_PASSWORD` from the VM's `.env`), and Prometheus is reachable only from the compose network or Grafana's datasource proxy.
+On the VM the profile is on (`COMPOSE_PROFILES=observability` in `server/.env`, so `deploy.sh` needs no flag). `compose.prod.yaml` closes both host ports: Grafana is served by Caddy at `https://$PUBLIC_HOST/grafana/` (`GF_SERVER_SERVE_FROM_SUB_PATH`, admin / `GRAFANA_ADMIN_PASSWORD` from the VM's `.env`), and Prometheus is reachable only from the compose network or Grafana's datasource proxy.
 
 Alerts come from a third lifespan loop in the API, the watchdog, ticking every 60 s (`WATCHDOG_TICK_S`) and checking Postgres and the other loops' heartbeats:
 
@@ -72,7 +72,7 @@ Alerts come from a third lifespan loop in the API, the watchdog, ticking every 6
 
 Each alert sends one Telegram message when it starts firing, one when it recovers, and one repeat every 24 h while it stays firing. Delivery is the Telegram Bot API over HTTPS from the API process, 10 s timeout, failures logged and never raised; with no bot token the message is logged at INFO instead. Messages name the deployment (`DEPLOYMENT_NAME`), the alert, the measured value and the threshold. The watchdog heartbeats too, so `/metrics` shows it running, but it cannot report its own process dying.
 
-"API down" therefore lives outside the VM: a Cloud Monitoring uptime check (`lattice-api-health`) fetches `https://api.lattice.xplus2g4.site/health` every minute from every region, and the **Lattice API down** alert policy opens an incident when two or more regions have failed for 2 min, auto-closing 30 min after recovery. Its notification channel is a webhook straight at the Telegram Bot API `sendMessage` URL with the chat id and a fixed text in the query string (Cloud Monitoring has no Telegram channel and ignores the JSON body it posts), so the message is the same on open and on close and points at the incidents console. Same bot and chat as the watchdog.
+"API down" therefore lives outside the VM: a Cloud Monitoring uptime check (`lattice-api-health`) fetches `https://$API_HOST/health` every minute from every region, and the **Lattice API down** alert policy opens an incident when two or more regions have failed for 2 min, auto-closing 30 min after recovery. Its notification channel is a webhook straight at the Telegram Bot API `sendMessage` URL with the chat id and a fixed text in the query string (Cloud Monitoring has no Telegram channel and ignores the JSON body it posts), so the message is the same on open and on close and points at the incidents console. Same bot and chat as the watchdog.
 
 ## CI and deploys
 
@@ -93,7 +93,7 @@ uv run pytest -m canary -v    # paid gates; needs LLM_API_KEY
 
 Locally `uv run pytest` skips canaries only when no key is configured. Tests disable Cognee's log rotation by default so importing the SDK does not delete old user-level logs. Both live canaries passed locally on 20 Sep 2026; the successful batch's conservative peak-rate cost bound was $0.024236. Each test workspace explicitly scopes `CACHE_DB_URL`: Cognee otherwise memoizes an adapter pointing at the previous temporary root, which can fail after that root is removed.
 
-Deploys are manual: `scripts/deploy.sh [ref]` (default `main`) SSHes to the VM through IAP, fast-forwards the checkout to `origin/<ref>`, builds both images there, runs `alembic upgrade head` as its own step, then `up -d`. Nothing is built locally and no registry is involved. A fresh VM is prepared once with `server/ops/vm-setup.sh` piped over the same SSH (git, Docker, the clone), then `.env` is written by hand. A `VITE_*` change (API host, GA id) needs a redeploy, since those values are in the bundle.
+Deploys are manual: `scripts/deploy.sh [ref]` (default `main`) reads the target from `.env.deploy`, SSHes to the VM through IAP, fast-forwards the checkout to `origin/<ref>`, builds both images there, runs `alembic upgrade head` as its own step, then `up -d` and a Caddy reload. Nothing is built locally and no registry is involved. A fresh VM is prepared once with `scripts/deploy.sh --setup` (pipes `server/ops/vm-setup.sh` over the same SSH: git, Docker, the clone), then `server/.env` is written by hand there. A `VITE_*` change (API host, GA id) needs a redeploy, since those values are in the bundle.
 
 ## Backups
 

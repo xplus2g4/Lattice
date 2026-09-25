@@ -1,18 +1,18 @@
 #!/usr/bin/env bash
 #
-# One-time preparation of a fresh Debian 12 GCE VM. Piped over SSH from a laptop, since
-# the checkout does not exist yet:
-#
-#   gcloud compute ssh lattice --tunnel-through-iap --command 'sudo bash -s' < server/ops/vm-setup.sh
+# One-time preparation of a fresh Debian 12 GCE VM. Piped over SSH by
+# `scripts/deploy.sh --setup`, since the checkout does not exist yet; LATTICE_REPO is the
+# public clone URL it passes through sudo.
 #
 # Installs git and Docker (Docker's apt repository), lets the invoking user drive Docker,
-# and clones the public repo to ~/lattice. Idempotent. `.env` is written by hand after this
+# and clones the repo to ~/lattice. Idempotent. `.env` is written by hand after this
 # from .env.production.example, then scripts/deploy.sh does the rest from the laptop.
 
 set -euo pipefail
 
 [[ $EUID -eq 0 ]] || { echo "run with sudo" >&2; exit 1; }
 user=${SUDO_USER:?run with sudo, not as root}
+repo_url=${LATTICE_REPO:?set LATTICE_REPO to the public clone URL}
 home=$(getent passwd "$user" | cut -d: -f6)
 
 if ! command -v docker >/dev/null; then
@@ -37,5 +37,5 @@ systemctl restart docker
 echo "docker $(docker --version | cut -d' ' -f3) ready; ${user} is in the docker group (re-login to pick it up)"
 
 if [[ ! -d "${home}/lattice/.git" ]]; then
-  sudo -u "$user" git clone --quiet https://github.com/xplus2g4/Lattice.git "${home}/lattice"
+  sudo -u "$user" git clone --quiet "$repo_url" "${home}/lattice"
 fi

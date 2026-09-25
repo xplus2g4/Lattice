@@ -17,6 +17,7 @@ Thumbs.db
 .env.*
 !.env.example
 !.env.production.example
+!.env.deploy.example
 
 # Devin local config
 .devin/*.local.json
