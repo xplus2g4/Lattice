@@ -8,7 +8,7 @@ This runnable cut uses Cognee's embedded SQLite, LanceDB and Ladybug stores for 
 
 ## Landing page
 
-The student-facing marketing page lives in [`marketing/`](./marketing/README.md). It has an independent static build for GitHub Pages, documented product-vision decisions, and informational-only waitlist/sign-in previews.
+The student-facing marketing page lives in [`marketing/`](./marketing/README.md). It has an independent static build, documented product-vision decisions, and informational-only waitlist/sign-in previews.
 
 ## Repository
 

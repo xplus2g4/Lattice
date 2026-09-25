@@ -5,11 +5,11 @@ on:
     branches: [main]
     paths:
       - "marketing/**"
-      - ".github/workflows/marketing-pages.yml"
+      - ".github/workflows/marketing.yml"
   pull_request:
     paths:
       - "marketing/**"
-      - ".github/workflows/marketing-pages.yml"
+      - ".github/workflows/marketing.yml"
   workflow_dispatch:
 
 permissions:
@@ -37,20 +37,3 @@ jobs:
         env:
           SITE_URL: ${{ vars.MARKETING_SITE_URL || 'https://xplus2g4.github.io/Lattice/' }}
       - run: npm run check
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: marketing/dist
-  deploy:
-    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
-    needs: build
-    runs-on: ubuntu-latest
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Deploy marketing site
-        id: deployment
-        uses: actions/deploy-pages@v4

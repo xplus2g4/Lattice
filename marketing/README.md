@@ -1,6 +1,6 @@
 # Lattice marketing site
 
-A standalone, statically rendered marketing page for GitHub Pages, within the existing Lattice repository. It has three content sections: hero, features, and pricing. Its HTML contains the complete copy and metadata before JavaScript runs. The small browser script only adds preview interactions; no application API or authentication service is called.
+A standalone, statically rendered marketing page, within the existing Lattice repository. It has three content sections: hero, features, and pricing. Its HTML contains the complete copy and metadata before JavaScript runs. The small browser script only adds preview interactions; no application API or authentication service is called.
 
 ## Product decisions confirmed on 23 September 2026
 
@@ -34,7 +34,7 @@ No analytics, advertising scripts, cookies, local storage, external fonts, or vi
 
 ## Why a separate static site
 
-The existing `app/` uses TanStack Start, React 19, Tailwind, and a server build with an RPC API. Its Materials/Notes/Ask workspace requires the API. GitHub Pages serves static files, so `marketing/` is independently built and deployable; it does not replace the application's course picker, modify its routing, or alter the server.
+The existing `app/` uses TanStack Start, React 19, Tailwind, and a server build with an RPC API. Its Materials/Notes/Ask workspace requires the API. `marketing/` builds to plain static files, so it is independently built and deployable; it does not replace the application's course picker, modify its routing, or alter the server.
 
 Visual tokens, Figtree typography, rounded controls, and status colours follow the app and supplied design system. The marketing site does not import API-dependent application components or run a second React application for static copy. Native buttons and a modal dialog provide accessible interactions with a small JavaScript payload.
 
@@ -62,13 +62,11 @@ npm run build
 
 Use the same `SITE_URL` when previewing a changed deployment prefix. Images and font paths are relative, so project-path hosting works without SPA routing fallbacks. `dist/index.html` can also be opened locally for an offline design review; the copy-link and social URLs intentionally still point to the configured production address.
 
-## GitHub Pages
+## Continuous integration
 
-`.github/workflows/marketing-pages.yml` builds and checks on relevant pull requests and pushes. Only a `main` push or a manual run on `main` deploys. Set repository **Settings → Pages → Build and deployment → Source → GitHub Actions** before the first deployment. The deploy job requests only `pages: write` and `id-token: write`; the build has read-only repository access.
+`.github/workflows/marketing.yml` builds and checks on relevant pull requests and pushes, with read-only repository access. It does not publish the site; deployment is done outside this repository's workflows.
 
-Set repository variable `MARKETING_SITE_URL` only when using a different public address, and configure any custom domain separately in GitHub Pages. Keep `SITE_URL`, the Pages domain, and the actual deployment path consistent. The workflow publishes only `marketing/dist`, not the application's server output.
-
-This implementation was prepared locally. A public deployment still needs a valid authenticated GitHub session and access to push changes/configure Pages. A generated canonical URL is not evidence that the site is already live.
+Set repository variable `MARKETING_SITE_URL` when the public address differs from the default. Keep `SITE_URL`, the serving domain, and the actual deployment path consistent.
 
 ## Social previews
 
@@ -77,7 +75,7 @@ This implementation was prepared locally. A public deployment still needs a vali
 - Both images are generated during every build by `scripts/build.mjs`, using the supplied logo and Figtree text converted to outlines for consistent rendering on Windows and Linux. No image-generation service or runtime endpoint is required.
 - Open Graph tags and absolute image URLs are in the initial HTML. Instagram Story sharing uses the downloadable image; Open Graph does not itself post a Story.
 - Live previews can only be verified after publication and may be cached by social platforms. On future image changes, version the image URL if refreshing a cached preview is necessary.
-- GitHub project sites host `robots.txt` below the project path. Crawlers look for robots policy at the domain root; this file is provided but cannot control the entire `xplus2g4.github.io` origin. The sitemap can be submitted directly after deployment.
+- When the site is served below a project path, `robots.txt` sits below that path too. Crawlers look for robots policy at the domain root; this file is provided but cannot control the whole origin. The sitemap can be submitted directly after deployment.
 
 ## Verification
 
@@ -93,4 +91,4 @@ Figtree's OFL licence is distributed with the built fonts. Original brand assets
 - Axe WCAG 2 A/AA and WCAG 2.1 A/AA scan: 25 passing rules, zero violations after fonts and entrance animations settle. Manual-review items were decorative glyphs and text over the pale Material gradient; ordinary text contrast was also checked from computed styles. This is a scoped check, not an accessibility certification.
 - OG and Story PNGs were visually inspected and their 1200×630 / 1080×1920 dimensions checked automatically.
 - The existing app frontend was opened for visual reference. Full backend/LLM flows were not exercised or changed; the marketing build has no backend dependency.
-- GitHub publication was not performed: the saved GitHub CLI login was invalid. Live social-crawler previews remain unverified until the site is published.
+- Publication was not performed. Live social-crawler previews remain unverified until the site is published.
