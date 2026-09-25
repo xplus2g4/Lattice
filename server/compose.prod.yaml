@@ -54,6 +54,20 @@ services:
       - web
       - api
 
+  # The `observability` profile (COMPOSE_PROFILES=observability in .env turns it on):
+  # Prometheus stays on the compose network; Grafana is served by Caddy under /grafana/.
+  prometheus:
+    restart: unless-stopped
+    ports: !reset []
+
+  grafana:
+    restart: unless-stopped
+    environment:
+      GF_SERVER_ROOT_URL: https://${PUBLIC_HOST}/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_SECURITY_COOKIE_SECURE: "true"
+    ports: !reset []
+
 volumes:
   caddy_data:
   caddy_config:
