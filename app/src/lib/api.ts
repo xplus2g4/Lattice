@@ -52,9 +52,13 @@ export const QUERY_TYPES = Object.keys(
 
 export interface CourseSummary {
   code: string
+  /** Display title; defaults to the uppercase code until renamed. Absent for a code the
+   * user added locally that the server has not recorded yet. */
+  name?: string
   material_count: number
   note_count: number
   pending_count: number
+  failed_count: number
 }
 export interface SessionSummary {
   id: string
@@ -66,6 +70,10 @@ export interface Material {
   id: string
   course: string
   filename: string
+  /** A readable title; defaults to the filename when the server has none better. */
+  title: string
+  /** Number of Pages for a PDF Material, when the loader recorded it. */
+  page_count: number | null
   /** Also the name Cognee knows the Material by, so citations carry it. */
   sha256: string
   status: IngestStatus
@@ -282,6 +290,8 @@ function materialView(course: string, row: MaterialOut): Material {
     id: row.id,
     course,
     filename: row.filename,
+    title: row.title,
+    page_count: row.page_count,
     sha256: row.sha256,
     status: ingestStatus(row.status),
     error: row.error,
@@ -422,10 +432,14 @@ export async function listCourses(): Promise<Array<CourseSummary>> {
       ])
       return {
         code: row.code,
+        name: row.name,
         material_count: materials.length,
         note_count: notes.length,
         pending_count: [...materials, ...notes].filter(
           (r) => r.status === 'queued' || r.status === 'cognifying',
+        ).length,
+        failed_count: [...materials, ...notes].filter(
+          (r) => r.status === 'failed',
         ).length,
       }
     }),
@@ -447,6 +461,13 @@ export async function joinCourse(course: string): Promise<void> {
     }
     await request('/enrolments.join', json({ course }))
   }
+}
+/** Renames a course; the code (its identity) is unchanged. */
+export async function updateCourse(
+  course: string,
+  name: string,
+): Promise<CourseOut> {
+  return request<CourseOut>('/courses.update', json({ course, name }))
 }
 export async function listSessions(
   course: string,

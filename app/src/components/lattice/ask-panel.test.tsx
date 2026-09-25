@@ -64,7 +64,7 @@ describe('an answer', () => {
       evidence({ kind: 'relation', filename: null, relation: 'uses' }),
     ])
 
-    expect(await screen.findByText('References')).toBeInTheDocument()
+    expect(await screen.findByText('Citations')).toBeInTheDocument()
     const range = screen.getByRole('link', { name: 'week1.pdf, p. 3–4' })
     expect(range.getAttribute('href')).toBe(
       '/courses/cs101?material=week1.pdf&page=3&pageEnd=4',
@@ -184,7 +184,7 @@ describe('an answer', () => {
     ).toBeInTheDocument()
     expect(screen.queryByText('Course materials')).toBeNull()
     expect(screen.queryByText('Your notes')).toBeNull()
-    expect(screen.getAllByText('References')).toHaveLength(1)
+    expect(screen.getAllByText('Citations')).toHaveLength(1)
     expect(
       screen.getByRole('link', { name: 'week1.pdf, p. 3' }),
     ).toBeInTheDocument()

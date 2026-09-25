@@ -23,6 +23,8 @@ export function material(over: Partial<Material> = {}): Material {
     id: `m-${filename}`,
     course: 'cs101',
     filename,
+    title: filename,
+    page_count: null,
     sha256: 'a'.repeat(64),
     status: 'ready',
     error: null,

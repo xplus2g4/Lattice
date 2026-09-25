@@ -30,10 +30,8 @@ export function NotesPanel({ course, user }: Enrolment) {
 
   return (
     <section className="border-t border-border">
-      <div className="flex items-center justify-between px-4 pb-1 pt-3">
-        <p className="text-lattice-meta font-semibold tracking-[0.14em] text-muted-foreground">
-          NOTES
-        </p>
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 pb-2 pt-4">
+        <p className="fieldnotes-kicker text-muted-foreground">NOTES</p>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -73,6 +71,9 @@ export function NotesPanel({ course, user }: Enrolment) {
           />
         </div>
       </div>
+      <p className="px-4 pb-1.5 text-xs text-muted-foreground">
+        Private to you. Space for your own thinking.
+      </p>
       {notes.error && (
         <p className="px-4 pb-1 text-xs text-destructive">
           {notes.error.message}
@@ -90,7 +91,7 @@ export function NotesPanel({ course, user }: Enrolment) {
             {r.file.name}: {r.error}
           </p>
         ))}
-      <ul className="space-y-0.5 px-2 pb-3">
+      <ul className="divide-y divide-border/60 pb-4">
         {notes.data?.map((n) => {
           const row = (
             <>
@@ -119,7 +120,7 @@ export function NotesPanel({ course, user }: Enrolment) {
                 to="/courses/$course"
                 params={{ course }}
                 search={{ note: n.id }}
-                className="block rounded-lg px-2 py-1.5 transition-colors hover:bg-accent"
+                className="block min-h-11 border-l-2 border-transparent px-4 py-3 transition-colors hover:bg-accent focus-visible:outline-offset-[-3px] [&[data-status=active]]:border-l-primary [&[data-status=active]]:bg-accent"
               >
                 {row}
               </Link>
@@ -128,7 +129,7 @@ export function NotesPanel({ course, user }: Enrolment) {
         })}
         {notes.data?.length === 0 && (
           <li className="px-2 py-1.5 text-sm leading-6 text-muted-foreground">
-            No notes yet — notes are private to you and feed your answers.
+            No notes yet — write one or upload a PDF to feed your answers.
           </li>
         )}
       </ul>
