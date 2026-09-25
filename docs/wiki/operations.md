@@ -4,21 +4,24 @@ Deployment shape, CI gates, backups, pins, and what happens when things fail.
 
 ## Deployment
 
-Single GCP VM, `docker compose`:
+One GCE VM (`lattice`, `e2-standard-2`, Debian 12, `asia-southeast1-b`, project `jianxi-experiments`, static IP `lattice-ip`), running `docker compose -f compose.yaml -f compose.prod.yaml` from `~/lattice/server`:
 
 ```
-caddy      :443 → web:3000, api:8000            TLS, one domain
-web        TanStack Start (Nitro node server, `node .output/server/index.mjs`)
-api        FastAPI + cognee (library)             env: DATABASE_URL, LLM_*, EMBEDDING_*, GCS_*, COGNEE_*,
-                                                       RELATED_COURSES_K, COURSE_SUMMARY_REFRESH_S,
-                                                       LOG_LEVEL, METRICS_TOKEN, SPEND_*, TELEGRAM_*, DEPLOYMENT_NAME
-worker     same image, `python -m lattice.worker`
+caddy      :80/:443 → lattice.xplus2g4.site → web:3000      Let's Encrypt, two hostnames
+                      api.lattice.xplus2g4.site → api:8000
+web        TanStack Start (Nitro node server), app/Dockerfile; VITE_* baked in at build
+api        FastAPI + cognee (library), server/Dockerfile   env: DATABASE_URL, LLM_*, EMBEDDING_*, COGNEE_*,
+                                                                RELATED_COURSES_K, COURSE_SUMMARY_REFRESH_S,
+                                                                LOG_LEVEL, METRICS_TOKEN, SPEND_*, TELEGRAM_*, DEPLOYMENT_NAME
 postgres   pgvector image, volume pgdata
-ladybug    no container — file DB on volume graphdata, mounted into api and worker
-neo4j      compose profile `neo4j`, off by default
+ladybug    no container — file DB inside the cognee volume, mounted into api
+neo4j      intended compose profile, not built
+worker     intended second service from the api image, not built; the API runs its loops
 ```
 
-Both `api` and `worker` import Cognee, so both mount `graphdata` and point at the same Postgres. Cognee's own config (`ENABLE_BACKEND_ACCESS_CONTROL`, storage backends, LLM/embedding providers) comes from env, identical in both containers. `server/compose.yaml` runs `postgres` and `api` today (plus the `observability` profile below); Caddy, the Worker and the `neo4j` profile are the intent, and the API process still runs the loops the Worker is meant to own.
+`server/compose.prod.yaml` adds `web` and `caddy` to the dev file, closes the published Postgres and API ports, and interpolates hostnames and secrets from `server/.env` (`server/.env.production.example` lists them; `PUBLIC_HOST` and `API_HOST` name the two hosts, and `CORS_ORIGINS` is derived from the first). The API keeps its root-level RPC paths on its own hostname, so the browser talks to it cross-origin with `Authorization: Bearer`. Firewall: tcp 80/443 and udp 443 from anywhere to the `lattice-web` tag; SSH only through IAP (`gcloud compute ssh lattice --tunnel-through-iap`). The `observability` profile below works there too but is off.
+
+Cognee's own config (`ENABLE_BACKEND_ACCESS_CONTROL`, storage backends, LLM/embedding providers) comes from the same env. One API process per Cognee root, so `api` never scales past one replica on this shape.
 
 The migration that creates `course_summaries` runs `CREATE EXTENSION IF NOT EXISTS vector`, so the database must come from the pgvector image (compose and CI do) and the migrating role must be allowed to create extensions; on a managed Postgres, enable `vector` by hand before the first `alembic upgrade head`. Course summaries are embedded through the same OpenAI model as everything else, so the API needs `EMBEDDING_API_KEY` to refresh them; `RELATED_COURSES_K=0` switches the Related-course lane off without touching the summaries.
 
@@ -65,7 +68,9 @@ Alerts come from a third lifespan loop in the API, the watchdog, ticking every 6
 | Loop stalled | The `ingest` or `summaries` loop has not ticked for more than 5 min (`ALERT_LOOP_STALLED_S=300`) |
 | Ceiling | Today's Spend reaches 80 % of `SPEND_CEILING_USD` (warning), then 100 % (LLM-spending actions refuse; see the failure table) |
 
-Each alert sends one Telegram message when it starts firing, one when it recovers, and one repeat every 24 h while it stays firing. Delivery is the Telegram Bot API over HTTPS from the API process, 10 s timeout, failures logged and never raised; with no bot token the message is logged at INFO instead. Messages name the deployment (`DEPLOYMENT_NAME`), the alert, the measured value and the threshold. The watchdog heartbeats too, so `/metrics` shows it running, but it cannot report its own process dying: an "API down" alert needs something outside the VM and is on the backlog.
+Each alert sends one Telegram message when it starts firing, one when it recovers, and one repeat every 24 h while it stays firing. Delivery is the Telegram Bot API over HTTPS from the API process, 10 s timeout, failures logged and never raised; with no bot token the message is logged at INFO instead. Messages name the deployment (`DEPLOYMENT_NAME`), the alert, the measured value and the threshold. The watchdog heartbeats too, so `/metrics` shows it running, but it cannot report its own process dying.
+
+"API down" therefore lives outside the VM: a Cloud Monitoring uptime check (`lattice-api-health`) fetches `https://api.lattice.xplus2g4.site/health` every minute from every region, and the **Lattice API down** alert policy opens an incident when two or more regions have failed for 2 min, auto-closing 30 min after recovery. Its notification channel is a webhook straight at the Telegram Bot API `sendMessage` URL with the chat id and a fixed text in the query string (Cloud Monitoring has no Telegram channel and ignores the JSON body it posts), so the message is the same on open and on close and points at the incidents console. Same bot and chat as the watchdog.
 
 ## CI and deploys
 
@@ -84,11 +89,13 @@ uv run pytest -m "not canary"  # offline selection, even with a key configured
 uv run pytest -m canary -v    # paid gates; needs LLM_API_KEY
 ```
 
-Locally `uv run pytest` skips canaries only when no key is configured. Tests disable Cognee's log rotation by default so importing the SDK does not delete old user-level logs. Both live canaries passed locally on 20 Sep 2026; the successful batch's conservative peak-rate cost bound was $0.024236. Each test workspace explicitly scopes `CACHE_DB_URL`: Cognee otherwise memoizes an adapter pointing at the previous temporary root, which can fail after that root is removed. Deploys remain manual; `ssh … docker compose pull && up -d` is the intent.
+Locally `uv run pytest` skips canaries only when no key is configured. Tests disable Cognee's log rotation by default so importing the SDK does not delete old user-level logs. Both live canaries passed locally on 20 Sep 2026; the successful batch's conservative peak-rate cost bound was $0.024236. Each test workspace explicitly scopes `CACHE_DB_URL`: Cognee otherwise memoizes an adapter pointing at the previous temporary root, which can fail after that root is removed.
+
+Deploys are manual: `scripts/deploy.sh [ref]` (default `main`) SSHes to the VM through IAP, fast-forwards the checkout to `origin/<ref>`, builds both images there, runs `alembic upgrade head` as its own step, then `up -d`. Nothing is built locally and no registry is involved. A fresh VM is prepared once with `server/ops/vm-setup.sh` piped over the same SSH (git, Docker, the clone), then `.env` is written by hand. A `VITE_*` change (API host, GA id) needs a redeploy, since those values are in the bundle.
 
 ## Backups
 
-Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The `spend` ledger and `product_events` ride along in the same dump. So does `course_summaries`, but it is derived data: a restore without it is rebuilt by the API's refresh timer on its next pass.
+None. Postgres, the Cognee stores and uploads live only on the VM's boot disk; a lost disk is a lost deployment. Decided for the prototype on 2026-09-25; `course_summaries` would be rebuilt by the refresh timer, nothing else would.
 
 ## Pins
 
@@ -101,7 +108,7 @@ Nightly `pg_dump` and a tarball of `graphdata` go to GCS. The `spend` ledger and
 | LLM API down during `/ask` | No answer | Return retrieved chunks with citations and `answer_md=""` plus an error banner; never a fabricated answer |
 | LLM API down during cognify | Material stuck | Job retries with backoff; `status=failed` after N attempts; instructor re-runs from UI |
 | Cognee `search()` raises | No answer | 502 with request id; no partial answer |
-| Ladybug file corrupted | Graph queries fail | Restore `graphdata` from nightly tarball; Phase 1 (vector path) still works if graph search is disabled via flag |
+| Ladybug file corrupted | Graph queries fail | No backup exists; wipe the `cognee` volume and re-seed every course |
 | Loop stalled | Note ingest or Course-summary refresh stops | Watchdog alert after 5 min without a heartbeat; restart `api`. Cognify of a Material is idempotent per hash, and a Note keeps its `dirty` status, so the loop resumes where it stopped |
 | Ceiling reached | Every LLM-spending action refuses until midnight UTC | `/ask`, `/study/ask` and `/study/note.review` return 429 with `reset_at` and `Retry-After`; Notes still save but wait as `dirty` for Cognify, no attempt consumed; a Material queued under the Ceiling is marked `failed` with a reset hint and the instructor retries it after the reset; reading and browsing unaffected |
 | Cross-dataset search not isolating | Data leak risk | Canary test fails CI; switch `ASK_TWO_CALL_MODE=1` ([flows.md](./flows.md)) |
