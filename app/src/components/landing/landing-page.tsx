@@ -3,6 +3,7 @@ import { LayoutGroup, motion, useReducedMotion } from 'motion/react'
 import { Link } from '@tanstack/react-router'
 import { HugeiconsIcon } from '@hugeicons/react'
 import {
+  FlowConnectionIcon,
   MessageQuestionIcon,
   Quiz01Icon,
   StickyNote01Icon,
@@ -18,13 +19,13 @@ const LOGIN = { error: undefined, invite: undefined }
 
 // Configure the public origin at build time so crawlers receive absolute URLs.
 const origin = new URL(import.meta.env.VITE_SITE_URL || 'http://localhost:3000')
-const siteUrl = new URL('/', origin).href
+const siteUrl = new URL('/landing', origin).href
 const imageUrl = new URL('/landing-assets/social-preview-v2.png', origin).href
 const pageTitle = 'Lattice — Understand your course. Not just the answer.'
 const description =
   'Read, ask and practise in one course workspace, with private Notes and Citations back to your course Materials. Join the private beta with your Invite.'
 
-/** Metadata for `/` when nobody is signed in, the one place the landing page shows. */
+/** Metadata for `/landing`, where a signed-out visitor to `/` is sent. */
 export const landingHead = {
   meta: [
     { title: 'Lattice' },
@@ -59,7 +60,6 @@ const FEATURES = [
     body: 'Ask about what you are studying, with your course Materials open beside the answer. Follow its Citations to read the supporting Material for yourself.',
     detail: 'Less switching between tabs. More time making sense of the idea.',
     illustration: 'Ask and Citations',
-    caption: 'An answer beside a Material, with its Citations visible.',
   },
   {
     id: 'notes',
@@ -70,7 +70,6 @@ const FEATURES = [
     detail:
       'Materials are shared with enrolled students. Your Notes are private to you.',
     illustration: 'Private Notes',
-    caption: 'A private Note open beside the Material it helps explain.',
   },
   {
     id: 'grill',
@@ -80,29 +79,38 @@ const FEATURES = [
     body: 'Choose a Material and practise with questions grounded in it. Submit your answers, read the feedback and return to the ideas that need another look.',
     detail: 'A chance to check your understanding, not just reread the answer.',
     illustration: 'Grill me',
-    caption: 'A practice question and the feedback after submitting an answer.',
+  },
+  {
+    id: 'related',
+    icon: FlowConnectionIcon,
+    label: 'Related courses',
+    title: 'The same idea, as another course teaches it.',
+    body: 'Ask in your course and Lattice also checks the Materials of up to three Related courses, the ones nearest to yours. Their answer sits apart under its own course code, so you can compare how each course explains the same idea.',
+    detail:
+      'See what a Related course’s slides say about the idea you asked about.',
+    illustration: 'Related courses',
   },
 ] as const
 
 const STEPS = [
   [
+    'Join the Telegram group',
+    'Lattice is in private beta. Join the group and we will send you an Invite link there.',
+  ],
+  [
     'Use your Invite',
-    'Open the Invite you received, or enter it on the sign-in page. Then continue with your Google account.',
+    'Open the Invite link, or enter it on the sign-in page. Then continue with your Google account.',
   ],
   [
-    'Find your course',
-    'Search for your course code and join it. Your Invite gives you access to Lattice; you choose your course separately.',
-  ],
-  [
-    'Start with a question',
-    'Open a Material, ask about an idea and follow the Citations. Keep a Note of what clicks.',
+    'Find your course and ask',
+    'Search for your course code and join it. Open a Material, ask about an idea and follow the Citations.',
   ],
 ]
 
 const FAQS = [
   [
     'Do I need an Invite?',
-    'Yes. Lattice is in private beta. Your Invite lets you create an account with Google. Already joined? Just sign in; you do not need another Invite. If you have not received one, ask your instructor about access.',
+    'Yes. Lattice is in private beta. Your Invite lets you create an account with Google. Already joined? Just sign in; you do not need another Invite. If you have not received one, join the Telegram group and we will send you one.',
   ],
   [
     'Does my Invite include a course?',
@@ -118,19 +126,21 @@ const FAQS = [
   ],
   [
     'What if my Invite does not work?',
-    'Invites expire and can only be used once. If you already created an account, sign in with the same Google account. Otherwise, ask the person who sent your Invite for a new one.',
+    'Invites expire and can only be used once. If you already created an account, sign in with the same Google account. Otherwise, ask in the Telegram group for a new one.',
   ],
 ]
 
-function InviteAction({ onDark = false }: { onDark?: boolean }) {
+const BETA_URL = 'https://t.me/lattice_private_beta'
+
+function BetaAction({ onDark = false }: { onDark?: boolean }) {
   return (
     <Button
       asChild
       className={`h-12 rounded-sm px-6 text-base font-semibold ${onDark ? 'focus-visible:outline-[#5CD1BE]' : ''}`}
     >
-      <Link to="/login" search={LOGIN}>
-        Use your Invite
-      </Link>
+      <a href={BETA_URL} target="_blank" rel="noopener noreferrer">
+        Join Private Beta
+      </a>
     </Button>
   )
 }
@@ -144,7 +154,7 @@ export function LandingPage() {
     <div className="fieldnotes-canvas min-h-dvh text-foreground">
       <header className="border-b border-border px-5 sm:px-10">
         <div className="mx-auto flex min-h-20 max-w-[1200px] flex-wrap items-center justify-between gap-x-4 gap-y-2 py-3">
-          <Link to="/" className="flex min-h-11 items-center gap-3">
+          <Link to="/landing" className="flex min-h-11 items-center gap-3">
             <LogoMark />
             <span className="text-2xl font-semibold tracking-[-0.05em]">
               Lattice<span className="text-primary-ink">.</span>
@@ -161,10 +171,10 @@ export function LandingPage() {
               How it works
             </a>
             <a
-              href="#whats-next"
+              href="#roadmap"
               className="fieldnotes-action py-3 text-sm font-medium"
             >
-              What’s next
+              Roadmap
             </a>
             <Button
               asChild
@@ -201,7 +211,7 @@ export function LandingPage() {
                 studying.
               </p>
               <div className="mt-8 flex flex-wrap items-center gap-5">
-                <InviteAction onDark />
+                <BetaAction onDark />
                 <a
                   href="#how-it-works"
                   className="group fieldnotes-action py-3 text-sm font-medium text-[#C9DAD6]"
@@ -216,11 +226,7 @@ export function LandingPage() {
                 Private beta · Invite required
               </p>
             </div>
-            <ProductIllustration
-              kind="workspace"
-              title="Course workspace"
-              caption="The full picture: a Material, your question and a cited answer, side by side."
-            />
+            <ProductIllustration kind="workspace" title="Course workspace" />
           </div>
         </section>
 
@@ -345,7 +351,6 @@ export function LandingPage() {
                           <ProductIllustration
                             kind={feature.id}
                             title={feature.illustration}
-                            caption={feature.caption}
                           />
                           <div>
                             <h3 className="font-editorial text-2xl leading-tight tracking-tight sm:text-3xl">
@@ -377,7 +382,7 @@ export function LandingPage() {
               id="join-title"
               className="font-editorial text-4xl tracking-tight sm:text-5xl"
             >
-              Your Invite is the first step.
+              Join the group. We send you the Invite.
             </h2>
             <ol className="mt-10 grid gap-8 md:grid-cols-3">
               {STEPS.map(([title, body], i) => (
@@ -399,89 +404,151 @@ export function LandingPage() {
         </section>
 
         <section
-          id="whats-next"
+          id="roadmap"
           aria-labelledby="roadmap-title"
           className="scroll-mt-6 px-5 py-16 sm:px-10 lg:py-24"
         >
           <div className="mx-auto max-w-[1200px]">
-            <p className="fieldnotes-kicker mb-4 text-primary-ink">
-              What’s next
-            </p>
+            <p className="fieldnotes-kicker mb-4 text-primary-ink">Roadmap</p>
             <h2
               id="roadmap-title"
               className="font-editorial text-4xl tracking-tight sm:text-5xl"
             >
-              A little further ahead.
+              Where we’re headed.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-muted-foreground">
-              Read, ask and practise today. Next, we’re working on helping you
-              notice what’s sticking—and what deserves another look.
+              Read, ask, compare with a Related course and practise today. Next,
+              we’re working on helping you notice what’s sticking and see ideas
+              move instead of reading about them.
             </p>
-            <article
-              aria-labelledby="popquiz-title"
-              className="mt-10 grid items-center gap-8 rounded-sm border border-border bg-secondary/30 p-5 sm:p-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12"
-            >
-              <div>
+            <ol className="relative mt-12">
+              <li
+                aria-labelledby="popquiz-title"
+                className="relative border-l-2 border-primary pb-16 pl-8 sm:pl-12"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute -left-[9px] top-1 size-4 rounded-full border-2 border-primary bg-primary"
+                />
                 <span className="fieldnotes-kicker inline-block border border-primary-ink/30 bg-card px-2.5 py-1.5 text-primary-ink">
                   In development
                 </span>
-                <h3 id="popquiz-title" className="mt-6 text-lg font-semibold">
+                <h3 id="popquiz-title" className="mt-4 text-lg font-semibold">
                   Pop quiz
                 </h3>
-                <p className="mt-3 max-w-sm font-editorial text-3xl leading-tight tracking-tight sm:text-4xl">
-                  Small check-ins. A clearer next step.
-                </p>
-                <p className="mt-5 text-base leading-7 text-muted-foreground">
-                  It can make sense while you’re reading. But what stays with
-                  you? Pop quiz will offer short, skippable questions at
-                  learning intervals, grounded in the Topic you’ve just read.
-                </p>
-                <p className="mt-4 text-base leading-7 text-muted-foreground">
-                  These check-ins will help track your understanding and suggest
-                  what to revise, so you have a clearer idea of where to spend
-                  your next study break.
-                </p>
-                <ul className="mt-6 space-y-3 border-l-2 border-primary pl-4 text-sm leading-6">
-                  <li>Up to three questions. A pause, not a detour.</li>
-                  <li>Notice the ideas that need another look.</li>
-                  <li>Revisit with a suggestion.</li>
-                </ul>
-                <p className="mt-6 text-xs leading-6 text-muted-foreground">
-                  In the pipeline, not yet available. This concept preview shows
-                  the intended experience; the final design may change.
-                </p>
-              </div>
-              <ProductIllustration
-                kind="pop"
-                title="Pop quiz"
-                caption="A short check-in followed by a suggested Topic to revisit. Not a working Quiz."
-              />
-            </article>
-            <article className="mt-6 grid gap-4 border border-dashed border-primary-ink/40 bg-card/60 p-6 sm:grid-cols-[1fr_1.5fr] sm:gap-8 sm:p-8">
-              <div>
-                <span className="fieldnotes-kicker text-primary-ink">
-                  Exploring
+                <div className="mt-6 grid items-center gap-8 rounded-sm border border-border bg-secondary/30 p-5 sm:p-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
+                  <div>
+                    <p className="max-w-sm font-editorial text-3xl leading-tight tracking-tight sm:text-4xl">
+                      Small check-ins. A clearer next step.
+                    </p>
+                    <p className="mt-5 text-base leading-7 text-muted-foreground">
+                      It can make sense while you’re reading. But what stays
+                      with you? Pop quiz will offer short, skippable questions
+                      at learning intervals, grounded in the Topic you’ve just
+                      read.
+                    </p>
+                    <p className="mt-4 text-base leading-7 text-muted-foreground">
+                      These check-ins will help track your understanding and
+                      suggest what to revise, so you have a clearer idea of
+                      where to spend your next study break.
+                    </p>
+                    <ul className="mt-6 space-y-3 border-l-2 border-primary pl-4 text-sm leading-6">
+                      <li>Up to three questions. A pause, not a detour.</li>
+                      <li>Notice the ideas that need another look.</li>
+                      <li>Revisit with a suggestion.</li>
+                    </ul>
+                    <p className="mt-6 text-xs leading-6 text-muted-foreground">
+                      In the pipeline, not yet available. This concept preview
+                      shows the intended experience; the final design may
+                      change.
+                    </p>
+                  </div>
+                  <ProductIllustration kind="pop" title="Pop quiz" />
+                </div>
+              </li>
+              <li
+                aria-labelledby="visuals-title"
+                className="relative border-l-2 border-primary pb-16 pl-8 sm:pl-12"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute -left-[9px] top-1 size-4 rounded-full border-2 border-primary bg-card"
+                />
+                <span className="fieldnotes-kicker inline-block border border-primary-ink/30 bg-card px-2.5 py-1.5 text-primary-ink">
+                  Planned
                 </span>
-                <h3 className="mt-3 font-editorial text-3xl tracking-tight">
-                  Related concepts
+                <h3 id="visuals-title" className="mt-4 text-lg font-semibold">
+                  Course-based interactive visuals
                 </h3>
-              </div>
-              <div>
-                <p className="text-base leading-7 text-muted-foreground">
-                  A way to discover how ideas in your course connect, so one
-                  question can lead to a deeper understanding.
+                <div className="mt-6 grid items-center gap-8 rounded-sm border border-border bg-secondary/30 p-5 sm:p-8 lg:grid-cols-[0.85fr_1.15fr] lg:gap-12">
+                  <div>
+                    <p className="max-w-sm font-editorial text-3xl leading-tight tracking-tight sm:text-4xl">
+                      Some ideas are easier to watch than to read.
+                    </p>
+                    <p className="mt-5 text-base leading-7 text-muted-foreground">
+                      Interactive visuals built from your course’s Materials.
+                      For CS3230, that could be an algorithm visualizer that
+                      runs Ford–Fulkerson on a small network the way your
+                      lecturer taught it, so you can pause, change a capacity
+                      and see what happens.
+                    </p>
+                    <p className="mt-4 text-base leading-7 text-muted-foreground">
+                      Which courses and Topics get visuals will depend on the
+                      Materials and where they help most.
+                    </p>
+                    <ul className="mt-6 space-y-3 border-l-2 border-primary pl-4 text-sm leading-6">
+                      <li>One step at a time, with the bottleneck shown.</li>
+                      <li>Change the input and watch the answer move.</li>
+                      <li>Grounded in your course’s worked examples.</li>
+                    </ul>
+                    <p className="mt-6 text-xs leading-6 text-muted-foreground">
+                      Not yet available. This concept preview shows the intended
+                      experience; the final design may change.{' '}
+                      <a
+                        href="https://visualgo.net"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="fieldnotes-action font-medium text-primary-ink underline"
+                      >
+                        Learn more
+                        <span className="sr-only">
+                          {' '}
+                          about algorithm visualisation (opens VisuAlgo in a new
+                          tab)
+                        </span>
+                      </a>
+                    </p>
+                  </div>
+                  <ProductIllustration kind="flow" title="Max flow" />
+                </div>
+              </li>
+              <li
+                aria-labelledby="ahead-title"
+                className="relative min-h-40 border-l-2 border-transparent pl-8 sm:pl-12"
+              >
+                <span
+                  aria-hidden="true"
+                  className="absolute inset-y-0 -left-0.5 w-0.5 bg-linear-to-b from-primary to-transparent"
+                />
+                <span
+                  aria-hidden="true"
+                  className="absolute -left-[9px] top-1 size-4 rounded-full border-2 border-primary/50 bg-card"
+                />
+                <span className="fieldnotes-kicker inline-block border border-dashed border-primary-ink/30 bg-card px-2.5 py-1.5 text-primary-ink">
+                  And after that
+                </span>
+                <h3 id="ahead-title" className="mt-4 text-lg font-semibold">
+                  More features ahead
+                </h3>
+                <p className="mt-3 max-w-2xl font-editorial text-3xl leading-tight tracking-tight">
+                  We grow with students, and build for students.
                 </p>
-                <p className="mt-3 text-sm leading-6 text-muted-foreground">
-                  This planned experience is not available in the beta. We’re
-                  evaluating its quality before making it part of your study
-                  workflow.
+                <p className="mt-5 max-w-2xl text-base leading-7 text-muted-foreground">
+                  What comes next is shaped by what you read, ask and practise
+                  in the beta.
                 </p>
-              </div>
-            </article>
-            <p className="mt-6 text-sm leading-6 text-muted-foreground">
-              A look ahead, not a release commitment. Plans can change as we
-              learn from the beta.
-            </p>
+              </li>
+            </ol>
           </div>
         </section>
 
@@ -535,11 +602,12 @@ export function LandingPage() {
                 Stay curious. Go a little deeper.
               </h2>
               <p className="mt-4 text-base leading-7 text-[#C9DAD6]">
-                Have your Invite ready? Your course workspace is next.
+                Join the Telegram group, get your Invite, and your course
+                workspace is next.
               </p>
             </div>
             <div className="shrink-0">
-              <InviteAction onDark />
+              <BetaAction onDark />
               <p className="mt-4 text-sm text-[#C9DAD6]">
                 Already joined?{' '}
                 <Link
@@ -562,7 +630,7 @@ export function LandingPage() {
             <span>Built for students. One course at a time.</span>
           </div>
           <a
-            href="#whats-next"
+            href="#roadmap"
             className="fieldnotes-action inline-flex min-h-11 items-center"
           >
             Growing with the beta{' '}

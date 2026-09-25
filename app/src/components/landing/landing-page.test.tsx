@@ -12,41 +12,43 @@ describe('landing page', () => {
     beforeEach(() => vi.mocked(getSessionUser).mockResolvedValue(null))
     afterEach(() => vi.mocked(getSessionUser).mockReset())
 
-    it('welcomes invited students and sends access actions to the real login', async () => {
-      renderRoute('/')
+    it('redirects a signed-out visitor from / to the landing page', async () => {
+      const { router } = renderRoute('/')
+      await screen.findByRole('heading', {
+        level: 1,
+        name: /Understand your course. Not just the answer./,
+      })
+      expect(router.state.location.pathname).toBe('/landing')
+    })
+
+    it('sends beta signups to Telegram and sign-in to the real login', async () => {
+      renderRoute('/landing')
       await screen.findByRole('heading', {
         level: 1,
         name: /Understand your course. Not just the answer./,
       })
 
-      const actions = [
-        ...screen.getAllByRole('link', { name: 'Use your Invite' }),
-        ...screen.getAllByRole('link', { name: 'Sign in' }),
-      ]
-      expect(actions.length).toBeGreaterThan(1)
-      for (const link of actions) expect(link).toHaveAttribute('href', '/login')
+      const beta = screen.getAllByRole('link', { name: 'Join Private Beta' })
+      expect(beta.length).toBeGreaterThan(1)
+      for (const link of beta) {
+        expect(link).toHaveAttribute(
+          'href',
+          'https://t.me/lattice_private_beta',
+        )
+        expect(link).toHaveAttribute('target', '_blank')
+      }
+      const signIn = screen.getAllByRole('link', { name: 'Sign in' })
+      expect(signIn.length).toBeGreaterThan(1)
+      for (const link of signIn) expect(link).toHaveAttribute('href', '/login')
       expect(screen.getByText('Private beta · Invite required')).toBeVisible()
       expect(
-        screen.queryByRole('link', { name: 'Sign up' }),
+        screen.queryByRole('link', { name: /Use your Invite|Sign up/ }),
       ).not.toBeInTheDocument()
-    })
-
-    it('opens the Invite form when an invited student continues', async () => {
-      const user = userEvent.setup()
-      const { router } = renderRoute('/')
-      await user.click(
-        (await screen.findAllByRole('link', { name: 'Use your Invite' }))[0],
-      )
-
-      expect(
-        await screen.findByRole('textbox', { name: 'Enter your invite code' }),
-      ).toBeInTheDocument()
-      expect(router.state.location.pathname).toBe('/login')
     })
 
     it('lets students explore labelled product illustrations with the keyboard', async () => {
       const user = userEvent.setup()
-      renderRoute('/')
+      renderRoute('/landing')
       const ask = await screen.findByRole('tab', { name: 'Ask with Citations' })
       expect(ask).toHaveAttribute('aria-selected', 'true')
       expect(
@@ -57,7 +59,7 @@ describe('landing page', () => {
       ).toHaveClass('flex-col', 'min-w-0', 'w-full')
       expect(ask).toHaveClass('w-full', 'min-w-0', 'whitespace-normal')
       const panels = screen.getAllByRole('tabpanel', { hidden: true })
-      expect(panels).toHaveLength(3)
+      expect(panels).toHaveLength(4)
       for (const panel of panels) {
         expect(panel).not.toHaveAttribute('hidden')
         if (panel.getAttribute('data-state') === 'inactive') {
@@ -70,9 +72,6 @@ describe('landing page', () => {
         screen.getByRole('figure', {
           name: 'Course workspace illustration',
         }),
-      ).toBeVisible()
-      expect(
-        within(screen.getByRole('tabpanel')).getByText('Illustrative UI'),
       ).toBeVisible()
 
       await user.click(screen.getByRole('tab', { name: 'Private Notes' }))
@@ -93,25 +92,38 @@ describe('landing page', () => {
           screen.getByRole('figure', { name: 'Grill me illustration' }),
         ).toBeVisible(),
       )
+
+      await user.keyboard('{ArrowDown}')
+      expect(screen.getByRole('tab', { name: 'Related courses' })).toHaveFocus()
+      await waitFor(() =>
+        expect(
+          screen.getByRole('figure', { name: 'Related courses illustration' }),
+        ).toBeVisible(),
+      )
+      expect(
+        screen.getByRole('tabpanel', { name: 'Related courses' }),
+      ).toHaveTextContent('Related course · CS3210')
       expect(screen.getAllByRole('tabpanel')).toHaveLength(1)
     })
 
     it('separates future direction from current features and explains beta access', async () => {
       const user = userEvent.setup()
-      renderRoute('/')
+      renderRoute('/landing')
       const roadmap = await screen.findByRole('region', {
-        name: 'A little further ahead.',
+        name: 'Where we’re headed.',
       })
-      expect(within(roadmap).getByText('Exploring')).toBeVisible()
+      expect(within(roadmap).getByText('Planned')).toBeVisible()
       expect(
-        within(roadmap).getByRole('heading', { name: 'Related concepts' }),
+        within(roadmap).getByRole('heading', {
+          name: 'Course-based interactive visuals',
+        }),
       ).toBeVisible()
       expect(
-        within(roadmap).getByText(/not available in the beta/),
-      ).toBeVisible()
+        within(roadmap).queryByRole('heading', { name: /Related/ }),
+      ).not.toBeInTheDocument()
       expect(
-        within(roadmap).getByText(/not a release commitment/),
-      ).toBeVisible()
+        within(roadmap).getByRole('figure', { name: 'Max flow illustration' }),
+      ).toHaveTextContent('CS3230')
       await user.click(screen.getByText('Do I need an Invite?'))
       expect(
         screen.getByText(/Your Invite lets you create an account/),
@@ -120,8 +132,8 @@ describe('landing page', () => {
     })
 
     it('markets Pop quiz as in development, with a static concept preview', async () => {
-      renderRoute('/')
-      const popQuiz = await screen.findByRole('article', { name: 'Pop quiz' })
+      renderRoute('/landing')
+      const popQuiz = await screen.findByRole('listitem', { name: 'Pop quiz' })
       expect(within(popQuiz).getByText('In development')).toBeVisible()
       expect(
         within(popQuiz).getByText('Small check-ins. A clearer next step.'),
@@ -132,7 +144,6 @@ describe('landing page', () => {
       const preview = within(popQuiz).getByRole('figure', {
         name: 'Pop quiz illustration',
       })
-      expect(within(preview).getByText('Concept preview')).toBeVisible()
       expect(within(preview).getByText('Suggested revision')).toBeVisible()
       expect(within(preview).getByText(/Cache misses/)).toBeVisible()
       expect(
@@ -216,6 +227,6 @@ describe('landing page', () => {
     renderRoute('/login')
     expect(
       await screen.findByRole('link', { name: 'What is Lattice?' }),
-    ).toHaveAttribute('href', '/')
+    ).toHaveAttribute('href', '/landing')
   })
 })

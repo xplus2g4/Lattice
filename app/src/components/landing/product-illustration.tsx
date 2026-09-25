@@ -1,6 +1,8 @@
 import { LogoMark } from '#/components/lattice/top-bar'
+import { MaxFlowPreview } from './max-flow-preview'
 
-export type IllustrationKind = 'workspace' | 'ask' | 'notes' | 'grill' | 'pop'
+export type IllustrationKind =
+  'workspace' | 'ask' | 'notes' | 'grill' | 'related' | 'pop' | 'flow'
 
 function MaterialPreview() {
   return (
@@ -219,32 +221,92 @@ function PopQuizPreview() {
   )
 }
 
+function RelatedCoursePreview() {
+  return (
+    <div className="grid sm:grid-cols-2">
+      <div className="min-w-0 border-b border-border p-4 sm:border-r sm:border-b-0 sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="fieldnotes-kicker text-primary-ink">Ask</p>
+          <span className="font-mono text-[10px] text-muted-foreground">
+            CS4223
+          </span>
+        </div>
+        <p className="mt-4 rounded-sm bg-secondary px-3 py-3 text-sm font-medium leading-6">
+          What is a cache coherence protocol?
+        </p>
+        <div className="mt-5 flex items-center gap-2 text-xs font-semibold">
+          <LogoMark /> Lattice
+        </div>
+        <p className="mt-3 text-sm leading-6">
+          A set of rules that keeps every core’s private cache agreeing on the
+          value of a shared address. Snooping protocols such as MSI and MESI
+          broadcast each write; directory protocols track sharers instead.
+        </p>
+        <div className="mt-4 border-t border-border pt-3">
+          <p className="fieldnotes-kicker text-muted-foreground">Citations</p>
+          <div className="mt-2 inline-flex flex-wrap items-center gap-2 rounded-sm border border-border bg-citation-context px-2.5 py-1.5 text-xs text-citation-context-text">
+            <span>Lecture 4 · Coherence</span>
+            <span className="font-mono">p. 8</span>
+          </div>
+        </div>
+      </div>
+      <div className="min-w-0 bg-muted/40 p-4 sm:p-5">
+        <div className="border-l-2 border-primary-ink/40 bg-card px-4 py-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+            Related course · CS3210
+          </p>
+          <ul className="mt-2 list-disc space-y-2 pl-4 text-sm leading-6">
+            <li>
+              Each core reads a shared address through its own cache, so a write
+              in one cache has to invalidate or update the copies in the others.
+            </li>
+            <li>
+              False sharing: two threads writing different words on the same
+              line bounce it between cores even though they never touch the same
+              data.
+            </li>
+          </ul>
+          <div className="mt-3 border-t border-border pt-3">
+            <p className="fieldnotes-kicker text-muted-foreground">Citations</p>
+            <div className="mt-2 inline-flex flex-wrap items-center gap-2 rounded-sm border border-border bg-citation-context px-2.5 py-1.5 text-xs text-citation-context-text">
+              <span>Week 5 · Shared memory</span>
+              <span className="font-mono">p. 12</span>
+            </div>
+          </div>
+        </div>
+        <p className="mt-3 text-xs leading-5 text-muted-foreground">
+          Reference material from the course whose Materials sit nearest to
+          yours, kept apart under its own code. Your Session stays in CS4223.
+        </p>
+      </div>
+    </div>
+  )
+}
+
 export function ProductIllustration({
   kind,
   title,
-  caption,
 }: {
   kind: IllustrationKind
   title: string
-  caption: string
 }) {
-  const upcoming = kind === 'pop'
   return (
     <figure
       aria-label={`${title} illustration`}
       className="min-w-0 overflow-hidden rounded-sm border border-border bg-card text-card-foreground shadow-lattice"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3">
+      <div className="flex flex-wrap items-start border-b border-border px-4 py-3">
         <span className="flex items-center gap-2 text-xs font-medium">
           <LogoMark />
           {title}
         </span>
-        <span className="fieldnotes-kicker text-muted-foreground">
-          {upcoming ? 'Concept preview' : 'Illustrative UI'}
-        </span>
       </div>
-      {kind === 'pop' ? (
+      {kind === 'flow' ? (
+        <MaxFlowPreview />
+      ) : kind === 'pop' ? (
         <PopQuizPreview />
+      ) : kind === 'related' ? (
+        <RelatedCoursePreview />
       ) : kind === 'grill' ? (
         <GrillPreview />
       ) : (
@@ -253,14 +315,6 @@ export function ProductIllustration({
           {kind === 'notes' ? <NotePreview /> : <AnswerPreview />}
         </div>
       )}
-      <figcaption className="border-t border-border px-4 py-3 text-xs leading-5 text-muted-foreground">
-        <span className="font-medium">
-          {upcoming
-            ? 'Future experience · Sample content. '
-            : 'Illustration · Sample content. '}
-        </span>
-        {caption}
-      </figcaption>
     </figure>
   )
 }
