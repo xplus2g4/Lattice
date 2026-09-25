@@ -19,7 +19,7 @@ const LOGIN = { error: undefined, invite: undefined }
 // Configure the public origin at build time so crawlers receive absolute URLs.
 const origin = new URL(import.meta.env.VITE_SITE_URL || 'http://localhost:3000')
 const siteUrl = new URL('/', origin).href
-const imageUrl = new URL('/landing-assets/social-preview.png', origin).href
+const imageUrl = new URL('/landing-assets/social-preview-v2.png', origin).href
 const pageTitle = 'Lattice — Understand your course. Not just the answer.'
 const description =
   'Read, ask and practise in one course workspace, with private Notes and Citations back to your course Materials. Join the private beta with your Invite.'
@@ -39,13 +39,13 @@ export const landingHead = {
     { property: 'og:image:type', content: 'image/png' },
     { property: 'og:image:width', content: '1200' },
     { property: 'og:image:height', content: '630' },
-    { property: 'og:image:alt', content: 'Lattice' },
+    { property: 'og:image:alt', content: pageTitle },
     { name: 'twitter:card', content: 'summary_large_image' },
     { name: 'twitter:title', content: pageTitle },
     { name: 'twitter:description', content: description },
     { name: 'twitter:url', content: siteUrl },
     { name: 'twitter:image', content: imageUrl },
-    { name: 'twitter:image:alt', content: 'Lattice' },
+    { name: 'twitter:image:alt', content: pageTitle },
   ],
   links: [{ rel: 'canonical', href: siteUrl }],
 }
@@ -444,7 +444,7 @@ export function LandingPage() {
                 <ul className="mt-6 space-y-3 border-l-2 border-primary pl-4 text-sm leading-6">
                   <li>Up to three questions. A pause, not a detour.</li>
                   <li>Notice the ideas that need another look.</li>
-                  <li>Revisit with a suggestion, not a blank page.</li>
+                  <li>Revisit with a suggestion.</li>
                 </ul>
                 <p className="mt-6 text-xs leading-6 text-muted-foreground">
                   In the pipeline, not yet available. This concept preview shows

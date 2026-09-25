@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 28 28" fill="none">
+  <title>Lattice</title>
+  <rect width="28" height="28" rx="3" fill="#0E2622"/>
+  <path d="M10 7v14M18 21V7M7 10h14M21 18H7" stroke="#5CD1BE" stroke-width="1.6" stroke-linecap="square"/>
+</svg>

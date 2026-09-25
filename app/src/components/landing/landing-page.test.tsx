@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs'
 import { screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -163,6 +164,44 @@ describe('landing page', () => {
       ),
     })
     expect(JSON.stringify(landingHead)).not.toContain('exact Page')
+  })
+
+  it('shares the current branded PNG with matching dimensions and descriptive alt text', () => {
+    const ogImage = landingHead.meta.find(
+      (meta) => meta.property === 'og:image',
+    )?.content
+    expect(ogImage).toBeDefined()
+    expect(new URL(ogImage!).pathname).toBe(
+      '/landing-assets/social-preview-v2.png',
+    )
+    expect(landingHead.meta).toContainEqual({
+      name: 'twitter:image',
+      content: ogImage,
+    })
+    expect(landingHead.meta).toContainEqual({
+      property: 'og:image:alt',
+      content: 'Lattice — Understand your course. Not just the answer.',
+    })
+    expect(landingHead.meta).toContainEqual({
+      name: 'twitter:image:alt',
+      content: 'Lattice — Understand your course. Not just the answer.',
+    })
+    const image = readFileSync('public/landing-assets/social-preview-v2.png')
+    expect(image.subarray(1, 4).toString()).toBe('PNG')
+    expect(image.readUInt32BE(16)).toBe(1200)
+    expect(image.readUInt32BE(20)).toBe(630)
+  })
+
+  it('includes raster icons at their declared sizes', () => {
+    for (const [asset, size] of [
+      ['favicon-48.png', 48],
+      ['apple-touch-icon.png', 180],
+    ] as const) {
+      const image = readFileSync(`public/${asset}`)
+      expect(image.subarray(1, 4).toString()).toBe('PNG')
+      expect(image.readUInt32BE(16)).toBe(size)
+      expect(image.readUInt32BE(20)).toBe(size)
+    }
   })
 
   it('is reachable from the login page', async () => {
