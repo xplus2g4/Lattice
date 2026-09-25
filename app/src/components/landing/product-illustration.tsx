@@ -199,8 +199,8 @@ function PopQuizPreview() {
           After your check-in / Example
         </p>
         <p className="mt-2 text-sm">
-          <span className="font-semibold">2 of 3 ideas understood.</span> One
-          worth another look.
+          <span className="font-semibold">2 of 3 answers correct.</span> One
+          idea worth another look.
         </p>
         <div className="mt-3 rounded-sm border border-border bg-card p-4">
           <p className="fieldnotes-kicker text-primary-ink">

@@ -257,52 +257,67 @@ export function LandingPage() {
               From the first question to a little more confidence. Keep your
               reading, thinking and practice in the same course workspace.
             </p>
-            <Tabs defaultValue="ask" className="mt-8 gap-8">
+            <Tabs
+              defaultValue="ask"
+              orientation="vertical"
+              className="mt-10 grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,2.2fr)] lg:gap-12"
+            >
               <TabsList
                 aria-label="Explore Lattice features"
-                variant="line"
-                className="w-full justify-start gap-1 border-b border-border pb-2 group-data-horizontal/tabs:h-auto sm:w-fit sm:gap-6"
+                className="flex h-auto min-w-0 w-full flex-col items-stretch justify-start gap-3 bg-transparent p-0"
               >
-                {FEATURES.map(({ id, icon, label }) => (
+                {FEATURES.map(({ id, icon, label, detail }, i) => (
                   <TabsTrigger
                     key={id}
                     value={id}
-                    className="min-h-12 whitespace-normal px-2 text-xs sm:px-3 sm:text-sm"
+                    aria-label={label}
+                    className="h-auto min-w-0 w-full max-w-full flex-none flex-col items-start gap-3 whitespace-normal border border-border border-l-2 bg-card/40 px-5 py-5 text-left text-foreground hover:bg-card data-[state=active]:border-l-primary-ink data-[state=active]:bg-card data-[state=active]:shadow-lattice"
                   >
-                    <HugeiconsIcon
-                      icon={icon}
-                      aria-hidden="true"
-                      className="hidden size-4 sm:block"
-                    />
-                    {label}
+                    <span className="flex w-full items-center gap-3">
+                      <HugeiconsIcon
+                        icon={icon}
+                        aria-hidden="true"
+                        className="size-5 text-primary-ink"
+                      />
+                      <span className="flex-1 text-base font-semibold">
+                        {label}
+                      </span>
+                      <span
+                        aria-hidden="true"
+                        className="font-mono text-xs text-muted-foreground"
+                      >
+                        0{i + 1}
+                      </span>
+                    </span>
+                    <span className="text-sm font-normal leading-6 text-muted-foreground">
+                      {detail}
+                    </span>
                   </TabsTrigger>
                 ))}
               </TabsList>
-              {FEATURES.map((feature, i) => (
-                <TabsContent key={feature.id} value={feature.id}>
-                  <div className="grid items-center gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-                    <div>
-                      <p className="fieldnotes-kicker mb-4 text-primary-ink">
-                        0{i + 1} / {feature.label}
-                      </p>
-                      <h3 className="max-w-md font-editorial text-3xl leading-tight tracking-tight sm:text-4xl">
-                        {feature.title}
-                      </h3>
-                      <p className="mt-5 max-w-md text-base leading-7 text-muted-foreground">
-                        {feature.body}
-                      </p>
-                      <p className="mt-6 max-w-md border-l-2 border-primary pl-4 text-sm leading-6">
-                        {feature.detail}
-                      </p>
-                    </div>
+              <div className="min-w-0">
+                {FEATURES.map((feature) => (
+                  <TabsContent
+                    key={feature.id}
+                    value={feature.id}
+                    className="space-y-6"
+                  >
                     <ProductIllustration
                       kind={feature.id}
                       title={feature.illustration}
                       caption={feature.caption}
                     />
-                  </div>
-                </TabsContent>
-              ))}
+                    <div>
+                      <h3 className="font-editorial text-2xl leading-tight tracking-tight sm:text-3xl">
+                        {feature.title}
+                      </h3>
+                      <p className="mt-3 max-w-2xl text-base leading-7 text-muted-foreground">
+                        {feature.body}
+                      </p>
+                    </div>
+                  </TabsContent>
+                ))}
+              </div>
             </Tabs>
           </div>
         </section>

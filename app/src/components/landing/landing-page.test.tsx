@@ -49,6 +49,13 @@ describe('landing page', () => {
       const ask = await screen.findByRole('tab', { name: 'Ask with Citations' })
       expect(ask).toHaveAttribute('aria-selected', 'true')
       expect(
+        screen.getByRole('tablist', { name: 'Explore Lattice features' }),
+      ).toHaveAttribute('aria-orientation', 'vertical')
+      expect(
+        screen.getByRole('tablist', { name: 'Explore Lattice features' }),
+      ).toHaveClass('flex-col', 'min-w-0', 'w-full')
+      expect(ask).toHaveClass('w-full', 'min-w-0', 'whitespace-normal')
+      expect(
         screen.getByRole('figure', {
           name: 'Course workspace illustration',
         }),
@@ -67,7 +74,7 @@ describe('landing page', () => {
         }),
       ).toBeVisible()
 
-      await user.keyboard('{ArrowRight}')
+      await user.keyboard('{ArrowDown}')
       expect(screen.getByRole('tab', { name: 'Grill me' })).toHaveFocus()
       expect(screen.getByRole('tabpanel', { name: 'Grill me' })).toBeVisible()
       expect(
