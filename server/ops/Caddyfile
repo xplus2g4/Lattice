@@ -1,0 +1,12 @@
+# Two hostnames, two automatic Let's Encrypt certificates. PUBLIC_HOST and API_HOST come
+# from the container environment (compose.prod.yaml). The API answers on its own host with
+# its root-level RPC paths untouched; CORS_ORIGINS on the API names the web host.
+{$PUBLIC_HOST} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+{$API_HOST} {
+	encode zstd gzip
+	reverse_proxy api:8000
+}
