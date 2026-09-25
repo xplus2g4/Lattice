@@ -43,14 +43,16 @@ Import from `src/` with the `#/` alias.
 
 ## Landing page preview
 
-Open `http://localhost:3000/landing` after `npm run dev`; `/` remains the
-course picker. It needs no API. `src/components/landing/landing-page.tsx` holds
+Open `http://localhost:3000/` signed out after `npm run dev`. `_authed.tsx`
+renders the landing page at `/` when there is no session, and the course picker
+when there is; every other signed-in route still redirects a signed-out visitor
+to `/login`. It needs no API. `src/components/landing/landing-page.tsx` holds
 the copy and uses the same Tailwind tokens, `fieldnotes-*` classes and
 `LogoMark` as `/login`, so the two pages share one brand. Its copy describes
 only shipped features; Sign up and Sign in both go to `/login`, where the
 Invite code form and Google sign-in live.
 
-The route's `head` supplies metadata for TanStack Devtools' SEO social previews.
+`landingHead` supplies metadata for TanStack Devtools' SEO social previews.
 Set `VITE_SITE_URL` to the public frontend origin before a production build;
 it defaults to `http://localhost:3000`. Canonical and social image URLs use that
 origin. Public social crawlers need a deployed, reachable URL. The social image

@@ -233,7 +233,7 @@ function Login() {
               <p className="text-sm text-muted-foreground">
                 No invite yet? Ask an instructor for an invite link.{' '}
                 <Link
-                  to="/landing"
+                  to="/"
                   className="fieldnotes-action font-medium text-foreground underline"
                 >
                   What is Lattice?

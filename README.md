@@ -8,7 +8,7 @@ This runnable cut uses Cognee's embedded SQLite, LanceDB and Ladybug stores for 
 
 ## Landing page
 
-The student-facing marketing page lives in [`marketing/`](./marketing/README.md). It has an independent static build, documented product-vision decisions, and informational-only waitlist/sign-in previews.
+Signed-out visitors to `/` see the landing page, which describes shipped features and sends Sign up and Sign in to `/login`; see [app/README.md](./app/README.md). An older standalone marketing page with product-vision copy lives in [`marketing/`](./marketing/README.md).
 
 ## Repository
 
@@ -86,7 +86,7 @@ cd app && npm run generate-api                         # app/src/lib/generated/
 
 ## Frontend
 
-The web app is scoped by URL. `/` is a course picker: type a code matching `^[a-z][a-z0-9]{1,15}$` and it opens `/courses/{code}`. Codes you have opened before are listed as links, kept in `localStorage` under `lattice.courses`. The home screen combines enrolled courses from the API with the browser's course library.
+The web app is scoped by URL. Signed out, `/` is the landing page; signed in, it is a course picker: type a code matching `^[a-z][a-z0-9]{1,15}$` and it opens `/courses/{code}`. Codes you have opened before are listed as links, kept in `localStorage` under `lattice.courses`. The home screen combines enrolled courses from the API with the browser's course library.
 
 `/courses/{code}` opens the reader workspace with Materials, Notes and Ask. The existing `/materials`, `/notes` and `/ask` study routes remain available, including direct Session URLs. Routes sit behind `/login`: sign in with Google through an invite link (instructors mint them from the home page), and the app sends the session's Lattice token as `Bearer` on every API call. Layout and conventions are in [app/README.md](app/README.md).
 

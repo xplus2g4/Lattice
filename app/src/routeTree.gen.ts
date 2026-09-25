@@ -10,7 +10,6 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AuthedRouteImport } from './routes/_authed'
-import { Route as LandingRouteImport } from './routes/landing'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AuthedIndexRouteImport } from './routes/_authed/index'
 import { Route as AuthedDevRouteImport } from './routes/_authed/dev'
@@ -26,11 +25,6 @@ import { Route as AuthedCoursesCourseIndexRouteImport } from './routes/_authed/c
 
 const AuthedRoute = AuthedRouteImport.update({
   id: '/_authed',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LandingRoute = LandingRouteImport.update({
-  id: '/landing',
-  path: '/landing',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -97,7 +91,6 @@ const AuthedCoursesCourseIndexRoute =
 
 export interface FileRoutesByFullPath {
   '/': typeof AuthedIndexRoute
-  '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
   '/dev': typeof AuthedDevRoute
   '/foundation': typeof AuthedFoundationRoute
@@ -111,7 +104,6 @@ export interface FileRoutesByFullPath {
   '/courses/$course/': typeof AuthedCoursesCourseIndexRoute
 }
 export interface FileRoutesByTo {
-  '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
   '/dev': typeof AuthedDevRoute
   '/foundation': typeof AuthedFoundationRoute
@@ -127,7 +119,6 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_authed': typeof AuthedRouteWithChildren
-  '/landing': typeof LandingRoute
   '/login': typeof LoginRoute
   '/_authed/dev': typeof AuthedDevRoute
   '/_authed/foundation': typeof AuthedFoundationRoute
@@ -145,7 +136,6 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/landing'
     | '/login'
     | '/dev'
     | '/foundation'
@@ -159,7 +149,6 @@ export interface FileRouteTypes {
     | '/courses/$course/'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/landing'
     | '/login'
     | '/dev'
     | '/foundation'
@@ -174,7 +163,6 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_authed'
-    | '/landing'
     | '/login'
     | '/_authed/dev'
     | '/_authed/foundation'
@@ -191,7 +179,6 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AuthedRoute: typeof AuthedRouteWithChildren
-  LandingRoute: typeof LandingRoute
   LoginRoute: typeof LoginRoute
   AuthDevRoute: typeof AuthDevRoute
   AuthLogoutRoute: typeof AuthLogoutRoute
@@ -207,13 +194,6 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/landing': {
-      id: '/landing'
-      path: '/landing'
-      fullPath: '/landing'
-      preLoaderRoute: typeof LandingRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -335,7 +315,6 @@ const AuthedRouteWithChildren =
 
 const rootRouteChildren: RootRouteChildren = {
   AuthedRoute: AuthedRouteWithChildren,
-  LandingRoute: LandingRoute,
   LoginRoute: LoginRoute,
   AuthDevRoute: AuthDevRoute,
   AuthLogoutRoute: AuthLogoutRoute,

@@ -13,6 +13,40 @@ import { Button } from '#/components/ui/button'
 
 const LOGIN = { error: undefined, invite: undefined }
 
+// Configure the public origin at build time so crawlers receive absolute URLs.
+const origin = new URL(import.meta.env.VITE_SITE_URL || 'http://localhost:3000')
+const siteUrl = new URL('/', origin).href
+const imageUrl = new URL('/landing-assets/social-preview.png', origin).href
+const pageTitle = 'Lattice — Stay curious. Go a little deeper.'
+const description =
+  'Ask questions about your course and get answers from its own Materials and your Notes, with Citations back to the exact Page.'
+
+/** Metadata for `/` when nobody is signed in, the one place the landing page shows. */
+export const landingHead = {
+  meta: [
+    { title: pageTitle },
+    { name: 'description', content: description },
+    { property: 'og:type', content: 'website' },
+    { property: 'og:site_name', content: 'Lattice' },
+    { property: 'og:locale', content: 'en_SG' },
+    { property: 'og:title', content: pageTitle },
+    { property: 'og:description', content: description },
+    { property: 'og:url', content: siteUrl },
+    { property: 'og:image', content: imageUrl },
+    { property: 'og:image:type', content: 'image/png' },
+    { property: 'og:image:width', content: '1200' },
+    { property: 'og:image:height', content: '630' },
+    { property: 'og:image:alt', content: 'Lattice' },
+    { name: 'twitter:card', content: 'summary_large_image' },
+    { name: 'twitter:title', content: pageTitle },
+    { name: 'twitter:description', content: description },
+    { name: 'twitter:url', content: siteUrl },
+    { name: 'twitter:image', content: imageUrl },
+    { name: 'twitter:image:alt', content: 'Lattice' },
+  ],
+  links: [{ rel: 'canonical', href: siteUrl }],
+}
+
 const FEATURES = [
   {
     icon: CloudUploadIcon,
@@ -69,7 +103,7 @@ export function LandingPage() {
     <div className="fieldnotes-canvas min-h-dvh text-foreground">
       <header className="border-b border-border px-5 sm:px-10">
         <div className="mx-auto flex min-h-20 max-w-[1200px] items-center justify-between gap-4">
-          <Link to="/landing" className="flex min-h-11 items-center gap-3">
+          <Link to="/" className="flex min-h-11 items-center gap-3">
             <LogoMark />
             <span className="text-2xl font-semibold tracking-[-0.05em]">
               Lattice<span className="text-primary-ink">.</span>
